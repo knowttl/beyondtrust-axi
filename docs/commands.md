@@ -130,7 +130,7 @@ beyondtrust-axi task status --id <uuid> --fields task
 
 ## computer authorise
 
-Preview computer authorise; positional computer UUIDs required (maximum 20); POST /v3/Computers/Authorise; requires file-profile permission for computer.authorise; sends once without retries.
+Preview computer authorise; provide 1-20 explicit computer UUIDs or a non-empty computer-list filter selection; filter preview counts matches and shows the first 20 hosts with no maximum count; filter execution requires exact count-bearing confirmation; POST /v3/Computers/Authorise; requires file-profile permission for computer.authorise; sends once without retries.
 
 | Flag | Meaning |
 |---|---|
