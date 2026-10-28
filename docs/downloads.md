@@ -5,7 +5,7 @@ For permission gates, content limits and output fields, see [Safety](../README.m
 Downloads stream through the originally created private file handle without reopening the destination by pathname.
 Success metadata bypasses the usual string preview limit, so the resolved absolute path remains complete without --full, with secret-derived strings redacted.
 
-On Windows, downloads require powershell.exe and its .NET Framework FileStream support for creation with a FileSecurity descriptor.
+On Windows, downloads require Windows PowerShell and its .NET Framework FileStream support for creation with a FileSecurity descriptor.
 The file is created exclusively with a protected DACL granting FullControl only to the current user, SYSTEM and Administrators, with no inherited entries.
 That DACL and ownership are verified through the same open handle before authentication or download requests; the handle denies sharing until closed.
 The offline tests in [test/downloads.test.ts](../test/downloads.test.ts) exercise the Windows creation, ACL and sharing behavior only when run on Windows.
