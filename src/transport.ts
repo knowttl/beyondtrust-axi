@@ -136,22 +136,28 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     }
   return {
     get: (path: string) => get(path),
-    async write(path: string, body?: unknown, options: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer } = {}): Promise<unknown> {
+    async write(path: string, body?: unknown, options: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer; policyFile?: Buffer } = {}): Promise<unknown> {
       const method = options.method ?? "POST";
       const computer = method === "POST" && /^\/v3\/Computers\/(?:Authorise|Reject|archive|Unarchive|Logs\/Request|Details\/Request|[0-9a-f-]{36}\/(?:archive|Unarchive))$/.test(path);
       const group = method === "POST" ? /^\/v3\/Groups(?:\/(?:AssignPolicyToMultipleGroups|bulkclearpolicy|UnassignComputers|[0-9a-f-]{36}\/(?:AssignPolicyRevision|AssignComputers|AssignComputersByCsv)))?$/.test(path)
         : method === "PUT" ? path === "/v3/Groups" : /^\/v3\/Groups\/[0-9a-f-]{36}\/(?:MarkAsDefault|ClearPolicy)$/.test(path);
-      if ((!computer && !group) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
+      const policyUpload = method === "POST" && /^\/v3\/Policies(?:\/[0-9a-f-]{36}\/Upload)?$/.test(path);
+      const policyApps = method === "POST" && /^\/PolicyEditor\/v3\/Policy\/[0-9a-f-]{36}\/(?:Windows|MacOS)\/ApplicationGroups\/Applications$/.test(path);
+      const autoAssign = method === "POST" && path === "/v3/Groups/AutoAssignPolicyRevision";
+      const policy = policyUpload || policyApps || autoAssign || (method === "PUT" && /^\/v3\/Policies\/[0-9a-f-]{36}$/.test(path));
+      if ((!computer && !group && !policy) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path)) || (policyUpload !== (options.policyFile !== undefined))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
       // Re-reads authenticate first. Never refresh or retry after entering the write path.
       if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
       const boundary = `beyondtrust-axi-${randomUUID()}`;
-      const contentType = options.csv ? `multipart/form-data; boundary=${boundary}` : "application/json";
-      const payload = options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
+      const contentType = options.csv || options.policyFile ? `multipart/form-data; boundary=${boundary}` : "application/json";
+      const payload = options.policyFile ? Object.entries(body as Record<string, unknown>).filter(([key, value]) => key !== "PolicyFile" && value !== undefined).map(([key, value]) => `--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`).join("") + `--${boundary}\r\nContent-Disposition: form-data; name="PolicyFile"; filename="policy.xml"\r\nContent-Type: application/xml\r\n\r\n${options.policyFile.toString("utf8")}\r\n--${boundary}--\r\n`
+        : options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
       const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
       if (response.status < 200 || response.status >= 300) failure(response.status);
       const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
       const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
-      if (((response.status === 201 || assignment) && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      const appResult = z.object({ revisionId: uuid, created: z.array(uuid).nullable().optional(), deleted: z.array(uuid).nullable().optional() });
+      if ((policyApps ? !appResult.safeParse(response.data).success : (response.status === 201 || assignment || autoAssign) && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
       return redactor.value(response.data ?? null);
     },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,

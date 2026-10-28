@@ -17,6 +17,7 @@ B5 adds 11 event, audit and JIT request reads.
 B6 adds four raw-byte downloads for computer logs, policies, policy revisions and the API definition.
 B7 adds the write coordinator and computer authorise, reject, archive, unarchive, logs request and details request commands, covering eight POST operations.
 B8 adds group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers and remove-computers through the coordinator, covering ten operations.
+B9 adds policy create, update, upload, auto-assign and Windows/macOS app add through the coordinator, covering six operations.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -68,6 +69,7 @@ Skill commands use npx for the future published package; until release, use the 
 | group | List and detail | API read | [Commands](docs/commands.md) |
 | group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers, remove-computers | Preview or send a group change once | Gated write | [Commands](docs/commands.md) |
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
+| policy create, update, upload, auto-assign, app add | Preview or send a policy change once | Gated write | [Commands](docs/commands.md) |
 | user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
 | api-account, auth-provider | List API accounts and show authentication provider configuration | API read | [Commands](docs/commands.md) |
 | scim | Resource types, schemas, service configuration, users and roles | API read | [Commands](docs/commands.md) |
@@ -152,6 +154,13 @@ Remove-computers changes only group membership; the computers remain and this op
 Import-computers accepts a non-empty UTF-8 CSV file without NUL bytes up to 10 MiB, binds its SHA-256 into confirmation and sends its captured bytes as multipart csvFile; see the [file protection requirements](docs/configuration.md).
 Group confirmations bind the intended change and re-read state of existing target groups, so a changed target group or input file requires a new preview.
 Create reads the group collection filtered by the requested name because it has no existing target group.
+Policy writes use the same gates with exact operation names derived by replacing command spaces with dots.
+Create and upload capture a secure non-empty UTF-8 policy file up to 10 MiB and bind its SHA-256 into confirmation; the journal records size and digest, and the multipart request sends the captured bytes under PolicyFile with a fixed filename.
+Policy update preserves omitted name or description fields and previews the diff.
+Auto-assign requires a revision belonging to the policy and binds its revision and assigned-group re-reads into confirmation; upload --auto-assign also previews assigned groups.
+App add requires --os windows|macos, --app-group and --file containing a non-empty JSON array of application payloads using the committed export's lowercase field names, for example `[{"type":"exe","description":"example","fileName":{"matchType":"Exact","value":"<executable-name>"}}]` for Windows.
+Application types and matcher schemas are validated locally; unsupported Windows matchers and any unknown fields or delete payloads are refused.
+The app request wraps these additions in the documented applicationData envelope for the selected group, and binds the file digest, policy and application-group re-reads into confirmation.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.

@@ -2,6 +2,7 @@ import { resourceReadDefinition } from "./resource-reads.js";
 import { downloads } from "./downloads.js";
 import { computerWrites, computerWriteFilters } from "./computer-writes.js";
 import { groupWrites } from "./group-writes.js";
+import { policyWrites } from "./policy-writes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -46,6 +47,17 @@ export const resourceReads = Object.fromEntries(Object.entries({
   "auth-request show": "/v3/AuthorizationRequest/{systemId}",
 }).map(([command, path]) => [command, resourceReadDefinition(command, path)]));
 export const catalogue = {
+  ...Object.fromEntries(Object.entries(policyWrites).map(([name, routes]) => [name, {
+    description: `Preview ${name}; ${routes.map(({ method, path }) => `${method} ${path}`).join(" or ")}; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation.`,
+    flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; re-read and file digest must still match",
+      ...(["policy create", "policy update"].includes(name) ? { name: "Policy name (required for create)", description: "Policy description" } : {}),
+      ...(["policy create", "policy upload", "policy app add"].includes(name) ? { file: name === "policy app add" ? "Required JSON array of additions using the committed OS application payload schema; no delete or request envelope; supported types: Windows bat|com|cpl|exe|msc|msi|ps1|reg|rpsc|rpss|unex|wsh, macOS bin|bund|pkg|scr|sudo|pref; maximum 10 MiB" : "Required policy XML file; maximum 10 MiB" } : {}),
+      ...(name === "policy upload" ? { "auto-assign": "Assign the new revision to the policy's groups (default: false)" } : {}),
+      ...(name === "policy auto-assign" ? { revision: "Required revision UUID belonging to this policy" } : {}),
+      ...(name === "policy app add" ? { os: "Required windows|macos", "app-group": "Required application group UUID in the policy" } : {}),
+    },
+    examples: [`beyondtrust-axi ${name} --help`, `beyondtrust-axi ${name}${name === "policy create" ? " --name example --file <policy-file>" : name === "policy app add" ? " <policy-uuid> --os windows --app-group <uuid> --file <apps-file>" : ` <policy-uuid>${name === "policy update" ? " --name example" : name === "policy upload" ? " --file <policy-file>" : " --revision <uuid>"}`}`],
+  }])),
   home: { description: "Show local context without resolving secrets or making API calls", flags, examples: ["beyondtrust-axi", "beyondtrust-axi home --profile <name>"] },
   "auth status": { description: "Validate local credential readiness without API calls", flags, examples: ["beyondtrust-axi auth status", "beyondtrust-axi auth status --profile <name>"] },
   "profile list": { description: "List named file profiles without resolving secrets", flags, examples: ["beyondtrust-axi profile list", "beyondtrust-axi profile list --config <path>"] },

@@ -4,6 +4,7 @@ import { resourceReads } from "../dist/src/catalogue.js";
 import { downloads } from "../dist/src/downloads.js";
 import { computerWrites } from "../dist/src/computer-writes.js";
 import { groupWrites } from "../dist/src/group-writes.js";
+import { policyWrites } from "../dist/src/policy-writes.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root));
@@ -17,7 +18,7 @@ const operations = Object.entries(spec.paths).flatMap(([path, methods]) => Objec
 const recorded = coverage.map(({ method, path }) => `${method} ${path}`).sort();
 const counts = Object.fromEntries(["read", "download", "write", "delete", "not-built"].map((kind) => [kind, coverage.filter((row) => row.classification === kind).length]));
 const implemented = ["/v3/About", "/v3/Tasks/{id}", ...Object.values(resourceReads).flatMap(({ path, variants }) => [path, ...Object.values(variants ?? {})]), ...Object.values(downloads)];
-const implementedWrites = [...Object.values(computerWrites).flat().map((path) => `POST ${path}`), ...Object.values(groupWrites).flat().map(({ method, path }) => `${method} ${path}`)];
+const implementedWrites = [...Object.values(computerWrites).flat().map((path) => `POST ${path}`), ...[...Object.values(groupWrites), ...Object.values(policyWrites)].flat().map(({ method, path }) => `${method} ${path}`)];
 if (process.argv.slice(2).some((arg) => arg !== "--check")
   || createHash("sha256").update(bytes).digest("hex") !== pin.sha256
   || pin.originalSha256 !== "02e50021358738930d6f009c78e8330f67a37a4bfd761e182f870b592cfe042f"
