@@ -8,6 +8,24 @@ function fixture() { const f = localFixture(); fixtures.push(f); return f; }
 afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
 const page = (data: unknown[], pageNumber = 1, pageSize = 50, totalRecordCount = data.length, pageCount = 1) => ({ data, pageNumber, pageSize, totalRecordCount, pageCount });
 
+test.each([
+  "computer list", "computer view", "computer command-log", "computer logs",
+  "group list", "group view", "policy list", "policy view", "policy revisions",
+  "policy assigned-groups", "policy windows-application-groups", "policy macos-application-groups",
+])("%s help exposes only the public command reference", async (command) => {
+  const f = fixture();
+  f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";
+  const cloud = fakeCloud();
+  const result = await f.run([...command.split(" "), "--help"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(result.data).toEqual({
+    command, description: expect.any(String),
+    flags: expect.objectContaining({ help: "Show command help", profile: expect.any(String) }),
+    examples: expect.arrayContaining([`beyondtrust-axi ${command} --help`]),
+  });
+  expect(cloud.calls).toHaveLength(0);
+});
+
 // Each case cites GET plus the exact path in inventory/swagger.json; omitted model fields are optional.
 test.each([
   ["computer list", "/v3/Computers", page([{ id, host: "example" }]), [{ id, host: "example" }]],
@@ -154,6 +172,18 @@ test.each([
   ["computer list", page([{ host: 42 }])], ["group list", page([], 2)],
   ["policy list", page([], 1, 50, 100, 2)], ["computer view", []],
   ["policy revisions", [{ revision: "bad" }]], ["computer command-log", {}],
+  ["computer list", { ...page([]), unexpected: true }],
+  ["computer list", page([{ id, Host: "example" }])],
+  ["group list", page([{ id, Name: "example" }])],
+  ["policy list", page([{ id, Name: "example" }])],
+  ["computer view", { id, endpointInformation: { SystemName: "example" } }],
+  ["computer logs", [{ id, Returned: null }]],
+  ["policy revisions", [{ id, Revision: 1 }]],
+  ["policy assigned-groups", [{ id, IsDefault: false }]],
+  ["policy windows-application-groups", [{ Id: id, Name: "example", Description: "example", Hidden: false, Applications: [] }]],
+  ["policy macos-application-groups", [{ Id: id, Name: "example", Description: "example", Hidden: false, Applications: [] }]],
+  ["policy windows-application-groups", [{ id, applications: [{ Id: id, Description: "example", Type: "exe", Disabled: false }] }]],
+  ["policy macos-application-groups", [{ id, applications: [{ Id: id, Description: "example", Type: "sudo", Disabled: false }] }]],
 ])("rejects malformed successful resource responses: %s", async (command, body) => {
   const f = fixture();
   const args = command.split(" "); if (!command.endsWith(" list")) args.push("--id", id);

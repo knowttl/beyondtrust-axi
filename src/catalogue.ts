@@ -23,6 +23,6 @@ export const catalogue = {
   doctor: { description: "Verify credentials and API access with a bounded About read", flags, examples: ["beyondtrust-axi doctor", "beyondtrust-axi doctor --profile <name>"] },
   about: { description: "Read API versions (GET /v3/About)", flags, examples: ["beyondtrust-axi about", "beyondtrust-axi about --profile <name>"] },
   "task status": { description: "Read task detail (GET /v3/Tasks/{id}); a write result is not assumed to be a task ID", flags: { ...flags, id: "Required task UUID" }, examples: ["beyondtrust-axi task status --id <uuid>", "beyondtrust-axi task status --id <uuid> --fields task"] },
-  ...Object.fromEntries(Object.entries(resourceReads).map(([name, entry]) => [name, { ...entry, flags: { ...flags, ...entry.flags } }])),
+  ...Object.fromEntries(Object.entries(resourceReads).map(([name, entry]) => [name, { description: entry.description, flags: { ...flags, ...entry.flags }, examples: entry.examples }])),
 };
 export function help() { return { description: DESCRIPTION, commands: Object.entries(catalogue).map(([command, entry]) => ({ command, description: entry.description })), help: ["Run beyondtrust-axi <command> --help for flags and examples"] }; }

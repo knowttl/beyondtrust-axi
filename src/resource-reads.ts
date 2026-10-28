@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { SecretRedactor } from "./redact.js";
 
 // The committed export owns parameter types and response shapes, including nullable fields.
-export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; items?: Schema; minimum?: number; maximum?: number };
+export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
 const spec = JSON.parse(readFileSync(join(dirname(createRequire(import.meta.url).resolve("@knowttl/beyondtrust-axi/inventory")), "swagger.json"), "utf8")) as {
   paths: Record<string, { get?: { parameters?: { name: string; in: string; schema: Schema }[]; responses: Record<string, { content?: Record<string, { schema: Schema }> }> } }>;
   components: { schemas: Record<string, Schema> };
@@ -18,7 +18,10 @@ function validator(input: Schema): z.ZodType {
   const s = resolved(input);
   let result: z.ZodType;
   if (s.enum) result = z.enum(s.enum as [string, ...string[]]);
-  else if (s.type === "object") result = z.object(Object.fromEntries(Object.entries(s.properties ?? {}).map(([key, value]) => [key, validator(value).optional()])));
+  else if (s.type === "object") {
+    const shape = Object.fromEntries(Object.entries(s.properties ?? {}).map(([key, value]) => [key, validator(value).optional()]));
+    result = s.additionalProperties === false ? z.strictObject(shape) : z.object(shape);
+  }
   else if (s.type === "array") result = z.array(validator(s.items!));
   else if (s.type === "integer") result = z.number().int().min(s.minimum ?? -2147483648).max(s.maximum ?? 2147483647);
   else if (s.type === "number") result = z.number().finite();
