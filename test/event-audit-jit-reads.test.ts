@@ -115,6 +115,41 @@ test("event search sends literal filters and accepts an exact 31 day window", as
 });
 
 test.each([
+  ["list", []],
+  ["search", ["--os", "Windows"]],
+])("event %s redacts duplicate credentials in full URL representations", async (action, args) => {
+  const url = { password: "synthetic-url+/password", full: "https://user:synthetic-url%2B%2Fpassword@example.test/", original: "https://user:synthetic-url+/password@example.test/" };
+  const indicatorUrl = { password: "synthetic-indicator-password", full: "https://user:synthetic-indicator-password@example.test/", original: "https://user:synthetic-indicator-password@example.test/" };
+  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(events([
+    { url: { full: url.full } },
+    { url, threat: { indicator: { url: indicatorUrl } } },
+  ]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([
+    { url: { full: "https://user:***redacted***@example.test/" } },
+    {
+      url: { full: "https://user:***redacted***@example.test/", original: "https://user:***redacted***@example.test/" },
+      threat: { indicator: { url: { full: "https://user:***redacted***@example.test/", original: "https://user:***redacted***@example.test/" } } },
+    },
+  ]);
+});
+
+test.each([
+  ["list", []],
+  ["search", ["--os", "Windows"]],
+])("event %s redacts compact copies before truncation using omitted credential fields", async (action, args) => {
+  const result = await fixture().run(["event", action as string, ...args as string[], "--limit", "2"], {}, fakeCloud(response(token), response(events([
+    { process: { name: `${"x".repeat(490)}synthetic-compact-password` } },
+    { threat: { indicator: { url: { password: "synthetic-compact-password" } } } },
+  ]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([
+    { time: null, host: null, user: null, action: null, code: null, application: `${"x".repeat(490)}***redacte... (truncated, 504 chars total)`, rule: null },
+    { time: null, host: null, user: null, action: null, code: null, application: null, rule: null },
+  ]);
+});
+
+test.each([
   ["show", []],
   ["show", ["--full"]],
   ["details", []],
@@ -129,10 +164,11 @@ test.each([
     },
     reputationSettingsDataAuditing: { oldReputationIntegrationApiKey: "synthetic-old-reputation-key", reputationIntegrationApiKey: "synthetic-reputation-key", reputationIntegrationEnabled: true },
   };
+  const copies = { id: 2, details: Object.values(row.azureADIntegrationDataAuditing).concat(Object.values(row.authorizationRequestDataAuditing), Object.values(row.reputationSettingsDataAuditing)).join(" ") };
   const args = action === "show" ? ["--id", "1"] : [];
-  const result = await fixture().run(["audit", "activity", action as string, ...args, ...flags as string[]], {}, fakeCloud(response(token), response(page([row]))));
+  const result = await fixture().run(["audit", "activity", action as string, ...args, ...flags as string[]], {}, fakeCloud(response(token), response(page([copies, row]))));
   expect(result.code).toBe(0);
-  expect(result.data.data).toEqual([{
+  expect(result.data.data).toEqual([{ id: 2, details: "***redacted*** ***redacted*** true ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** true ***redacted*** ***redacted*** true" }, {
     id: 1,
     azureADIntegrationDataAuditing: { azureAdIntegrationEnabled: true },
     authorizationRequestDataAuditing: { authRequestIntegrationEnabled: true },

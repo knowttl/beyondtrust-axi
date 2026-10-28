@@ -65,9 +65,13 @@ export function resourceReadDefinition(command: string, path: string) {
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
 function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
 const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
-function withoutCredentials(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(withoutCredentials);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) => !credentialFields.has(key)).map(([key, child]) => [key, withoutCredentials(child)]));
+function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
+  if (Array.isArray(value)) return value.map((child) => withoutCredentials(child, redactor));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key, child]) => {
+    if (!credentialFields.has(key)) return true;
+    if (typeof child === "string") redactor.add(child);
+    return false;
+  }).map(([key, child]) => [key, withoutCredentials(child, redactor)]));
   return value;
 }
 const cursorSchema = z.strictObject({ version: z.literal(1), binding: z.string(), page: z.number().int().min(1).max(2147483647), size: z.number().int().min(1).max(200), offset: z.number().int().nonnegative().max(2147483647), since: z.string().optional(), until: z.string().optional() });
@@ -164,10 +168,10 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
         const parsed = schema ? validator(schema).safeParse(raw) : undefined;
         if (parsed && !parsed.success) badResponse();
-        const value = parsed?.success ? parsed.data : raw;
+        const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {
           if (!value || typeof value !== "object" || Array.isArray(value)) badResponse();
-          return { data: withoutCredentials(value) };
+          return { data: value };
         }
         let rows: unknown[];
         if (definition.events) {
@@ -206,7 +210,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (offset > rows.length) badResponse();
         const taken = rows.slice(offset, offset + limit - data.length);
         data.push(...taken.map((row) => {
-          if (!definition.events || flags.has("--full")) return withoutCredentials(row);
+          if (!definition.events || flags.has("--full")) return row;
           const e = row as { "@timestamp"?: string; host?: { name?: string }; user?: { name?: string }; event?: { action?: string; code?: string }; process?: { name?: string }; file?: { name?: string }; rule?: { name?: string } };
           return { time: e["@timestamp"] ?? null, host: e.host?.name ?? null, user: e.user?.name ?? null, action: e.event?.action ?? null, code: e.event?.code ?? null, application: e.process?.name ?? e.file?.name ?? null, rule: e.rule?.name ?? null };
         })); offset += taken.length;
