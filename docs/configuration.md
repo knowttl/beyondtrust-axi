@@ -40,7 +40,6 @@ Secret files strip a BOM and trailing whitespace; secrets and their escaped/enco
 | BEYONDTRUST_AXI_CLIENT_ID | Environment profile client ID | Required with host and secret |
 | BEYONDTRUST_AXI_CLIENT_SECRET | Default secret source | Required for env profile |
 | BEYONDTRUST_AXI_READ_ONLY | Forced read-only: 1/true, 0/false | Unset |
-| BEYONDTRUST_AXI_WRITE_LOG | Future journal path override | State directory writes.log |
 | XDG_CONFIG_HOME | Absolute Unix config base | ~/.config |
 | XDG_STATE_HOME | Absolute Unix state base | ~/.local/state |
 | APPDATA | Absolute Windows config base | ~/AppData/Roaming |
