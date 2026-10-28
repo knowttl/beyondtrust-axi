@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import * as fsPromises from "node:fs/promises";
 import { join } from "node:path";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+import { windowsAcl } from "../src/private-file.js";
 import { localFixture } from "./support/local-cli.js";
 import { fakeCloud, response, token } from "./support/fake-pm-cloud.js";
 import type { HttpResponse } from "../src/transport.js";
@@ -15,7 +17,7 @@ function fixture(allow = true) {
   fixtures.push(f);
   return { ...f, out: join(f.directory, "download.bin") };
 }
-afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
+afterEach(() => { vi.restoreAllMocks(); for (const f of fixtures.splice(0)) f.cleanup(); });
 function raw(...chunks: Uint8Array[]): HttpResponse {
   return { status: 200, headers: new Headers({ "content-type": "application/octet-stream" }), body: (async function* () { yield* chunks; })() };
 }
@@ -35,6 +37,7 @@ test.each([
   expect(result.data).toEqual({ path: f.out, size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"), contentType: "application/octet-stream" });
   expect(readFileSync(f.out)).toEqual(bytes);
   if (process.platform !== "win32") expect(statSync(f.out).mode & 0o777).toBe(0o600);
+  else expect(() => windowsAcl(f.out, true)).not.toThrow();
   expect(cloud.calls[1]!.url.pathname).toBe(`/management-api${path}`);
   expect(result.output).not.toContain(token.access_token);
 });
@@ -103,6 +106,30 @@ test("removes partially streamed output after transport failure", async () => {
   const stream: HttpResponse = { status: 200, headers: new Headers(), body: (async function* () { yield Buffer.from("partial"); throw new Error(f.env.SYNTHETIC_SECRET); })() };
   const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), stream));
   expect(result.data).toMatchObject({ error: { code: "TRANSPORT_ERROR" } });
+  expect(existsSync(f.out)).toBe(false);
+  expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
+});
+
+test.each([
+  ["computer", "log", "download", id],
+  ["policy", "download", id],
+  ["policy", "revision", "download", id],
+  ["api-definition", "download"],
+])("reports destination write failure and removes partial output: %j", async (...args) => {
+  const f = fixture();
+  const open = fsPromises.open;
+  vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
+    const file = await open(...parameters);
+    vi.spyOn(file, "writeFile").mockImplementationOnce(async () => {
+      await file.write(Buffer.from("partial"));
+      throw new Error(f.env.SYNTHETIC_SECRET);
+    });
+    return file;
+  });
+  const cloud = fakeCloud(response(token), raw(Buffer.from("complete")));
+  const result = await f.run([...args, "--out", f.out], {}, cloud);
+  expect(result.code).toBe(1);
+  expect(result.data).toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
   expect(existsSync(f.out)).toBe(false);
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });

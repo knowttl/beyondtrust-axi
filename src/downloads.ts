@@ -22,7 +22,8 @@ export function prepareDownload(template: string, id: string | undefined, out: s
     let size = 0;
     const contentType = await client.download(route, async (body) => {
       for await (const chunk of body) {
-        await file.writeFile(chunk);
+        try { await file.writeFile(chunk); }
+        catch { throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]); }
         hash.update(chunk);
         size += chunk.byteLength;
       }

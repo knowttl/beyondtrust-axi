@@ -5,11 +5,13 @@ import { homedir } from "node:os";
 import { isAbsolute, join, win32 } from "node:path";
 import { AxiError } from "axi-sdk-js";
 
-export type WindowsAcl = (path: string, verify: boolean) => void;
-export const windowsAcl: WindowsAcl = (path, verify) => {
+export type WindowsAcl = (path: string, verify: boolean, protect?: boolean) => void;
+export const windowsAcl: WindowsAcl = (path, verify, protect = false) => {
   const quoted = `'${path.replaceAll("'", "''")}'`;
   const script = `$ErrorActionPreference='Stop'; $p=${quoted}; $item=Get-Item -LiteralPath $p -Force; `
     + `if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse point' }; `
+    + (protect ? `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $acl=New-Object Security.AccessControl.FileSecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); `
+      + `foreach ($s in @($sid.Value,'S-1-5-18','S-1-5-32-544')) { $identity=New-Object Security.Principal.SecurityIdentifier($s); $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow'); $acl.AddAccessRule($rule) }; Set-Acl -LiteralPath $p -AclObject $acl; ` : "")
     + (verify ? `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $allowed=@($sid.Value,'S-1-5-18','S-1-5-32-544'); `
       + `$acl=Get-Acl -LiteralPath $p; if (!$acl.AreAccessRulesProtected -or ($acl.Owner -ne $sid.Translate([Security.Principal.NTAccount]).Value -and $acl.Owner -ne $sid.Value)) { throw 'Unprotected ACL' }; `
       + `$seen=@(); foreach ($r in $acl.Access) { $s=$r.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value; if ($s -notin $allowed -or $r.IsInherited -or $r.AccessControlType -ne 'Allow' -or $r.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl) { throw 'Unexpected ACL' }; $seen+=$s }; foreach ($s in $allowed) { if ($s -notin $seen) { throw 'Missing ACL' } }` : "");
@@ -31,7 +33,7 @@ export async function newPrivateFile<T>(path: string, write: (file: Awaited<Retu
   try { file = await open(path, "wx", 0o600); }
   catch { throw new AxiError("Cannot create a new download file", "DOWNLOAD_FILE_ERROR", ["Choose a new --out path in an existing writable directory"]); }
   try {
-    if (process.platform === "win32") windowsAcl(path, true);
+    if (process.platform === "win32") windowsAcl(path, true, true);
     else await file.chmod(0o600);
     const result = await write(file);
     await file.sync();
