@@ -8,6 +8,241 @@ Local discovery commands remain offline.
 Lists default to 50 rows; --all caps at 1000 rows within shared request, time and byte budgets.
 Resume a non-null cursor with the same profile, command, ID, filters and sort.
 
+## user create
+
+Preview user create; POST /v3/Users; requires file-profile permission for user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching V3CreateUserRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi user create --file <input.json>
+beyondtrust-axi user create --help
+```
+
+## user update
+
+Preview user update; PUT /v3/Users/{id}; requires file-profile permission for user.update; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching ModifyUserRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi user update <uuid> --file <input.json>
+beyondtrust-axi user update --help
+```
+
+## user preferences set
+
+Preview user preferences set; PUT /v3/Users/{id}/ModifyUserPreferences; requires file-profile permission for user.preferences; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching ModifyUserPreferencesRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi user preferences set <uuid> --file <input.json>
+beyondtrust-axi user preferences set --help
+```
+
+## user assign-roles
+
+Preview user assign-roles; POST /v3/Users/{id}/AssignRoles; requires file-profile permission for user.assign-roles; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching V3AssignUserToRolesRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi user assign-roles <uuid> --file <input.json>
+beyondtrust-axi user assign-roles --help
+```
+
+## user disable
+
+Preview user disable; PATCH /v3/Users/{id}/Disable; requires file-profile permission for user.disable; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+
+```sh
+beyondtrust-axi user disable <uuid>
+beyondtrust-axi user disable --help
+```
+
+## user enable
+
+Preview user enable; PATCH /v3/Users/{id}/Enable; requires file-profile permission for user.enable; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+
+```sh
+beyondtrust-axi user enable <uuid>
+beyondtrust-axi user enable --help
+```
+
+## user resend-invite
+
+Preview user resend-invite; PATCH /v3/Users/{id}/ResendInvite; requires file-profile permission for user.resend-invite; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Sends an invitation email..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+
+```sh
+beyondtrust-axi user resend-invite <uuid>
+beyondtrust-axi user resend-invite --help
+```
+
+## domain create
+
+Preview domain create; POST /v3/AcceptedDomains; requires file-profile permission for domain.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+
+```sh
+beyondtrust-axi domain create <domain>
+beyondtrust-axi domain create --help
+```
+
+## domain update
+
+Preview domain update; PUT /v3/AcceptedDomains/{id}; requires file-profile permission for domain.update; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+
+```sh
+beyondtrust-axi domain update <uuid> <domain>
+beyondtrust-axi domain update --help
+```
+
+## scim user create
+
+Preview scim user create; POST /scim/v3/users; requires file-profile permission for scim.user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Deactivation is identified in the preview..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching ScimUserModelV3 in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi scim user create --file <input.json>
+beyondtrust-axi scim user create --help
+```
+
+## scim user replace
+
+Preview scim user replace; PUT /scim/v3/users/{userID}; requires file-profile permission for scim.user.replace; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Deactivation is identified in the preview..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching ScimUserModelV3 in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi scim user replace <uuid> --file <input.json>
+beyondtrust-axi scim user replace --help
+```
+
+## scim user patch
+
+Preview scim user patch; PATCH /scim/v3/users/{userID}; requires file-profile permission for scim.user.patch; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Deactivation is identified in the preview..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching ScimUserPatchRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+beyondtrust-axi scim user patch <uuid> --file <input.json>
+beyondtrust-axi scim user patch --help
+```
+
 ## policy create
 
 Preview policy create; POST /v3/Policies; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..

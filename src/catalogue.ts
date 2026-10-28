@@ -3,6 +3,7 @@ import { downloads } from "./downloads.js";
 import { computerWrites, computerWriteFilters } from "./computer-writes.js";
 import { groupWrites } from "./group-writes.js";
 import { policyWrites } from "./policy-writes.js";
+import { identityWrites } from "./identity-writes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -47,6 +48,11 @@ export const resourceReads = Object.fromEntries(Object.entries({
   "auth-request show": "/v3/AuthorizationRequest/{systemId}",
 }).map(([command, path]) => [command, resourceReadDefinition(command, path)]));
 export const catalogue = {
+  ...Object.fromEntries(Object.entries(identityWrites).map(([name, route]) => [name, {
+    description: `Preview ${name}; ${route.method} ${route.path}; requires file-profile permission for ${route.operation ?? name.replaceAll(" ", ".")}; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. ${name === "user resend-invite" ? "Sends an invitation email." : name.startsWith("scim") ? "Deactivation is identified in the preview." : ""}`,
+    flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; state and file digest must still match", ...(route.schema ? { file: `Required secure UTF-8 JSON matching ${route.schema} in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation` } : {}) },
+    examples: [`beyondtrust-axi ${name}${name.endsWith(" create") ? "" : " <uuid>"}${name.startsWith("domain ") ? " <domain>" : route.schema ? " --file <input.json>" : ""}`, `beyondtrust-axi ${name} --help`],
+  }])),
   ...Object.fromEntries(Object.entries(policyWrites).map(([name, routes]) => [name, {
     description: `Preview ${name}; ${routes.map(({ method, path }) => `${method} ${path}`).join(" or ")}; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON.`,
     flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; re-read and file digest must still match",

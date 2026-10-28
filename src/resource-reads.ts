@@ -66,7 +66,7 @@ export function resourceReadDefinition(command: string, path: string) {
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
 function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
 const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
-function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
+export function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
   if (typeof value === "string") {
     const url = value.startsWith("//") ? `https:${value}` : value;
     if (URL.canParse(url)) {

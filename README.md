@@ -18,6 +18,7 @@ B6 adds four raw-byte downloads for computer logs, policies, policy revisions an
 B7 adds the write coordinator and computer authorise, reject, archive, unarchive, logs request and details request commands, covering eight POST operations.
 B8 adds group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers and remove-computers through the coordinator, covering ten operations.
 B9 adds policy create, update, upload, auto-assign and Windows/macOS app add through the coordinator, covering six operations.
+B10 adds twelve user, accepted-domain and SCIM write operations through the coordinator.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -71,6 +72,7 @@ Skill commands use npx for the future published package; until release, use the 
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
 | policy create, update, upload, auto-assign, app add | Preview or send a policy change once | Gated write | [Commands](docs/commands.md) |
 | user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
+| user create, update, preferences set, assign-roles, disable, enable, resend-invite; domain create, update; scim user create, replace, patch | Preview or send an identity change once | Gated write | [Commands](docs/commands.md) |
 | api-account, auth-provider | List API accounts and show authentication provider configuration | API read | [Commands](docs/commands.md) |
 | scim | Resource types, schemas, service configuration, users and roles | API read | [Commands](docs/commands.md) |
 | event | Compact ECS events from a start date or filtered window | API read | [Commands](docs/commands.md) |
@@ -163,6 +165,13 @@ App add requires --os windows|macos, --app-group and --file containing a non-emp
 Application types and matcher schemas are validated locally; unsupported Windows matchers and any unknown fields or delete payloads are refused.
 The app request wraps these additions in the documented applicationData envelope for the selected group, and binds the file digest, policy and application-group re-reads into confirmation.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
+Identity writes use the same gates and positional target UUIDs; creation reads the corresponding collection before preview or send.
+User and SCIM payloads come from secure UTF-8 JSON files up to 10 MiB and must match the committed request schemas, including their lowercase property names.
+For example, user assign-roles accepts `{"globalRolesIds":["<role-uuid>"]}` and scim user patch accepts `{"operations":[{"op":"replace","path":"active","value":[{"valueBoolean":false}]}]}`.
+File digests and re-read state are bound into confirmation; SCIM passwords are redacted from previews, results and durable intent.
+User create previews the roles and admin flag; resend-invite warns that it sends email, and SCIM deactivation warns that it deactivates the user.
+The operation for user preferences set is `user.preferences`; other identity operation names replace command spaces with dots.
+Domain create takes a domain argument, and domain update takes a UUID followed by the new domain; both send the documented domainName property.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.
 On OUTCOME_UNKNOWN, reconcile remote state using the returned auditId before any further action; never replay an ambiguous write.
