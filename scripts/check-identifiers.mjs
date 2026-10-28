@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { computerWrites } from "../dist/src/computer-writes.js";
+import { groupWrites } from "../dist/src/group-writes.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const publicHosts = new Set([
@@ -9,7 +10,7 @@ const publicHosts = new Set([
   "img.shields.io", "www.npmjs.com",
   "docs.beyondtrust.com", "beyondtrustcloud.com", "example.pm.beyondtrustcloud.com", "example-services.pm.beyondtrustcloud.com",
 ]);
-const operationNames = new Set(Object.keys(computerWrites).map((command) => command.replaceAll(" ", ".")));
+const operationNames = new Set([...Object.keys(computerWrites), ...Object.keys(groupWrites)].map((command) => command.replaceAll(" ", ".")));
 
 export function identifierViolations(text) {
   const violations = [];

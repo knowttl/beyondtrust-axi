@@ -9,6 +9,7 @@ import { z } from "zod";
 import { prepareResourceRead } from "./resource-reads.js";
 import { downloads, prepareDownload } from "./downloads.js";
 import { computerWrites, prepareComputerWrite } from "./computer-writes.js";
+import { groupWrites, prepareGroupWrite } from "./group-writes.js";
 import { coordinateWrite, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
@@ -38,7 +39,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   let index = implicitHome ? 0 : name.split(" ").length;
   const definition = resourceReads[name];
   const writeIds: string[] = [];
-  if (computerWrites[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
+  if (computerWrites[name] || groupWrites[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
   const downloadTemplate = downloads[name];
   const downloadId = downloadTemplate?.includes("{") && argv[index] !== undefined && !argv[index]!.startsWith("--") ? argv[index++] : undefined;
   let type: "user" | "role" | undefined;
@@ -55,7 +56,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--execute"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--execute", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -65,11 +66,11 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (flags.has("--help")) return { command: name, ...entry };
   const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
   const resourceRead = prepareResourceRead(name, flags, definition, type);
-  const computerWrite = prepareComputerWrite(name, writeIds, flags);
+  const write = prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
-      : download ? ["path", "size", "sha256", "contentType"] : computerWrite ? ["status", "operation", "preview", "confirmation", "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
+      : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
@@ -78,12 +79,12 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
-  else if (computerWrite) {
+  else if (write) {
     const forcedReadOnly = store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));
-    requireWritePermission(profile, forcedReadOnly, computerWrite.operation);
+    requireWritePermission(profile, forcedReadOnly, write.operation);
     const client = readClient(profile, store.credentials(profile, true), store.redactor, transport, true);
-    result = await coordinateWrite({ operation: computerWrite.operation, execute: flags.has("--execute"), confirm: flags.get("--confirm"), statePath: store.statePath(), redactor: store.redactor, prepare: () => computerWrite.prepare(client), send: client.write });
+    result = await coordinateWrite({ operation: write.operation, execute: flags.has("--execute"), confirm: flags.get("--confirm"), statePath: store.statePath(), redactor: store.redactor, prepare: () => write.prepare(client), send: client.write });
   }
   else if (download) {
     store.readOnly();
@@ -132,7 +133,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
     return value;
   };
-  const projected = Object.fromEntries(fields.map((field) => [field, download || computerWrite ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
+  const projected = Object.fromEntries(fields.map((field) => [field, download || write ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
   if (truncated) projected.help = ["Repeat the command with --full to see complete strings"];
   return projected;
 }

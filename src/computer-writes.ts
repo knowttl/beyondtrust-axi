@@ -18,16 +18,40 @@ function invalid(message: string): never { throw new AxiError(message, "VALIDATI
 export function prepareComputerWrite(command: string, inputIds: string[], flags: Map<string, string>) {
   const paths = computerWrites[command];
   if (!paths) return undefined;
-  const ids = inputIds.map((id) => id.toLowerCase());
+  const selection = prepareComputerSelection(inputIds, flags, command.endsWith(" request"), command === "computer authorise");
+  const { ids, query, filter } = selection;
   const single = command.endsWith(" request");
-  const filterFlags = new Map([...flags].filter(([flag]) => Object.hasOwn(computerWriteFilters, flag.slice(2))));
-  const filtered = filterFlags.size > 0;
-  if ([...filterFlags.values()].some((value) => !value.trim())) invalid("Filter values must not be blank");
-  if (filtered && (command !== "computer authorise" || ids.length)) invalid("Filters are supported only for authorise and cannot be combined with IDs");
-  if (!filtered && (!ids.length || ids.length > (single ? 1 : 20) || new Set(ids).size !== ids.length || ids.some((id) => !uuid.safeParse(id).success))) invalid(single ? "Provide exactly one computer UUID" : "Provide 1 to 20 distinct computer UUIDs or an authorise filter selection");
   const group = flags.get("--group")?.toLowerCase();
   if (group !== undefined && !uuid.safeParse(group).success) invalid("--group must be a UUID");
   if (!flags.has("--execute") && flags.has("--confirm")) invalid("--confirm requires --execute");
+  const operation = command.replaceAll(" ", ".");
+  return {
+    operation,
+    async prepare(client: { get: (path: string) => Promise<unknown> }) {
+      if (group) {
+        const data = await client.get(`/v3/Groups/${group}`);
+        if (!z.object({ id: uuid }).safeParse(data).success || (data as { id: string }).id.toLowerCase() !== group) throw new AxiError("Invalid group re-read", "API_RESPONSE_INVALID");
+      }
+      const prepared = await selection.prepare(client);
+      let path = paths[0]!;
+      let body: unknown = single ? { computerId: ids[0] } : { computerIds: ids };
+      if (paths.length > 1) {
+        path = ids.length === 1 ? path.replace("{computerId}", ids[0]!) : paths[1]!;
+        if (ids.length === 1) body = undefined;
+      }
+      if (command === "computer authorise" || command === "computer reject") body = { ...(query ? { filter, allComputers: true } : { computerIds: ids, allComputers: false }), ...(group ? { groupId: group } : {}) };
+      return { path, body, confirmation: `${operation} ${prepared.confirmation}${group ? ` group ${group}` : ""}`, preview: { ...prepared.preview, ...(group ? { group } : {}) } };
+    },
+  };
+}
+
+export function prepareComputerSelection(inputIds: string[], flags: Map<string, string>, single = false, allowFilters = true) {
+  const ids = inputIds.map((id) => id.toLowerCase());
+  const filterFlags = new Map([...flags].filter(([flag]) => Object.hasOwn(computerWriteFilters, flag.slice(2))));
+  const filtered = filterFlags.size > 0;
+  if ([...filterFlags.values()].some((value) => !value.trim())) invalid("Filter values must not be blank");
+  if (filtered && (!allowFilters || ids.length)) invalid("Filters are not supported here or cannot be combined with IDs");
+  if (!filtered && (!ids.length || ids.length > (single ? 1 : 20) || new Set(ids).size !== ids.length || ids.some((id) => !uuid.safeParse(id).success))) invalid(single ? "Provide exactly one computer UUID" : "Provide 1 to 20 distinct computer UUIDs or a supported filter selection");
   const query = filtered ? prepareResourceRead("computer list", filterFlags, definition)!.query : undefined;
   const filter: Record<string, unknown> = {};
   if (query) for (const parameter of definition.filters) {
@@ -39,14 +63,9 @@ export function prepareComputerWrite(command: string, inputIds: string[], flags:
     const schema = parameter.schema;
     target[parts.at(-1)!] = schema.type === "array" ? values : schema.type === "integer" ? Number(values[0]) : schema.type === "boolean" ? values[0] === "true" : values[0];
   }
-  const operation = command.replaceAll(" ", ".");
   return {
-    operation,
+    ids, query, filter,
     async prepare(client: { get: (path: string) => Promise<unknown> }) {
-      if (group) {
-        const data = await client.get(`/v3/Groups/${group}`);
-        if (!z.object({ id: uuid }).safeParse(data).success || (data as { id: string }).id.toLowerCase() !== group) throw new AxiError("Invalid group re-read", "API_RESPONSE_INVALID");
-      }
       let count = ids.length;
       const hosts: string[] = [];
       if (query) {
@@ -61,15 +80,8 @@ export function prepareComputerWrite(command: string, inputIds: string[], flags:
         if (!parsed.success || parsed.data.id.toLowerCase() !== id) throw new AxiError("Invalid computer re-read", "API_RESPONSE_INVALID");
         hosts.push(parsed.data.endpointInformation?.systemDnsHostName ?? id);
       }
-      let path = paths[0]!;
-      let body: unknown = single ? { computerId: ids[0] } : { computerIds: ids };
-      if (paths.length > 1) {
-        path = ids.length === 1 ? path.replace("{computerId}", ids[0]!) : paths[1]!;
-        if (ids.length === 1) body = undefined;
-      }
-      if (command === "computer authorise" || command === "computer reject") body = { ...(query ? { filter, allComputers: true } : { computerIds: ids, allComputers: false }), ...(group ? { groupId: group } : {}) };
       const selection = query ? `filter ${count} computers ${JSON.stringify(filter)}` : ids.join(" ");
-      return { path, body, confirmation: `${operation} ${selection}${group ? ` group ${group}` : ""}`, preview: { count, hosts, ...(query ? { filter, warning: "The server re-applies this filter at execution; membership can change after this count. No maximum count is imposed." } : { ids }), ...(group ? { group } : {}) } };
+      return { confirmation: selection, preview: { count, hosts, ...(query ? { filter, warning: "The server re-applies this filter at execution; membership can change after this count. No maximum count is imposed." } : { ids }) } };
     },
   };
 }

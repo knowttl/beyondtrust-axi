@@ -20,8 +20,8 @@ export function requireWritePermission(profile: SelectedProfile, forcedReadOnly:
 
 export async function coordinateWrite(options: {
   operation: string; execute: boolean; confirm?: string; statePath: string; redactor: SecretRedactor;
-  prepare: () => Promise<{ path: string; body?: unknown; confirmation: string; preview: Record<string, unknown> }>;
-  send: (path: string, body?: unknown) => Promise<unknown>;
+  prepare: () => Promise<{ path: string; body?: unknown; method?: "POST" | "PUT" | "PATCH"; csv?: Buffer; confirmation: string; preview: Record<string, unknown> }>;
+  send: (path: string, body?: unknown, options?: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer }) => Promise<unknown>;
 }): Promise<Record<string, unknown>> {
   const plan = await options.prepare();
   const preview = options.redactor.value(plan.preview);
@@ -36,7 +36,7 @@ export async function coordinateWrite(options: {
     if (process.platform !== "win32" && (stat.uid !== process.getuid!() || (stat.mode & 0o077) !== 0)) throw new Error("Insecure journal directory");
     // Persist the intended request without API response text or credentials.
     await newPrivateFile(join(directory, `${auditId}.json`), async (file) => {
-      await file.writeFile(Buffer.from(JSON.stringify(options.redactor.value({ auditId, operation: options.operation, state: "intent", time: new Date().toISOString(), request: { path: plan.path, body: plan.body } }))));
+      await file.writeFile(Buffer.from(JSON.stringify(options.redactor.value({ auditId, operation: options.operation, state: "intent", time: new Date().toISOString(), request: { method: plan.method ?? "POST", path: plan.path, body: plan.body } }))));
     });
     if (process.platform !== "win32") {
       // Persist newly created ancestor entries as well as the journal entry itself.
@@ -49,7 +49,7 @@ export async function coordinateWrite(options: {
     }
   } catch { throw new AxiError("Cannot persist a private durable write intent", "JOURNAL_ERROR", ["Check the state directory permissions and storage; no write was sent"]); }
   try {
-    const result = await options.send(plan.path, plan.body);
+    const result = await options.send(plan.path, plan.body, { method: plan.method, csv: plan.csv });
     return { status: "sent", operation: options.operation, auditId, result, help: ["The response is not assumed to be a task ID; verify the remote state before further changes"] };
   } catch (error) {
     // A definite API rejection is safe to report. Network, server and response failures may follow a committed write.

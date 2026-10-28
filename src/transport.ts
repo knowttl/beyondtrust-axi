@@ -3,9 +3,10 @@ import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
 import { profileOrigin, type SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
+import { randomUUID } from "node:crypto";
 
 export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> };
-export type HttpRequest = (url: URL, options: { method: "GET" | "POST"; headers: Record<string, string>; body?: string; signal: AbortSignal }) => Promise<HttpResponse>;
+export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH"; headers: Record<string, string>; body?: string; signal: AbortSignal }) => Promise<HttpResponse>;
 export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void> };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject
 });
 
 const tokenSchema = z.object({ access_token: z.string().min(1).regex(/^[\x21-\x7e]+$/), token_type: z.string().regex(/^Bearer$/i), expires_in: z.number().positive().finite() });
+const uuid = z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
 const failures: Record<number, [string, string]> = {
   400: ["API_BAD_REQUEST", "The API rejected the request"],
   401: ["AUTH_FAILED", "The API rejected authentication"],
@@ -55,7 +57,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   function budget() {
     if (deadline.aborted || now() - started >= 60_000) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
-  async function exchange(path: string, method: "GET" | "POST", headers: Record<string, string>, body?: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
+  async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH", headers: Record<string, string>, body?: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
     if (requests >= (writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
@@ -129,18 +131,27 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         if (response.status < 200 || response.status >= 300) failure(response.status);
         if (consume) return redactor.text(response.headers.get("content-type") ?? "application/octet-stream");
         if (response.data === undefined) throw new AxiError("Invalid JSON response", "API_RESPONSE_INVALID", ["Check API compatibility"]);
-        return redactor.value(response.data);
+        return writePreparation ? response.data : redactor.value(response.data);
       }
     }
   return {
     get: (path: string) => get(path),
-    async write(path: string, body?: unknown): Promise<unknown> {
-      if (!/^\/v3\/Computers\/(?:Authorise|Reject|archive|Unarchive|Logs\/Request|Details\/Request|[0-9a-f-]{36}\/(?:archive|Unarchive))$/.test(path)) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
+    async write(path: string, body?: unknown, options: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer } = {}): Promise<unknown> {
+      const method = options.method ?? "POST";
+      const computer = method === "POST" && /^\/v3\/Computers\/(?:Authorise|Reject|archive|Unarchive|Logs\/Request|Details\/Request|[0-9a-f-]{36}\/(?:archive|Unarchive))$/.test(path);
+      const group = method === "POST" ? /^\/v3\/Groups(?:\/(?:AssignPolicyToMultipleGroups|bulkclearpolicy|UnassignComputers|[0-9a-f-]{36}\/(?:AssignPolicyRevision|AssignComputers|AssignComputersByCsv)))?$/.test(path)
+        : method === "PUT" ? path === "/v3/Groups" : /^\/v3\/Groups\/[0-9a-f-]{36}\/(?:MarkAsDefault|ClearPolicy)$/.test(path);
+      if ((!computer && !group) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
       // Re-reads authenticate first. Never refresh or retry after entering the write path.
       if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
-      const response = await exchange(`/management-api${path}`, "POST", { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": "application/json" }, body === undefined ? undefined : JSON.stringify(body));
+      const boundary = `beyondtrust-axi-${randomUUID()}`;
+      const contentType = options.csv ? `multipart/form-data; boundary=${boundary}` : "application/json";
+      const payload = options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
+      const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
       if (response.status < 200 || response.status >= 300) failure(response.status);
-      if (response.status === 201 && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(response.data).success) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
+      const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
+      if (((response.status === 201 || assignment) && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
       return redactor.value(response.data ?? null);
     },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,
