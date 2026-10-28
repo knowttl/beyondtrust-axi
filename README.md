@@ -14,6 +14,7 @@ B2 supplies local discovery, credential readiness, API diagnostics, versions and
 B3 adds 12 computer, group and policy reads, including Windows and macOS application groups.
 B4 adds 18 user, role, domain, account, authentication-provider and SCIM reads.
 B5 adds 11 event, audit and JIT request reads.
+B6 adds four raw-byte downloads for computer logs, policies, policy revisions and the API definition.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -69,6 +70,7 @@ Skill commands use npx for the future published package; until release, use the 
 | event | Compact ECS events from a start date or filtered window | API read | [Commands](docs/commands.md) |
 | audit activity, audit auth-request | Vendor activity and authorization request audits | API read | [Commands](docs/commands.md) |
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
+| computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Downloads](docs/downloads.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
@@ -118,7 +120,13 @@ Credential values discovered in those fields or URL passwords, including percent
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
 TLS certificate verification is always enabled and redirects are refused.
 Tokens stay in memory for one command, using form-encoded client credentials.
-Reads share a budget of 10 requests including authentication, 60 seconds and 8 MiB.
+Reads share a budget of 10 requests including authentication and 60 seconds; JSON responses share an 8 MiB cap.
+Downloads require a named file profile with downloads.allow enabled and a new --out path.
+They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
+The destination is created exclusively with mode 0600 on POSIX; existing files and symlinks are refused.
+For failure cleanup, Windows file protections and platform verification limits, see [Downloads](docs/downloads.md).
+Success reports path, size in bytes, sha256 and contentType.
+The three resource downloads take a positional UUID; api-definition download needs only --out.
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
 Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
@@ -148,7 +156,7 @@ The [credential schema](axi-credential.schema.json) describes host, clientId, cl
 ## Output and exit codes
 
 All data, errors and next-step hints use TOON on stdout.
-Strings truncate at 500 characters by default; --full restores complete strings and --fields selects top-level fields.
+Strings truncate at 500 characters by default except for [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 
 | Exit | Meaning |
@@ -174,6 +182,8 @@ Bare --version, -v and -V print the package version without loading the command 
 | LIMIT_EXCEEDED | Reduce the selection or run the command again. |
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
 | API_RESPONSE_INVALID | Check API compatibility with the committed export. |
+| DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
+| DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 ## Contributing

@@ -58,7 +58,7 @@
       "method": "GET",
       "path": "/v3/File/download/GetYamlApiDefinitionFile",
       "classification": "download",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -306,7 +306,7 @@
       "method": "GET",
       "path": "/v3/Policies/{id}/Content",
       "classification": "download",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -367,7 +367,7 @@
       "method": "GET",
       "path": "/v3/Policies/PolicyRevision/{policyRevisionId}/Content",
       "classification": "download",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -439,7 +439,7 @@
       "method": "GET",
       "path": "/v3/Computers/Logs/{id}/Content",
       "classification": "download",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
