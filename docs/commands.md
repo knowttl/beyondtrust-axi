@@ -8,6 +8,112 @@ Local discovery commands remain offline.
 Lists default to 50 rows; --all caps at 1000 rows within shared request, time and byte budgets.
 Resume a non-null cursor with the same profile, command, ID, filters and sort.
 
+## policy create
+
+Preview policy create; POST /v3/Policies; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; re-read and file digest must still match |
+| --name | Policy name (required for create) |
+| --description | Policy description |
+| --file | Required policy XML file; maximum 10 MiB |
+
+```sh
+beyondtrust-axi policy create --help
+beyondtrust-axi policy create --name example --file <policy-file>
+```
+
+## policy update
+
+Preview policy update; PUT /v3/Policies/{id}; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; re-read and file digest must still match |
+| --name | Policy name (required for create) |
+| --description | Policy description |
+
+```sh
+beyondtrust-axi policy update --help
+beyondtrust-axi policy update <policy-uuid> --name example
+```
+
+## policy upload
+
+Preview policy upload; POST /v3/Policies/{id}/Upload; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; re-read and file digest must still match |
+| --file | Required policy XML file; maximum 10 MiB |
+| --auto-assign | Assign the new revision to the policy's groups (default: false) |
+
+```sh
+beyondtrust-axi policy upload --help
+beyondtrust-axi policy upload <policy-uuid> --file <policy-file>
+```
+
+## policy auto-assign
+
+Preview policy auto-assign; POST /v3/Groups/AutoAssignPolicyRevision; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; re-read and file digest must still match |
+| --revision | Required revision UUID belonging to this policy |
+
+```sh
+beyondtrust-axi policy auto-assign --help
+beyondtrust-axi policy auto-assign <policy-uuid> --revision <uuid>
+```
+
+## policy app add
+
+Preview policy app add; POST /PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications or POST /PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; re-read and file digest must still match |
+| --file | Required JSON array of additions using the committed OS application payload schema; no delete or request envelope; supported types: Windows bat|com|cpl|exe|msc|msi|ps1|reg|rpsc|rpss|unex|wsh, macOS bin|bund|pkg|scr|sudo|pref; maximum 10 MiB |
+| --os | Required windows|macos |
+| --app-group | Required application group UUID in the policy |
+
+```sh
+beyondtrust-axi policy app add --help
+beyondtrust-axi policy app add <policy-uuid> --os windows --app-group <uuid> --file <apps-file>
+```
+
 ## home
 
 Show local context without resolving secrets or making API calls.

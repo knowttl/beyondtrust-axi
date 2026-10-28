@@ -45,7 +45,7 @@ test.each([
   expect(result.data.status).toBe("sent");
   expect(cloud.calls.at(-1)!.url.pathname).toBe(`/management-api${path}`);
   expect(cloud.calls.at(-1)!.options.method).toBe(method);
-  expect(cloud.calls.at(-1)!.options.body === undefined ? undefined : JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual(body);
+  expect(cloud.calls.at(-1)!.options.body === undefined ? undefined : JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual(body);
   expect(JSON.parse(readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8"))).toMatchObject({ state: "intent", request: { method, path, ...(body === undefined ? {} : { body }) } });
 });
 
@@ -70,7 +70,7 @@ test.each([
   const cloud = fakeCloud(response(token), response(current), response(null, 204));
   const result = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
   expect(result.data.status).toBe("sent");
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toMatchObject({ [field!]: current[field!] });
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toMatchObject({ [field!]: current[field!] });
   expect(result.output).not.toContain(secret);
   expect(readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8")).not.toContain(secret);
 });
@@ -86,7 +86,7 @@ test.each(["Operations (Windows)", "example's group", "example!", "example~", "e
   const cloud = fakeCloud(response(token), collection(), response(id, 201));
   expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud)).data.status).toBe("sent");
   expect(cloud.calls[1]!.url.searchParams.get("Filter.Name")).toBe(name);
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toMatchObject({ name });
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toMatchObject({ name });
 });
 
 test.each([
@@ -144,7 +144,7 @@ test.each(["add-computers", "remove-computers"])("counts unbounded %s filters an
   expect(preview.data.confirmation).toContain("filter 100001 computers");
   const cloud = fakeCloud(response(token), ...groups(), count(100001), response(other, 201));
   expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud)).data.status).toBe("sent");
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual({ allComputers: true, filter: { host: "example", os: "Windows" } });
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual({ allComputers: true, filter: { host: "example", os: "Windows" } });
   expect(cloud.calls.at(-2)!.url.searchParams.get("Filter.Host")).toBe("example");
   const changed = fakeCloud(response(token), ...groups(), count(100002));
   expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, changed)).data).toMatchObject({ error: { code: "CONFIRMATION_REQUIRED" } });

@@ -10,6 +10,7 @@ import { prepareResourceRead } from "./resource-reads.js";
 import { downloads, prepareDownload } from "./downloads.js";
 import { computerWrites, prepareComputerWrite } from "./computer-writes.js";
 import { groupWrites, prepareGroupWrite } from "./group-writes.js";
+import { policyWrites, preparePolicyWrite } from "./policy-writes.js";
 import { coordinateWrite, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
@@ -39,7 +40,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   let index = implicitHome ? 0 : name.split(" ").length;
   const definition = resourceReads[name];
   const writeIds: string[] = [];
-  if (computerWrites[name] || groupWrites[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
+  if (computerWrites[name] || groupWrites[name] || policyWrites[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
   const downloadTemplate = downloads[name];
   const downloadId = downloadTemplate?.includes("{") && argv[index] !== undefined && !argv[index]!.startsWith("--") ? argv[index++] : undefined;
   let type: "user" | "role" | undefined;
@@ -56,7 +57,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--execute", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--execute", "--auto-assign", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -66,7 +67,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (flags.has("--help")) return { command: name, ...entry };
   const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
   const resourceRead = prepareResourceRead(name, flags, definition, type);
-  const write = prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags);
+  const write = prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags) ?? preparePolicyWrite(name, writeIds, flags);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]

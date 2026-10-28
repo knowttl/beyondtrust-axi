@@ -106,7 +106,7 @@
       "method": "POST",
       "path": "/v3/Policies",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -118,7 +118,7 @@
       "method": "PUT",
       "path": "/v3/Policies/{id}",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "DELETE",
@@ -220,14 +220,14 @@
       "method": "POST",
       "path": "/PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications",
       "classification": "write",
-      "status": "planned",
+      "status": "implemented",
       "sharedDelete": true
     },
     {
       "method": "POST",
       "path": "/PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications",
       "classification": "write",
-      "status": "planned",
+      "status": "implemented",
       "sharedDelete": true
     },
     {
@@ -300,7 +300,7 @@
       "method": "POST",
       "path": "/v3/Groups/AutoAssignPolicyRevision",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -409,7 +409,7 @@
       "method": "POST",
       "path": "/v3/Policies/{id}/Upload",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",

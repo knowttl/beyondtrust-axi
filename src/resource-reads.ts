@@ -30,6 +30,7 @@ function validator(input: Schema): z.ZodType {
   else result = s.format === "uuid" ? z.string().regex(uuid) : z.string();
   return s.nullable ? result.nullable() : result;
 }
+export function documentedSchema(name: string): z.ZodType { return validator({ $ref: `#/components/schemas/${name}` }); }
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
 const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
 export function resourceReadDefinition(command: string, path: string) {
