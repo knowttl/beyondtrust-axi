@@ -1,10 +1,10 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, type Stats } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { lstat, open, unlink } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, win32 } from "node:path";
 import { AxiError } from "axi-sdk-js";
-import { windowsDownload, type DownloadFile } from "./windows-download.js";
+import { incompleteDownloadError, windowsDownload, type DownloadFile } from "./windows-download.js";
 
 export type WindowsAcl = (path: string, verify: boolean) => void;
 export const windowsAcl: WindowsAcl = (path, verify) => {
@@ -41,16 +41,9 @@ export async function newPrivateFile<T>(path: string, write: (file: DownloadFile
     await file.close();
     return result;
   } catch (error) {
-    try {
-      const original = await file.stat();
-      const current = await lstat(path);
-      if (original.dev !== current.dev || original.ino !== current.ino) throw new Error("Destination changed");
-      await unlink(path);
-    }
-    catch { throw new AxiError("Incomplete download could not be removed", "DOWNLOAD_FILE_ERROR", ["Remove the incomplete --out file before retrying"]); }
-    finally { await file.close().catch(() => {}); }
-    if (error instanceof AxiError) throw error;
-    throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]);
+    await file.truncate(0).catch(() => {});
+    await file.close().catch(() => {});
+    throw incompleteDownloadError(path, error);
   }
 }
 export function readPrivateFile(path: string, secret: boolean, verifyAcl: boolean, options: PrivateFileOptions = {}): string {

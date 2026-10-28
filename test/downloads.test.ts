@@ -38,12 +38,33 @@ test.each([false, true])("path substitution cannot redirect bytes or delete a re
   if (fail) await expect(download).rejects.toMatchObject({ code: "DOWNLOAD_FILE_ERROR" });
   else await download;
   if (process.platform === "win32") {
-    expect(existsSync(f.out)).toBe(!fail);
-    if (!fail) expect(readFileSync(f.out)).toEqual(bytes);
+    expect(readFileSync(f.out)).toEqual(fail ? Buffer.alloc(0) : bytes);
   } else {
     expect(readFileSync(f.out, "utf8")).toBe("replacement");
-    expect(readFileSync(moved)).toEqual(bytes);
+    expect(readFileSync(moved)).toEqual(fail ? Buffer.alloc(0) : bytes);
   }
+});
+
+test.skipIf(process.platform === "win32")("cleanup truncates the original file when the path is replaced at cleanup", async () => {
+  const f = fixture();
+  const moved = join(f.directory, "moved.bin");
+  const open = fsPromises.open;
+  vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
+    const file = await open(...parameters);
+    const truncate = file.truncate.bind(file);
+    vi.spyOn(file, "truncate").mockImplementationOnce(async (length) => {
+      renameSync(f.out, moved);
+      writeFileSync(f.out, "replacement");
+      await truncate(length);
+    });
+    return file;
+  });
+  await expect(newPrivateFile(f.out, async (file) => {
+    await file.writeFile(Buffer.from("partial"));
+    throw new Error("synthetic failure");
+  })).rejects.toMatchObject({ code: "DOWNLOAD_FILE_ERROR" });
+  expect(readFileSync(f.out, "utf8")).toBe("replacement");
+  expect(statSync(moved).size).toBe(0);
 });
 
 test.skipIf(process.platform === "win32").each([
@@ -127,27 +148,50 @@ test.each([50, 51])("enforces the 50 MiB streaming boundary at %i MiB", async (m
   const cloud = fakeCloud(response(token), raw(...Array<Buffer>(mib).fill(chunk)));
   const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
   expect(result.code).toBe(mib === 50 ? 0 : 1);
-  expect(existsSync(f.out)).toBe(mib === 50);
+  expect(existsSync(f.out)).toBe(true);
   if (mib === 50) expect(statSync(f.out).size).toBe(50 * 1024 * 1024);
-  else expect(result.data).toMatchObject({ error: { code: "LIMIT_EXCEEDED" } });
+  else {
+    expect(result.data).toMatchObject({ error: { code: "LIMIT_EXCEEDED" } });
+    expect(statSync(f.out).size).toBe(0);
+    expect(result.output).toContain(f.out);
+  }
 });
 
-test.each([302, 403, 404, 409, 500])("removes output on HTTP %i without leaking response text", async (status) => {
+test.each([302, 403, 404, 409, 500])("leaves empty output on HTTP %i without leaking response text", async (status) => {
   const f = fixture();
   const cloud = fakeCloud(response(token), response({ title: f.env.SYNTHETIC_SECRET }, status, { location: "https://example.pm.beyondtrustcloud.com/redirect" }));
   const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
   expect(result.code).toBe(1);
-  expect(existsSync(f.out)).toBe(false);
+  expect(statSync(f.out).size).toBe(0);
+  expect(result.output).toContain(f.out);
   expect(cloud.calls).toHaveLength(2);
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
-test("removes partially streamed output after transport failure", async () => {
+test("truncates partially streamed output after transport failure", async () => {
   const f = fixture();
   const stream: HttpResponse = { status: 200, headers: new Headers(), body: (async function* () { yield Buffer.from("partial"); throw new Error(f.env.SYNTHETIC_SECRET); })() };
   const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), stream));
   expect(result.data).toMatchObject({ error: { code: "TRANSPORT_ERROR" } });
-  expect(existsSync(f.out)).toBe(false);
+  expect(statSync(f.out).size).toBe(0);
+  expect(result.output).toContain(f.out);
+  expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
+});
+
+test.skipIf(process.platform === "win32")("reports a redacted partial path when truncation fails", async () => {
+  const f = fixture();
+  const out = join(f.directory, `${f.env.SYNTHETIC_SECRET}.bin`);
+  const open = fsPromises.open;
+  vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
+    const file = await open(...parameters);
+    vi.spyOn(file, "truncate").mockRejectedValueOnce(new Error(f.env.SYNTHETIC_SECRET));
+    return file;
+  });
+  const stream: HttpResponse = { status: 200, headers: new Headers(), body: (async function* () { yield Buffer.from("partial"); throw new Error(f.env.SYNTHETIC_SECRET); })() };
+  const result = await f.run(["api-definition", "download", "--out", out], {}, fakeCloud(response(token), stream));
+  expect(result.data).toMatchObject({ error: { code: "TRANSPORT_ERROR" } });
+  expect(readFileSync(out, "utf8")).toBe("partial");
+  expect(result.output).toContain(join(f.directory, "***redacted***.bin"));
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
@@ -156,7 +200,7 @@ test.skipIf(process.platform === "win32").each([
   ["policy", "download", id],
   ["policy", "revision", "download", id],
   ["api-definition", "download"],
-])("reports destination write failure and removes partial output: %j", async (...args) => {
+])("reports destination write failure and truncates partial output: %j", async (...args) => {
   const f = fixture();
   const open = fsPromises.open;
   vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
@@ -171,7 +215,8 @@ test.skipIf(process.platform === "win32").each([
   const result = await f.run([...args, "--out", f.out], {}, cloud);
   expect(result.code).toBe(1);
   expect(result.data).toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
-  expect(existsSync(f.out)).toBe(false);
+  expect(statSync(f.out).size).toBe(0);
+  expect(result.output).toContain(f.out);
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 

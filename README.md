@@ -70,7 +70,7 @@ Skill commands use npx for the future published package; until release, use the 
 | event | Compact ECS events from a start date or filtered window | API read | [Commands](docs/commands.md) |
 | audit activity, audit auth-request | Vendor activity and authorization request audits | API read | [Commands](docs/commands.md) |
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
-| computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Commands](docs/commands.md) |
+| computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Downloads](docs/downloads.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
@@ -123,7 +123,10 @@ Tokens stay in memory for one command, using form-encoded client credentials.
 Reads share a budget of 10 requests including authentication, 60 seconds and 8 MiB.
 Downloads require a named file profile with downloads.allow enabled and a new --out path.
 They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
-The destination is created exclusively with mode 0600; existing files and symlinks are refused, and incomplete downloads are removed.
+The destination is created exclusively with mode 0600; existing files and symlinks are refused.
+On any failure after creation, the tool attempts to truncate the partial content through the original open handle, closes it, and leaves the file for operator removal.
+It never deletes a download by pathname; the error names the partial destination, with secrets redacted, for inspection and removal before retrying.
+Truncation can fail, so the remaining file may still contain partial content.
 On Windows, the new file must pass the protected DACL check before any request is sent.
 Success reports path, size in bytes, sha256 and contentType.
 The three resource downloads take a positional UUID; api-definition download needs only --out.

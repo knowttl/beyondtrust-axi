@@ -4,17 +4,21 @@ import { AxiError } from "axi-sdk-js";
 
 export type DownloadFile = { writeFile: (bytes: Uint8Array) => Promise<void> };
 
+export function incompleteDownloadError(path: string, error: unknown): AxiError {
+  return new AxiError(error instanceof AxiError ? error.message : "Download file could not be completed",
+    error instanceof AxiError ? error.code : "DOWNLOAD_FILE_ERROR", [
+      ...(error instanceof AxiError ? error.suggestions : ["Check destination permissions and free space"]),
+      `Partial download left at ${path}; inspect and remove it before retrying. Truncation was attempted but content may remain.`,
+    ]);
+}
+
 export async function windowsDownload<T>(path: string, write: (file: DownloadFile) => Promise<T>): Promise<T> {
   const source = `
 using System;
 using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 public static class PrivateDownload {
-  [DllImport("kernel32.dll", SetLastError=true)]
-  static extern bool SetFileInformationByHandle(SafeFileHandle file, int kind, ref byte info, uint size);
   public static int Run(string path) {
     FileStream file = null;
     try {
@@ -52,10 +56,9 @@ public static class PrivateDownload {
       return 0;
     } catch {
       if (file != null) {
-        byte delete = 1;
-        bool removed = SetFileInformationByHandle(file.SafeFileHandle, 4, ref delete, 1);
-        file.Dispose();
-        if (!removed) return 2;
+        try { file.SetLength(0); file.Flush(true); } catch {}
+        try { file.Dispose(); } catch {}
+        return 2;
       }
       return 1;
     }
@@ -73,8 +76,10 @@ public static class PrivateDownload {
   const send = (bytes: Uint8Array) => new Promise<void>((resolve, reject) => {
     child.stdin.write(bytes, (error) => error ? reject(failure()) : resolve());
   });
+  let created = false;
   try {
     if ((await lines.next()).value !== "ready") throw failure();
+    created = true;
     const result = await write({ writeFile: async (bytes) => {
       if (!bytes.byteLength) return;
       const length = Buffer.alloc(4);
@@ -90,7 +95,7 @@ public static class PrivateDownload {
   } catch (error) {
     child.stdin.end();
     const status = await completed;
-    if (status === 2 || status === null) throw failure();
+    if (created || status === 2) throw incompleteDownloadError(path, error);
     if (error instanceof AxiError) throw error;
     throw failure();
   }
