@@ -1,5 +1,6 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, type Stats } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { open, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, win32 } from "node:path";
 import { AxiError } from "axi-sdk-js";
@@ -25,6 +26,25 @@ export function toolDirectory(kind: "config" | "state", env = process.env, platf
 }
 
 export type PrivateFileOptions = { platform?: NodeJS.Platform; acl?: WindowsAcl; uid?: number };
+export async function newPrivateFile<T>(path: string, write: (file: Awaited<ReturnType<typeof open>>) => Promise<T>): Promise<T> {
+  let file;
+  try { file = await open(path, "wx", 0o600); }
+  catch { throw new AxiError("Cannot create a new download file", "DOWNLOAD_FILE_ERROR", ["Choose a new --out path in an existing writable directory"]); }
+  try {
+    if (process.platform === "win32") windowsAcl(path, true);
+    else await file.chmod(0o600);
+    const result = await write(file);
+    await file.sync();
+    await file.close();
+    return result;
+  } catch (error) {
+    await file.close().catch(() => {});
+    try { await unlink(path); }
+    catch { throw new AxiError("Incomplete download could not be removed", "DOWNLOAD_FILE_ERROR", ["Remove the incomplete --out file before retrying"]); }
+    if (error instanceof AxiError) throw error;
+    throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]);
+  }
+}
 export function readPrivateFile(path: string, secret: boolean, verifyAcl: boolean, options: PrivateFileOptions = {}): string {
   const platform = options.platform ?? process.platform;
   const insecure = (): never => { throw new AxiError("Insecure private file", "CONFIG_INSECURE", [

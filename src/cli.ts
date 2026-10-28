@@ -7,6 +7,7 @@ import { credentialStore, type CredentialContext } from "./profiles.js";
 import { readClient, type TransportOptions } from "./transport.js";
 import { z } from "zod";
 import { prepareResourceRead } from "./resource-reads.js";
+import { downloads, prepareDownload } from "./downloads.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
@@ -26,7 +27,7 @@ export async function main(argv = process.argv.slice(2), options: { credentials?
 async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: TransportOptions): Promise<Record<string, unknown>> {
   if (argv.length === 1 && argv[0] === "--help") return help();
   const implicitHome = !argv.length || argv[0]?.startsWith("--");
-  const name = implicitHome ? "home" : Object.keys(catalogue).find((command) => command.split(" ").every((word, index) => argv[index] === word)) ?? "";
+  const name = implicitHome ? "home" : Object.keys(catalogue).sort((a, b) => b.length - a.length).find((command) => command.split(" ").every((word, index) => argv[index] === word)) ?? "";
   const entry = Object.hasOwn(catalogue, name) ? catalogue[name as keyof typeof catalogue] : undefined;
   const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
     `Valid commands: ${Object.keys(catalogue).join(", ")}; valid flags: ${Object.keys(entry?.flags ?? catalogue.home.flags).map((flag) => `--${flag}`).join(", ")}`,
@@ -34,6 +35,8 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (!entry) return usage();
   let index = implicitHome ? 0 : name.split(" ").length;
   const definition = resourceReads[name];
+  const downloadTemplate = downloads[name];
+  const downloadId = downloadTemplate?.includes("{") && argv[index] !== undefined && !argv[index]!.startsWith("--") ? argv[index++] : undefined;
   let type: "user" | "role" | undefined;
   if (definition?.variants && argv[index] !== undefined && !argv[index]!.startsWith("--")) {
     const value = argv[index++];
@@ -56,11 +59,12 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
+  const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
   const resourceRead = prepareResourceRead(name, flags, definition, type);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
-      : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
+      : download ? ["path", "size", "sha256", "contentType"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
@@ -69,6 +73,13 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
+  else if (download) {
+    store.readOnly();
+    const profile = store.select(store.load(config, true).config, flags.get("--profile"));
+    if (profile.source === "env-profile" || !profile.downloads.allow) throw new AxiError("Downloads are disabled for this profile", "DOWNLOADS_DISABLED", ["Enable downloads.allow in a named file profile"]);
+    const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
+    result = await download(client);
+  }
   else if (resourceRead) {
     store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));

@@ -55,12 +55,26 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   function budget() {
     if (deadline.aborted || now() - started >= 60_000) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
-  async function exchange(path: string, method: "GET" | "POST", headers: Record<string, string>, body?: string) {
+  async function exchange(path: string, method: "GET" | "POST", headers: Record<string, string>, body?: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
     if (requests >= 10) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
     try {
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
+      if (consume && response.status >= 200 && response.status < 300) {
+        async function* bounded() {
+          let size = 0;
+          for await (const chunk of response.body) {
+            budget();
+            size += chunk.byteLength;
+            if (size > 50 * 1024 * 1024) throw new AxiError("Download exceeds 50 MiB", "LIMIT_EXCEEDED", ["Download a smaller resource"]);
+            yield chunk;
+          }
+          budget();
+        }
+        await consume(bounded());
+        return { ...response, data: undefined };
+      }
       const chunks: Buffer[] = [];
       for await (const chunk of response.body) {
         budget();
@@ -94,8 +108,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     if (!parsed.success) throw new AxiError("Invalid token response", "AUTH_RESPONSE_INVALID", ["Check API compatibility; token lifetime remains unverified until commissioning"]);
     token = { value: parsed.data.access_token, expires: requested + parsed.data.expires_in * 1000 };
   }
-  return {
-    async get(path: string): Promise<unknown> {
+  async function get(path: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>): Promise<unknown> {
       const url = new URL(path, origin);
       if (!/^\/(?:v3|PolicyEditor\/v3|scim\/v3)\/[A-Za-z0-9/{}?=&%_.*+\-]+$/.test(path) || url.origin !== origin || url.pathname !== path.split("?")[0]) throw new AxiError("Invalid API path", "VALIDATION_ERROR", ["Use a supported read command"]);
       if (!token) await authenticate();
@@ -103,7 +116,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       if (token!.expires <= now()) throw new AxiError("Token expired within this run", "AUTH_EXPIRED", ["Run the read command again"]);
       let retries = 0;
       for (;;) {
-        const response = await exchange(`/management-api${path}`, "GET", { authorization: `Bearer ${token!.value}`, accept: path.startsWith("/scim/v3/") ? "application/scim+json" : "application/json" });
+        const response = await exchange(`/management-api${path}`, "GET", { authorization: `Bearer ${token!.value}`, accept: consume ? "*/*" : path.startsWith("/scim/v3/") ? "application/scim+json" : "application/json" }, undefined, consume);
         if (response.status === 401 && !refreshed) { refreshed = true; await authenticate(); continue; }
         if (response.status === 429 && retries < 2) {
           const retry = response.headers.get("retry-after");
@@ -114,9 +127,13 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
           continue;
         }
         if (response.status < 200 || response.status >= 300) failure(response.status);
+        if (consume) return redactor.text(response.headers.get("content-type") ?? "application/octet-stream");
         if (response.data === undefined) throw new AxiError("Invalid JSON response", "API_RESPONSE_INVALID", ["Check API compatibility"]);
         return redactor.value(response.data);
       }
-    },
+    }
+  return {
+    get: (path: string) => get(path),
+    download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,
   };
 }

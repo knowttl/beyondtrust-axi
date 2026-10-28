@@ -136,6 +136,78 @@ npx -y @knowttl/beyondtrust-axi task status --id <uuid>
 npx -y @knowttl/beyondtrust-axi task status --id <uuid> --fields task
 ```
 
+## computer log download
+
+Download raw bytes (GET /v3/Computers/Logs/{id}/Content); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --out | Required new destination file; never overwritten |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer log download <uuid> --out <file>
+npx -y @knowttl/beyondtrust-axi computer log download --help
+```
+
+## policy download
+
+Download raw bytes (GET /v3/Policies/{id}/Content); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --out | Required new destination file; never overwritten |
+
+```sh
+npx -y @knowttl/beyondtrust-axi policy download <uuid> --out <file>
+npx -y @knowttl/beyondtrust-axi policy download --help
+```
+
+## policy revision download
+
+Download raw bytes (GET /v3/Policies/PolicyRevision/{policyRevisionId}/Content); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --out | Required new destination file; never overwritten |
+
+```sh
+npx -y @knowttl/beyondtrust-axi policy revision download <uuid> --out <file>
+npx -y @knowttl/beyondtrust-axi policy revision download --help
+```
+
+## api-definition download
+
+Download raw bytes (GET /v3/File/download/GetYamlApiDefinitionFile); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --out | Required new destination file; never overwritten |
+
+```sh
+npx -y @knowttl/beyondtrust-axi api-definition download --out <file>
+npx -y @knowttl/beyondtrust-axi api-definition download --help
+```
+
 ## computer list
 
 Read computer list (GET /v3/Computers).

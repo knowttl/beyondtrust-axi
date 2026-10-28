@@ -14,6 +14,7 @@ B2 supplies local discovery, credential readiness, API diagnostics, versions and
 B3 adds 12 computer, group and policy reads, including Windows and macOS application groups.
 B4 adds 18 user, role, domain, account, authentication-provider and SCIM reads.
 B5 adds 11 event, audit and JIT request reads.
+B6 adds four raw-byte downloads for computer logs, policies, policy revisions and the API definition.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -69,6 +70,7 @@ Skill commands use npx for the future published package; until release, use the 
 | event | Compact ECS events from a start date or filtered window | API read | [Commands](docs/commands.md) |
 | audit activity, audit auth-request | Vendor activity and authorization request audits | API read | [Commands](docs/commands.md) |
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
+| computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Commands](docs/commands.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
@@ -119,6 +121,12 @@ Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, 
 TLS certificate verification is always enabled and redirects are refused.
 Tokens stay in memory for one command, using form-encoded client credentials.
 Reads share a budget of 10 requests including authentication, 60 seconds and 8 MiB.
+Downloads require a named file profile with downloads.allow enabled and a new --out path.
+They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
+The destination is created exclusively with mode 0600; existing files and symlinks are refused, and incomplete downloads are removed.
+On Windows, the new file must pass the protected DACL check before any request is sent.
+Success reports path, size in bytes, sha256 and contentType.
+The three resource downloads take a positional UUID; api-definition download needs only --out.
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
 Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
@@ -174,6 +182,8 @@ Bare --version, -v and -V print the package version without loading the command 
 | LIMIT_EXCEEDED | Reduce the selection or run the command again. |
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
 | API_RESPONSE_INVALID | Check API compatibility with the committed export. |
+| DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
+| DOWNLOAD_FILE_ERROR | Choose a new --out file in an existing writable directory and check private file permissions. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 ## Contributing
