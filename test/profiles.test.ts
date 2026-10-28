@@ -30,6 +30,9 @@ test.each([
   [{ clientSecret: "synthetic-inline-secret" }, "CONFIG_INVALID"],
   [{ clientSecret: { env: "NOT VALID" } }, "CONFIG_INVALID"],
   [{ host: "elsewhere" }, "CONFIG_INVALID"],
+  [{ host: "example.pm.beyondtrustcloud.com\n" }, "CONFIG_INVALID"],
+  [{ clientSecret: { env: "SYNTHETIC_SECRET\n" } }, "CONFIG_INVALID"],
+  [{ writes: { allowWrites: true, operations: ["computer.authorise\n"] } }, "CONFIG_INVALID"],
 ])("invalid file profiles fail without echoing input: %j", async (changes, code) => {
   const f = fixture();
   Object.assign(f.profile.profiles.example, changes);
@@ -72,6 +75,37 @@ test("a complete environment profile overrides the default and cannot enable wri
   const store = credentialStore(f.context);
   const profile = store.select(store.load().config);
   expect(profile).toMatchObject({ host: "example-services.pm.beyondtrustcloud.com", source: "env-profile", writes: { allowWrites: false, allowDeletes: false, operations: [] }, downloads: { allow: false } });
+});
+
+test("environment profile hosts reject a trailing newline", async () => {
+  const f = fixture();
+  Object.assign(f.env, { BEYONDTRUST_AXI_HOST: "example.pm.beyondtrustcloud.com\n", BEYONDTRUST_AXI_CLIENT_ID: "synthetic-env-client", BEYONDTRUST_AXI_CLIENT_SECRET: "synthetic-env-secret" });
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test("file profile names reject a trailing newline", async () => {
+  const f = fixture();
+  f.profile.profiles["example\n"] = f.profile.profiles.example;
+  delete f.profile.profiles.example;
+  f.profile.defaultProfile = "example\n";
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test("default profile names reject a trailing newline", async () => {
+  const f = fixture();
+  f.profile.defaultProfile = "example\n";
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test.each([
+  [undefined, ["auth", "status", "--profile", "example\n"]],
+  ["example\n", ["auth", "status"]],
+])("profile selectors reject a trailing newline: %j %j", async (selected, args) => {
+  const f = fixture();
+  f.env.BEYONDTRUST_AXI_PROFILE = selected;
+  expect((await f.run(args)).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
 });
 
 test.each(["example.pm.beyondtrustcloud.com", "example-services.pm.beyondtrustcloud.com", "example.beyondtrustcloud.com"])("accepts approved lowercase host %s", async (host) => {

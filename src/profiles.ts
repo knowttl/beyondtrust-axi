@@ -6,14 +6,14 @@ import { readPrivateFile, toolDirectory, type PrivateFileOptions } from "./priva
 
 import { SecretRedactor } from "./redact.js";
 
-const profileName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/);
-const host = z.string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+beyondtrustcloud\.com$/);
+const profileName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}(?![\s\S])/);
+const host = z.string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+beyondtrustcloud\.com(?![\s\S])/);
 const nonempty = z.string().trim().min(1);
 export type CredentialContext = PrivateFileOptions & { env?: NodeJS.ProcessEnv; home?: string };
 
 function schema(platform: NodeJS.Platform) {
   const secretRef = z.union([
-    z.strictObject({ env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/) }),
+    z.strictObject({ env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(?![\s\S])/) }),
     z.strictObject({ file: z.string().refine((path) => platform === "win32" ? /^[A-Za-z]:[\\/]/.test(path) : isAbsolute(path)) }),
   ]);
   const profile = z.strictObject({
@@ -21,7 +21,7 @@ function schema(platform: NodeJS.Platform) {
     clientId: nonempty,
     clientSecret: secretRef.default({ env: "BEYONDTRUST_AXI_CLIENT_SECRET" }),
     downloads: z.strictObject({ allow: z.boolean() }).default({ allow: false }),
-    writes: z.strictObject({ allowWrites: z.boolean(), allowDeletes: z.boolean().default(false), operations: z.array(z.string().regex(/^[a-z][A-Za-z0-9_.-]*$/)) })
+    writes: z.strictObject({ allowWrites: z.boolean(), allowDeletes: z.boolean().default(false), operations: z.array(z.string().regex(/^[a-z][A-Za-z0-9_.-]*(?![\s\S])/)) })
       .default({ allowWrites: false, allowDeletes: false, operations: [] }),
   });
   return z.strictObject({ version: z.literal(1), defaultProfile: profileName.optional(), profiles: z.record(profileName, profile) })
