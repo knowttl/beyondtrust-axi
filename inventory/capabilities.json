@@ -4,7 +4,7 @@
       "method": "GET",
       "path": "/v3/AcceptedDomains",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -64,7 +64,7 @@
       "method": "GET",
       "path": "/v3/GlobalRoles",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -142,7 +142,7 @@
       "method": "GET",
       "path": "/v3/Roles",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -154,7 +154,7 @@
       "method": "GET",
       "path": "/v3/Users",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -166,7 +166,7 @@
       "method": "GET",
       "path": "/v3/AcceptedDomains/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",
@@ -234,7 +234,7 @@
       "method": "GET",
       "path": "/v3/Roles/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -264,7 +264,7 @@
       "method": "GET",
       "path": "/v3/GlobalRoles/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
@@ -282,7 +282,7 @@
       "method": "GET",
       "path": "/v3/Users/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",
@@ -481,13 +481,13 @@
       "method": "GET",
       "path": "/v3/ApiAccounts",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/AuthenticationProvider",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -505,43 +505,43 @@
       "method": "GET",
       "path": "/scim/v3/ResourceTypes",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/ResourceTypes/User",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/ResourceTypes/Role",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/Roles",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/Schemas",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/ServiceProviderConfig",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/scim/v3/users",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -553,7 +553,7 @@
       "method": "GET",
       "path": "/scim/v3/users/{userID}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",
