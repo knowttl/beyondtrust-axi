@@ -66,6 +66,14 @@ function invalid(message: string): never { throw new AxiError(message, "VALIDATI
 function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
 const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
 function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
+  if (typeof value === "string") {
+    const url = value.startsWith("//") ? `https:${value}` : value;
+    if (URL.canParse(url)) {
+      const password = new URL(url).password;
+      redactor.add(password);
+      try { redactor.add(decodeURIComponent(password)); } catch {}
+    }
+  }
   if (Array.isArray(value)) return value.map((child) => withoutCredentials(child, redactor));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key, child]) => {
     if (!credentialFields.has(key)) return true;

@@ -150,6 +150,48 @@ test.each([
 });
 
 test.each([
+  ["list", []],
+  ["search", ["--os", "Windows"]],
+])("event %s discovers URL passwords without separate credential fields", async (action, args) => {
+  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(events([
+    { process: { name: "synthetic-full-password synthetic-original+/password synthetic-threat-full-password synthetic-threat-original-password" } },
+    { url: { full: "https://user:synthetic-full-password@example.test/" } },
+    { url: { original: "https://user:synthetic-original%2b%2fpassword@example.test/" } },
+    { threat: { indicator: { url: { full: "https://user:synthetic-threat-full-password@example.test/" } } } },
+    { threat: { indicator: { url: { original: "//user:synthetic-threat-original-password@example.test/" } } } },
+  ]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([
+    { process: { name: "***redacted*** ***redacted*** ***redacted*** ***redacted***" } },
+    { url: { full: "https://user:***redacted***@example.test/" } },
+    { url: { original: "https://user:***redacted***@example.test/" } },
+    { threat: { indicator: { url: { full: "https://user:***redacted***@example.test/" } } } },
+    { threat: { indicator: { url: { original: "//user:***redacted***@example.test/" } } } },
+  ]);
+});
+
+test("event list discovers URL credentials beyond the selected rows before compact truncation", async () => {
+  const result = await fixture().run(["event", "list", "--limit", "1"], {}, fakeCloud(response(token), response(events([
+    { process: { name: `${"x".repeat(490)}synthetic-sliced-password` } },
+    { url: { original: "https://user:synthetic-sliced-password@example.test/" } },
+  ]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([
+    { time: null, host: null, user: null, action: null, code: null, application: `${"x".repeat(490)}***redacte... (truncated, 504 chars total)`, rule: null },
+  ]);
+});
+
+test("event search redacts URL credential copies before compact truncation", async () => {
+  const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(events([
+    { process: { name: `${"x".repeat(490)}synthetic-search-password` }, threat: { indicator: { url: { full: "https://user:synthetic-search-password@example.test/" } } } },
+  ]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([
+    { time: null, host: null, user: null, action: null, code: null, application: `${"x".repeat(490)}***redacte... (truncated, 504 chars total)`, rule: null },
+  ]);
+});
+
+test.each([
   ["show", []],
   ["show", ["--full"]],
   ["details", []],
