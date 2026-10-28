@@ -80,7 +80,8 @@ TLS certificate verification is always enabled and redirects are refused.
 Tokens stay in memory for one command, using form-encoded client credentials.
 Reads share a budget of 10 requests including authentication, 60 seconds and 8 MiB.
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
-Read 429 retries at most twice, honoring Retry-After up to 10 seconds; token exchanges are not retried.
+Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
+Token exchanges are not retried.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.

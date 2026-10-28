@@ -6,7 +6,7 @@ The repository declares no hosted test CI; release-please is the only hosted wor
 
 ## Boundaries
 
-src/catalogue.ts owns executable local commands and generated discovery documentation.
+src/catalogue.ts owns the executable command catalogue and generated discovery documentation.
 src/profiles.ts owns strict profile selection and SecretRefs; src/private-file.ts owns file security.
 inventory/specs.json records both export hashes and the single organization-label substitution.
 inventory/capabilities.json accounts for 94 operations by method and path; planned coverage never enables execution.

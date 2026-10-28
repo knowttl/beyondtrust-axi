@@ -23,7 +23,7 @@ The default SecretRef alone does not select an environment profile.
 ```
 
 The host is a lowercase DNS name ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP.
-The origin is always HTTPS; later transport will reject redirects and never switch hosts.
+For HTTPS transport protections, see [Safety](../README.md#safety).
 clientSecret accepts only an env or absolute file SecretRef, never an inline value.
 Omitting clientSecret uses BEYONDTRUST_AXI_CLIENT_SECRET.
 Config and secret files must be regular, owned by the current user and not symlinks.
@@ -51,4 +51,4 @@ Windows ignores XDG; relative base overrides use platform defaults.
 Partial environment profiles fail closed unless --profile or BEYONDTRUST_AXI_PROFILE selects a file profile; environment profiles never enable writes, deletes or downloads.
 Unknown profile fields and invalid read-only overrides fail closed.
 File profiles default downloads.allow, writes.allowWrites and writes.allowDeletes to false with no allowed operations.
-Only B1 local commands are executable; setting permissions does not add API commands.
+Setting permissions does not enable unimplemented commands; see the [current command overview](../README.md#what-it-covers).
