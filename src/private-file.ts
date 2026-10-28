@@ -1,4 +1,4 @@
-import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, type Stats } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, readSync, type Stats } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { open } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -26,7 +26,7 @@ export function toolDirectory(kind: "config" | "state", env = process.env, platf
   return join(xdg && isAbsolute(xdg) ? xdg : join(home, kind === "config" ? ".config" : ".local/state"), "beyondtrust-axi");
 }
 
-export type PrivateFileOptions = { platform?: NodeJS.Platform; acl?: WindowsAcl; uid?: number };
+export type PrivateFileOptions = { platform?: NodeJS.Platform; acl?: WindowsAcl; uid?: number; maxBytes?: number };
 export async function newPrivateFile<T>(path: string, write: (file: DownloadFile) => Promise<T>): Promise<T> {
   if (process.platform === "win32") return windowsDownload(path, write);
   let file;
@@ -47,6 +47,9 @@ export async function newPrivateFile<T>(path: string, write: (file: DownloadFile
   }
 }
 export function readPrivateFile(path: string, secret: boolean, verifyAcl: boolean, options: PrivateFileOptions = {}): string {
+  return readPrivateBytes(path, secret, verifyAcl, options).toString("utf8");
+}
+export function readPrivateBytes(path: string, secret: boolean, verifyAcl: boolean, options: PrivateFileOptions = {}): Buffer {
   const platform = options.platform ?? process.platform;
   const insecure = (): never => { throw new AxiError("Insecure private file", "CONFIG_INSECURE", [
     platform === "win32" ? "Apply a protected DACL granting FullControl only to the current user, SYSTEM and Administrators"
@@ -61,5 +64,19 @@ export function readPrivateFile(path: string, secret: boolean, verifyAcl: boolea
     try { (options.acl ?? windowsAcl)(path, verifyAcl); } catch { insecure(); }
   }
   const fd = openSync(path, constants.O_RDONLY | (platform === "win32" ? 0 : constants.O_NOFOLLOW));
-  try { validate(fstatSync(fd)); return readFileSync(fd, "utf8"); } finally { closeSync(fd); }
+  try {
+    const stat = fstatSync(fd);
+    validate(stat);
+    if (options.maxBytes === undefined) return readFileSync(fd);
+    const tooLarge = () => { throw new AxiError("Input file exceeds 10 MiB", "VALIDATION_ERROR"); };
+    if (stat.size > options.maxBytes) tooLarge();
+    const bytes = Buffer.alloc(options.maxBytes + 1);
+    let size = 0;
+    for (;;) {
+      const count = readSync(fd, bytes, size, bytes.length - size, null);
+      size += count;
+      if (size > options.maxBytes) tooLarge();
+      if (!count) return bytes.subarray(0, size);
+    }
+  } finally { closeSync(fd); }
 }

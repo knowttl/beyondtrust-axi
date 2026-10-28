@@ -76,13 +76,13 @@
       "method": "POST",
       "path": "/v3/Groups",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",
       "path": "/v3/Groups",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -270,7 +270,7 @@
       "method": "PATCH",
       "path": "/v3/Groups/{id}/MarkAsDefault",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
@@ -319,7 +319,7 @@
       "method": "POST",
       "path": "/v3/Groups/{id}/AssignPolicyRevision",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -337,7 +337,7 @@
       "method": "POST",
       "path": "/v3/Groups/AssignPolicyToMultipleGroups",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -355,13 +355,13 @@
       "method": "PATCH",
       "path": "/v3/Groups/{id}/ClearPolicy",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/Groups/bulkclearpolicy",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -385,7 +385,7 @@
       "method": "POST",
       "path": "/v3/Groups/UnassignComputers",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
@@ -403,7 +403,7 @@
       "method": "POST",
       "path": "/v3/Groups/{id}/AssignComputers",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -427,7 +427,7 @@
       "method": "POST",
       "path": "/v3/Groups/{id}/AssignComputersByCsv",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",

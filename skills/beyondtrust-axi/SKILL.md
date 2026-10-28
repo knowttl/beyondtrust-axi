@@ -348,6 +348,213 @@ npx -y @knowttl/beyondtrust-axi api-definition download --out <file>
 npx -y @knowttl/beyondtrust-axi api-definition download --help
 ```
 
+## group create
+
+Preview group create; POST /v3/Groups; requires file-profile permission for group.create; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --name | Group name (required for create) |
+| --description | Group description |
+| --default | Create as the default group (default: false) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group create --help
+npx -y @knowttl/beyondtrust-axi group create --name example
+```
+
+## group update
+
+Preview group update; PUT /v3/Groups; requires file-profile permission for group.update; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --name | Group name (required for create) |
+| --description | Group description |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group update --help
+npx -y @knowttl/beyondtrust-axi group update <group-uuid> --name example
+```
+
+## group set-default
+
+Preview group set-default; PATCH /v3/Groups/{id}/MarkAsDefault; requires file-profile permission for group.set-default; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group set-default --help
+npx -y @knowttl/beyondtrust-axi group set-default <group-uuid>
+```
+
+## group assign-policy
+
+Preview group assign-policy; POST /v3/Groups/{id}/AssignPolicyRevision or POST /v3/Groups/AssignPolicyToMultipleGroups; requires file-profile permission for group.assign-policy; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --revision | Required policy revision UUID |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group assign-policy --help
+npx -y @knowttl/beyondtrust-axi group assign-policy <group-uuid> --revision <uuid>
+```
+
+## group clear-policy
+
+Preview group clear-policy; PATCH /v3/Groups/{id}/ClearPolicy or POST /v3/Groups/bulkclearpolicy; requires file-profile permission for group.clear-policy; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group clear-policy --help
+npx -y @knowttl/beyondtrust-axi group clear-policy <group-uuid>
+```
+
+## group add-computers
+
+Preview group add-computers; POST /v3/Groups/{id}/AssignComputers; requires file-profile permission for group.add-computers; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --computer-id | Filter ComputerId (string) |
+| --host | Filter Host (string) |
+| --host-type | Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux) |
+| --agent-version | Filter AgentVersion (string) |
+| --adapter-version | Filter AdapterVersion (string) |
+| --package-manager-version | Filter PackageManagerVersion (string) |
+| --authorisation-state | Filter AuthorisationState (string) |
+| --last-connected-dates | Filter LastConnected Dates (array; comma-separated) |
+| --last-connected-selection-mode | Filter LastConnected SelectionMode (Single|Multiple|Range) |
+| --policy-revision-status | Filter PolicyRevisionStatus (string) |
+| --policy-id | Filter PolicyId (string) |
+| --policy-name | Filter PolicyName (string) |
+| --host-policy-name | Filter HostPolicyName (string) |
+| --group-id | Filter GroupId (string) |
+| --group-name | Filter GroupName (string) |
+| --os | Filter OS (Windows|Mac) |
+| --domain | Filter Domain (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --duplicate-count-min | Filter DuplicateCount Min (integer) |
+| --duplicate-count-max | Filter DuplicateCount Max (integer) |
+| --connection-status | Filter ConnectionStatus (array; comma-separated) |
+| --days-disconnected | Filter DaysDisconnected (integer) |
+| --days-since-archived | Filter DaysSinceArchived (integer) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group add-computers --help
+npx -y @knowttl/beyondtrust-axi group add-computers <group-uuid> <computer-uuid>
+```
+
+## group import-computers
+
+Preview group import-computers; POST /v3/Groups/{id}/AssignComputersByCsv; requires file-profile permission for group.import-computers; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --file | Required CSV input file, maximum 10 MiB |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group import-computers --help
+npx -y @knowttl/beyondtrust-axi group import-computers <group-uuid> --file <csv>
+```
+
+## group remove-computers
+
+Preview group remove-computers; POST /v3/Groups/UnassignComputers; requires file-profile permission for group.remove-computers; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --computer-id | Filter ComputerId (string) |
+| --host | Filter Host (string) |
+| --host-type | Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux) |
+| --agent-version | Filter AgentVersion (string) |
+| --adapter-version | Filter AdapterVersion (string) |
+| --package-manager-version | Filter PackageManagerVersion (string) |
+| --authorisation-state | Filter AuthorisationState (string) |
+| --last-connected-dates | Filter LastConnected Dates (array; comma-separated) |
+| --last-connected-selection-mode | Filter LastConnected SelectionMode (Single|Multiple|Range) |
+| --policy-revision-status | Filter PolicyRevisionStatus (string) |
+| --policy-id | Filter PolicyId (string) |
+| --policy-name | Filter PolicyName (string) |
+| --host-policy-name | Filter HostPolicyName (string) |
+| --group-id | Filter GroupId (string) |
+| --group-name | Filter GroupName (string) |
+| --os | Filter OS (Windows|Mac) |
+| --domain | Filter Domain (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --duplicate-count-min | Filter DuplicateCount Min (integer) |
+| --duplicate-count-max | Filter DuplicateCount Max (integer) |
+| --connection-status | Filter ConnectionStatus (array; comma-separated) |
+| --days-disconnected | Filter DaysDisconnected (integer) |
+| --days-since-archived | Filter DaysSinceArchived (integer) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group remove-computers --help
+npx -y @knowttl/beyondtrust-axi group remove-computers <computer-uuid>
+```
+
 ## computer list
 
 Read computer list (GET /v3/Computers).

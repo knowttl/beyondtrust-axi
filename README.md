@@ -16,6 +16,7 @@ B4 adds 18 user, role, domain, account, authentication-provider and SCIM reads.
 B5 adds 11 event, audit and JIT request reads.
 B6 adds four raw-byte downloads for computer logs, policies, policy revisions and the API definition.
 B7 adds the write coordinator and computer authorise, reject, archive, unarchive, logs request and details request commands, covering eight POST operations.
+B8 adds group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers and remove-computers through the coordinator, covering ten operations.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -65,6 +66,7 @@ Skill commands use npx for the future published package; until release, use the 
 | computer | List, detail, command logs and agent log metadata | API read | [Commands](docs/commands.md) |
 | computer authorise, reject, archive, unarchive, logs request, details request | Preview or send a computer action once | Gated write | [Commands](docs/commands.md) |
 | group | List and detail | API read | [Commands](docs/commands.md) |
+| group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers, remove-computers | Preview or send a group change once | Gated write | [Commands](docs/commands.md) |
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
 | user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
 | api-account, auth-provider | List API accounts and show authentication provider configuration | API read | [Commands](docs/commands.md) |
@@ -143,6 +145,11 @@ Filter previews count matching computers and show the first 20 hosts, with no ma
 Confirmation binds the count, filter fields and destination group; the server re-applies filters when executing, so membership can change after the count.
 Unfiltered all-computer selections are refused; reject, archive and unarchive accept only IDs, and logs/details request require exactly one ID.
 Explicit selections accept at most 20 distinct UUIDs; write preparation allows up to 26 total requests to accommodate 20 target re-reads, an optional group re-read, authentication and bounded read recovery, within the same 60 seconds and 8 MiB.
+Group writes require the exact group operation in the file profile and use the same preview, confirmation and durable intent gates.
+Group update previews the diff and preserves fields not supplied; clear-policy names the policy that endpoints lose.
+Add-computers and remove-computers also accept computer-list filters with counted, unbounded selections.
+Import-computers accepts a secure UTF-8 CSV file up to 10 MiB, binds its SHA-256 into confirmation and sends its captured bytes as multipart csvFile.
+Group confirmations bind the intended change and re-read group state, so a changed group or input file requires a new preview.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.

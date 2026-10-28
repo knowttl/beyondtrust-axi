@@ -1,6 +1,7 @@
 import { resourceReadDefinition } from "./resource-reads.js";
 import { downloads } from "./downloads.js";
 import { computerWrites, computerWriteFilters } from "./computer-writes.js";
+import { groupWrites } from "./group-writes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -61,6 +62,17 @@ export const catalogue = {
     description: `Download raw bytes (GET ${path}); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB`,
     flags: { ...flags, out: "Required new destination file; never overwritten" },
     examples: [`beyondtrust-axi ${name}${path.includes("{") ? " <uuid>" : ""} --out <file>`, `beyondtrust-axi ${name} --help`],
+  }])),
+  ...Object.fromEntries(Object.entries(groupWrites).map(([name, routes]) => [name, {
+    description: `Preview ${name}; ${routes.map(({ method, path }) => `${method} ${path}`).join(" or ")}; requires file-profile permission for ${name.replaceAll(" ", ".")}; re-reads targets and sends once without retries. Group IDs and explicit computer selections are limited to 20. Computer filters count matches and preview the first 20 hosts without a maximum count. CSV imports require a secure UTF-8 file up to 10 MiB and bind its sha256 into confirmation.`,
+    flags: { ...flags, execute: "Send after re-read, exact confirmation and durable private intent", confirm: "Exact confirmation from preview; re-read must still match",
+      ...(["group create", "group update"].includes(name) ? { name: "Group name (required for create)", description: "Group description" } : {}),
+      ...(name === "group create" ? { default: "Create as the default group (default: false)" } : {}),
+      ...(name === "group assign-policy" ? { revision: "Required policy revision UUID" } : {}),
+      ...(name === "group import-computers" ? { file: "Required CSV input file, maximum 10 MiB" } : {}),
+      ...(["group add-computers", "group remove-computers"].includes(name) ? computerWriteFilters : {}),
+    },
+    examples: [`beyondtrust-axi ${name} --help`, `beyondtrust-axi ${name}${name === "group create" ? " --name example" : name === "group add-computers" ? " <group-uuid> <computer-uuid>" : name === "group remove-computers" ? " <computer-uuid>" : ` <group-uuid>${name === "group assign-policy" ? " --revision <uuid>" : name === "group import-computers" ? " --file <csv>" : name === "group update" ? " --name example" : ""}`}`],
   }])),
   ...Object.fromEntries(Object.entries(resourceReads).map(([name, entry]) => [name, { description: entry.description, flags: { ...flags, ...entry.flags }, examples: entry.examples }])),
 };
