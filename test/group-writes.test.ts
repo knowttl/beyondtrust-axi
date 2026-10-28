@@ -55,6 +55,69 @@ test("update previews the diff and preserves the untouched group name", async ()
   expect(result.data.preview).toMatchObject({ diff: { before: { name: "example", description: "example description" }, after: { id, name: "example", description: "changed" } } });
 });
 
+test.each([
+  ["name", "--description", "synthetic-secret-sentinel"],
+  ["description", "--name", "synthetic-secret-sentinel"],
+  ["name", "--description", token.access_token],
+  ["description", "--name", token.access_token],
+])("update preserves secret-bearing %s while changing %s (%s)", async (field, flag, secret) => {
+  const f = fixture("update");
+  const current = { id, name: "example", description: "example description", [field!]: `before ${secret} after` };
+  const args = ["group", "update", id, flag!, "changed"];
+  const preview = await f.run(args, {}, fakeCloud(response(token), response(current)));
+  expect(preview.data.status).toBe("preview");
+  expect(preview.output).not.toContain(secret);
+  const cloud = fakeCloud(response(token), response(current), response(null, 204));
+  const result = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
+  expect(result.data.status).toBe("sent");
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toMatchObject({ [field!]: current[field!] });
+  expect(result.output).not.toContain(secret);
+  expect(readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8")).not.toContain(secret);
+});
+
+test.each(["Operations (Windows)", "example's group", "example!", "example~", "example*", "example & + %"])("creates a group with query punctuation: %s", async (name) => {
+  const f = fixture("create");
+  const args = ["group", "create", "--name", name];
+  const collection = () => response({ totalRecordCount: 0, data: [] });
+  const previewCloud = fakeCloud(response(token), collection());
+  const preview = await f.run(args, {}, previewCloud);
+  expect(preview.data.status).toBe("preview");
+  expect(previewCloud.calls[1]!.url.searchParams.get("Filter.Name")).toBe(name);
+  const cloud = fakeCloud(response(token), collection(), response(id, 201));
+  expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud)).data.status).toBe("sent");
+  expect(cloud.calls[1]!.url.searchParams.get("Filter.Name")).toBe(name);
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toMatchObject({ name });
+});
+
+test.each([
+  ["assign-policy", [id, "--revision", revision], 200, other, "sent"],
+  ["assign-policy", [id, other, "--revision", revision], 200, other, "sent"],
+  ["remove-computers", [other], 202, [id, other], "sent"],
+  ["remove-computers", [other], 202, [], "sent"],
+  ["remove-computers", [other], 204, undefined, "sent"],
+  ["assign-policy", [id, "--revision", revision], 200, undefined, "unknown"],
+  ["assign-policy", [id, "--revision", revision], 200, "invalid", "unknown"],
+  ["assign-policy", [id, "--revision", revision], 200, {}, "unknown"],
+  ["assign-policy", [id, other, "--revision", revision], 200, undefined, "unknown"],
+  ["assign-policy", [id, other, "--revision", revision], 200, "invalid", "unknown"],
+  ["assign-policy", [id, other, "--revision", revision], 200, {}, "unknown"],
+  ["remove-computers", [other], 202, undefined, "unknown"],
+  ["remove-computers", [other], 202, other, "unknown"],
+  ["remove-computers", [other], 202, [id, "invalid"], "unknown"],
+  ["remove-computers", [other], 202, [null], "unknown"],
+] as const)("validates %s %j response %i %j as %s", async (command, args, status, data, outcome) => {
+  const f = fixture(command);
+  const reads = () => command === "remove-computers" ? [computer()] : args.length === 3 ? [group()] : [group(), group(other)];
+  const preview = await f.run(["group", command, ...args], {}, fakeCloud(response(token), ...reads()));
+  const reply = { status, headers: new Headers(), body: (async function* () { yield Buffer.from(data === undefined ? "" : JSON.stringify(data)); })() };
+  const cloud = fakeCloud(response(token), ...reads(), reply);
+  const result = await f.run(["group", command, ...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
+  expect(cloud.calls.filter((call) => call.options.method !== "GET")).toHaveLength(2);
+  expect(readdirSync(f.journal)).toHaveLength(1);
+  if (outcome === "sent") expect(result.data).toMatchObject({ status: "sent", result: data ?? null });
+  else expect(result.data.error).toMatchObject({ code: "OUTCOME_UNKNOWN", auditId: expect.any(String) });
+});
+
 test("clear-policy names the policy lost by endpoints", async () => {
   const f = fixture("clear-policy");
   const result = await f.run(["group", "clear-policy", id], {}, fakeCloud(response(token), group()));

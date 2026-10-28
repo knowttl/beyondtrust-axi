@@ -20,6 +20,7 @@ const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject
 });
 
 const tokenSchema = z.object({ access_token: z.string().min(1).regex(/^[\x21-\x7e]+$/), token_type: z.string().regex(/^Bearer$/i), expires_in: z.number().positive().finite() });
+const uuid = z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
 const failures: Record<number, [string, string]> = {
   400: ["API_BAD_REQUEST", "The API rejected the request"],
   401: ["AUTH_FAILED", "The API rejected authentication"],
@@ -130,7 +131,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         if (response.status < 200 || response.status >= 300) failure(response.status);
         if (consume) return redactor.text(response.headers.get("content-type") ?? "application/octet-stream");
         if (response.data === undefined) throw new AxiError("Invalid JSON response", "API_RESPONSE_INVALID", ["Check API compatibility"]);
-        return redactor.value(response.data);
+        return writePreparation ? response.data : redactor.value(response.data);
       }
     }
   return {
@@ -148,7 +149,9 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const payload = options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
       const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
       if (response.status < 200 || response.status >= 300) failure(response.status);
-      if (response.status === 201 && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(response.data).success) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
+      const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
+      if (((response.status === 201 || assignment) && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
       return redactor.value(response.data ?? null);
     },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,

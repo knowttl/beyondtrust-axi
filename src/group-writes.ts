@@ -64,7 +64,8 @@ export function prepareGroupWrite(command: string, inputIds: string[], flags: Ma
       }
       if (create) {
         // Creation has no target ID; read the scoped group collection before preview or send.
-        const existing = z.object({ totalRecordCount: z.number().int().nonnegative(), data: z.array(z.object({ id: uuid })).nullable() }).safeParse(await client.get(`/v3/Groups?Filter.Name=${encodeURIComponent(name!)}&Pagination.PageSize=20&Pagination.PageNumber=1`));
+        const query = new URLSearchParams({ "Filter.Name": name!, "Pagination.PageSize": "20", "Pagination.PageNumber": "1" });
+        const existing = z.object({ totalRecordCount: z.number().int().nonnegative(), data: z.array(z.object({ id: uuid })).nullable() }).safeParse(await client.get(`/v3/Groups?${query}`));
         if (!existing.success) badRead();
       }
       const selected = await selection?.prepare(client);
