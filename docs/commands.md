@@ -787,7 +787,6 @@ Read event search (GET /v3/Events/search).
 | --host | Computers HostName; arrays use comma-separated values |
 | --domain | Computers HostDomain; arrays use comma-separated values |
 | --user | Users UserName; arrays use comma-separated values |
-| --user-domain | Users UserDomain; arrays use comma-separated values |
 | --workstyle | Policies WorkstyleName; arrays use comma-separated values |
 | --app-group | Policies ApplicationGroupName; arrays use comma-separated values |
 | --on-demand | Policies OnDemandRule; arrays use comma-separated values |
