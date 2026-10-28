@@ -46,9 +46,8 @@ export function resourceReadDefinition(command: string, path: string) {
   if (paged && command !== "computer list") flags.sort = "Sort property and order, e.g. name:asc (default: created:asc)";
   if (scimPaged) flags.filter = "SCIM filter expression (sent literally)";
   const variants = command === "scim resource-types" ? { user: `${path}/User`, role: `${path}/Role` } : undefined;
-  if (variants) flags.type = "Resource type detail: user|role (default: list all resource types)";
   for (const p of filters) flags[filterFlag(p.name)] = `Filter ${p.name.slice(7).replaceAll(".", " ")} (${resolved(p.schema).enum?.join("|") ?? resolved(p.schema).type}${resolved(p.schema).type === "array" ? "; comma-separated" : ""})`;
-  return { path, variants, paged, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${path.includes("{") ? " --id <uuid>" : ""}`, `beyondtrust-axi ${command} --help`] };
+  return { path, variants, paged, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${path.includes("{") ? " --id <uuid>" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
 }
 
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
@@ -62,11 +61,9 @@ function withoutPasswords(value: unknown): unknown {
 const cursorSchema = z.strictObject({ version: z.literal(1), binding: z.string(), page: z.number().int().min(1).max(2147483647), size: z.number().int().min(1).max(200), offset: z.number().int().nonnegative().max(2147483647) });
 
 // Validation runs before credential resolution; cursors carry only positions and a context digest.
-export function prepareResourceRead(command: string, flags: Map<string, string>, definition?: ReturnType<typeof resourceReadDefinition>) {
+export function prepareResourceRead(command: string, flags: Map<string, string>, definition?: ReturnType<typeof resourceReadDefinition>, type?: "user" | "role") {
   if (!definition) return undefined;
-  const type = flags.get("--type");
-  if (type !== undefined && type !== "user" && type !== "role") invalid("--type must be user or role");
-  const selectedPath = type && definition.variants ? definition.variants[type as "user" | "role"] : definition.path;
+  const selectedPath = type && definition.variants ? definition.variants[type] : definition.path;
   const list = definition.list && !type;
   const id = flags.get("--id");
   if (definition.path.includes("{") && !uuid.test(id ?? "")) invalid("This command requires --id <uuid>");

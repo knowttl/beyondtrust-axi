@@ -22,13 +22,13 @@ test.each([
   ["api-account list", "/v3/ApiAccounts", [], [{ id, name: "example", managementAccess: 1 }], [{ id, name: "example", managementAccess: 1 }]],
   ["auth-provider show", "/v3/AuthenticationProvider", [], { provider: "example" }, { provider: "example" }],
   ["scim resource-types", "/scim/v3/ResourceTypes", [], scim([{ name: "example" }]), [{ name: "example" }]],
-  ["scim resource-types", "/scim/v3/ResourceTypes/User", ["--type", "user"], { name: "User" }, { name: "User" }],
-  ["scim resource-types", "/scim/v3/ResourceTypes/Role", ["--type", "role"], { name: "Role" }, { name: "Role" }],
+  ["scim resource-types", "/scim/v3/ResourceTypes/User", ["user"], { name: "User" }, { name: "User" }],
+  ["scim resource-types", "/scim/v3/ResourceTypes/Role", ["role"], { name: "Role" }, { name: "Role" }],
   ["scim schemas", "/scim/v3/Schemas", [], scim([{ id: "example", attributes: [{ name: "example", subAttributes: [] }] }]), [{ id: "example", attributes: [{ name: "example", subAttributes: [] }] }]],
   ["scim config", "/scim/v3/ServiceProviderConfig", [], { patch: { supported: true } }, { patch: { supported: true } }],
-  ["scim-role list", "/scim/v3/Roles", [], scim([{ value: "example", enabled: true }]), [{ value: "example", enabled: true }]],
-  ["scim-user list", "/scim/v3/users", [], scim([{ id, userName: "example", groups: [{ value: "example" }] }]), [{ id, userName: "example", groups: [{ value: "example" }] }]],
-  ["scim-user show", `/scim/v3/users/${id}`, ["--id", id], { id, active: true }, { id, active: true }],
+  ["scim role list", "/scim/v3/Roles", [], scim([{ value: "example", enabled: true }]), [{ value: "example", enabled: true }]],
+  ["scim user list", "/scim/v3/users", [], scim([{ id, userName: "example", groups: [{ value: "example" }] }]), [{ id, userName: "example", groups: [{ value: "example" }] }]],
+  ["scim user show", `/scim/v3/users/${id}`, ["--id", id], { id, active: true }, { id, active: true }],
 ])("reads %s at %s", async (command, path, args, body, expected) => {
   const f = fixture();
   const cloud = fakeCloud(response(token), response(body));
@@ -43,7 +43,7 @@ test.each([
 test.each([
   "user list", "user show", "role list", "role show", "global-role list", "global-role show",
   "domain list", "domain show", "api-account list", "auth-provider show", "scim resource-types",
-  "scim schemas", "scim config", "scim-role list", "scim-user list", "scim-user show",
+  "scim schemas", "scim config", "scim role list", "scim user list", "scim user show",
 ])("%s help works without credentials", async (command) => {
   const f = fixture(); f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";
   const cloud = fakeCloud();
@@ -67,18 +67,18 @@ test("SCIM pagination advances by returned rows and preserves filter across curs
   const f = fixture();
   const filter = 'userName eq "example & *"';
   const cloud = fakeCloud(response(token), response(scim([{ id }], 1, 3)), response(scim([{ id }], 2, 3)));
-  const result = await f.run(["scim-user", "list", "--filter", filter, "--limit", "2"], {}, cloud);
+  const result = await f.run(["scim", "user", "list", "--filter", filter, "--limit", "2"], {}, cloud);
   expect(result.code).toBe(0);
   expect(result.data).toMatchObject({ count: 2, total: 3, cursor: expect.any(String) });
   expect(cloud.calls[2]!.url.searchParams.get("startIndex")).toBe("2");
   expect(cloud.calls[2]!.url.searchParams.get("count")).toBe("2");
   expect(cloud.calls[2]!.url.searchParams.get("filter")).toBe(filter);
   const next = fakeCloud(response(token), response(scim([{ id }], 3, 3)));
-  const resumed = await f.run(["scim-user", "list", "--filter", filter, "--cursor", String(result.data.cursor)], {}, next);
+  const resumed = await f.run(["scim", "user", "list", "--filter", filter, "--cursor", String(result.data.cursor)], {}, next);
   expect(resumed.data).toMatchObject({ count: 1, total: 3, cursor: null });
   expect(next.calls[1]!.url.searchParams.get("startIndex")).toBe("3");
   const mismatch = fakeCloud();
-  expect((await f.run(["scim-user", "list", "--filter", "other", "--cursor", String(result.data.cursor)], {}, mismatch)).code).toBe(2);
+  expect((await f.run(["scim", "user", "list", "--filter", "other", "--cursor", String(result.data.cursor)], {}, mismatch)).code).toBe(2);
   expect(mismatch.calls).toHaveLength(0);
 });
 
@@ -94,10 +94,10 @@ test("SCIM all caps rows and resumes at the next start index", async () => {
   const f = fixture();
   const rows = Array.from({ length: 200 }, () => ({ id }));
   const cloud = fakeCloud(response(token), ...[1, 201, 401, 601, 801].map((start) => response(scim(rows, start, 1200))));
-  const first = await f.run(["scim-user", "list", "--all"], {}, cloud);
+  const first = await f.run(["scim", "user", "list", "--all"], {}, cloud);
   expect(first.data).toMatchObject({ count: 1000, total: 1200, cursor: expect.any(String) });
   const next = fakeCloud(response(token), response(scim(rows, 1001, 1200)));
-  const last = await f.run(["scim-user", "list", "--all", "--cursor", String(first.data.cursor)], {}, next);
+  const last = await f.run(["scim", "user", "list", "--all", "--cursor", String(first.data.cursor)], {}, next);
   expect(last.data).toMatchObject({ count: 200, cursor: null });
   expect(next.calls[1]!.url.searchParams.get("startIndex")).toBe("1001");
 });
@@ -105,8 +105,8 @@ test("SCIM all caps rows and resumes at the next start index", async () => {
 test("SCIM passwords never appear in list or detail output", async () => {
   const f = fixture();
   const user = { id, password: "synthetic-response-password" };
-  const list = await f.run(["scim-user", "list", "--full"], {}, fakeCloud(response(token), response(scim([user]))));
-  const detail = await f.run(["scim-user", "show", "--id", id, "--full"], {}, fakeCloud(response(token), response(user)));
+  const list = await f.run(["scim", "user", "list", "--full"], {}, fakeCloud(response(token), response(scim([user]))));
+  const detail = await f.run(["scim", "user", "show", "--id", id, "--full"], {}, fakeCloud(response(token), response(user)));
   expect(list.data.data).toEqual([{ id }]);
   expect(detail.data.data).toEqual({ id });
 });
@@ -115,8 +115,10 @@ test.each([
   ["user", "show", "--id", "../About"], ["user", "list", "--role-id", "bad"],
   ["user", "list", "--last-signed-in-dates", "2026-01-01"],
   ["user", "list", "--last-signed-in-dates", "2026-02-01,2026-01-01", "--last-signed-in-selection-mode", "Range"],
-  ["global-role", "list", "--is-built-in", "yes"], ["scim", "resource-types", "--type", "other"],
-  ["scim-user", "list", "--start-index", "0"], ["domain", "list", "--sort", "name:asc"],
+  ["global-role", "list", "--is-built-in", "yes"], ["scim", "resource-types", "other"],
+  ["scim", "resource-types", "user", "role"], ["scim", "resource-types", "--type", "user"],
+  ["scim-user", "list"], ["scim-user", "show", "--id", id], ["scim-role", "list"],
+  ["scim", "user", "list", "--start-index", "0"], ["domain", "list", "--sort", "name:asc"],
 ])("rejects invalid identity read before credentials: %j", async (...args) => {
   const f = fixture(); f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";
   const cloud = fakeCloud();
@@ -126,8 +128,8 @@ test.each([
 
 test.each([
   ["user list", page([{ disabled: "false" }])], ["role list", [{ Name: "example" }]],
-  ["scim-user list", scim([{ active: "true" }])], ["scim-user list", scim([], 1, 2)],
-  ["scim-user list", scim([{ id }], 2, 2)], ["scim-user list", { ...scim([{ id }]), itemsPerPage: 2 }],
+  ["scim user list", scim([{ active: "true" }])], ["scim user list", scim([], 1, 2)],
+  ["scim user list", scim([{ id }], 2, 2)], ["scim user list", { ...scim([{ id }]), itemsPerPage: 2 }],
   ["scim schemas", { ...scim([]), resources: [] }], ["auth-provider show", []],
 ])("rejects malformed %s responses", async (command, body) => {
   const f = fixture();

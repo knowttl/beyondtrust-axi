@@ -25,15 +25,23 @@ export async function main(argv = process.argv.slice(2), options: { credentials?
 
 async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: TransportOptions): Promise<Record<string, unknown>> {
   if (argv.length === 1 && argv[0] === "--help") return help();
-  const single = ["home", "doctor", "about"].includes(argv[0] ?? "");
-  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : single ? argv[0]! : argv.slice(0, 2).join(" ");
+  const implicitHome = !argv.length || argv[0]?.startsWith("--");
+  const name = implicitHome ? "home" : Object.keys(catalogue).find((command) => command.split(" ").every((word, index) => argv[index] === word)) ?? "";
   const entry = Object.hasOwn(catalogue, name) ? catalogue[name as keyof typeof catalogue] : undefined;
   const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
     `Valid commands: ${Object.keys(catalogue).join(", ")}; valid flags: ${Object.keys(entry?.flags ?? catalogue.home.flags).map((flag) => `--${flag}`).join(", ")}`,
   ]); };
   if (!entry) return usage();
+  let index = implicitHome ? 0 : name.split(" ").length;
+  const definition = resourceReads[name];
+  let type: "user" | "role" | undefined;
+  if (definition?.variants && argv[index] !== undefined && !argv[index]!.startsWith("--")) {
+    const value = argv[index++];
+    if (value !== "user" && value !== "role") return usage("Resource type must be user or role");
+    type = value;
+  }
   const flags = new Map<string, string>();
-  for (let index = name === "home" ? (argv[0] === "home" ? 1 : 0) : single ? 1 : 2; index < argv.length; index++) {
+  for (; index < argv.length; index++) {
     const flag = argv[index]!;
     if (!flag.startsWith("--")) usage();
     if (!Object.hasOwn(entry.flags, flag.slice(2)) || flags.has(flag)) {
@@ -48,7 +56,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
-  const resourceRead = prepareResourceRead(name, flags, resourceReads[name]);
+  const resourceRead = prepareResourceRead(name, flags, definition, type);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]

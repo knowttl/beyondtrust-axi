@@ -64,7 +64,7 @@ Skill commands use npx for the future published package; until release, use the 
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
 | user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
 | api-account, auth-provider | List API accounts and show authentication provider configuration | API read | [Commands](docs/commands.md) |
-| scim, scim-user, scim-role | Resource types, schemas, service configuration, users and roles | API read | [Commands](docs/commands.md) |
+| scim | Resource types, schemas, service configuration, users and roles | API read | [Commands](docs/commands.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
@@ -86,7 +86,8 @@ Filters map to the committed API parameters; run each command with --help for th
 Array filter values are comma-separated; date filters require matching dates and selection mode.
 Group, policy, user and global-role paged lists accept --sort property:asc or property:desc, defaulting to created:asc.
 SCIM user and role lists accept literal --filter expressions and translate bounded reads to startIndex/count pagination.
-Use scim resource-types --type user or --type role for resource-type detail; omit --type for the list.
+Use scim resource-types user or scim resource-types role for resource-type detail; omit the type for the list.
+Use scim role list, scim user list and scim user show for SCIM roles and users.
 SCIM password properties are omitted from output, including --full.
 Every list returns data, count, total and cursor; detail reads return data.
 When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.

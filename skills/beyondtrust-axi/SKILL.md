@@ -632,7 +632,7 @@ npx -y @knowttl/beyondtrust-axi auth-provider show --help
 
 ## scim resource-types
 
-Read scim resource types (GET /scim/v3/ResourceTypes[/User|/Role]).
+Read scim resource types; optional positional type: user|role (default: list all resource types) (GET /scim/v3/ResourceTypes[/User|/Role]).
 
 | Flag | Meaning |
 |---|---|
@@ -644,10 +644,11 @@ Read scim resource types (GET /scim/v3/ResourceTypes[/User|/Role]).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --type | Resource type detail: user|role (default: list all resource types) |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi scim resource-types
+npx -y @knowttl/beyondtrust-axi scim resource-types user
+npx -y @knowttl/beyondtrust-axi scim resource-types role
 npx -y @knowttl/beyondtrust-axi scim resource-types --help
 ```
 
@@ -688,7 +689,7 @@ npx -y @knowttl/beyondtrust-axi scim config
 npx -y @knowttl/beyondtrust-axi scim config --help
 ```
 
-## scim-role list
+## scim role list
 
 Read scim role list (GET /scim/v3/Roles).
 
@@ -705,11 +706,11 @@ Read scim role list (GET /scim/v3/Roles).
 | --filter | SCIM filter expression (sent literally) |
 
 ```sh
-npx -y @knowttl/beyondtrust-axi scim-role list
-npx -y @knowttl/beyondtrust-axi scim-role list --help
+npx -y @knowttl/beyondtrust-axi scim role list
+npx -y @knowttl/beyondtrust-axi scim role list --help
 ```
 
-## scim-user list
+## scim user list
 
 Read scim user list (GET /scim/v3/users).
 
@@ -726,11 +727,11 @@ Read scim user list (GET /scim/v3/users).
 | --filter | SCIM filter expression (sent literally) |
 
 ```sh
-npx -y @knowttl/beyondtrust-axi scim-user list
-npx -y @knowttl/beyondtrust-axi scim-user list --help
+npx -y @knowttl/beyondtrust-axi scim user list
+npx -y @knowttl/beyondtrust-axi scim user list --help
 ```
 
-## scim-user show
+## scim user show
 
 Read scim user show (GET /scim/v3/users/{userID}).
 
@@ -744,6 +745,6 @@ Read scim user show (GET /scim/v3/users/{userID}).
 | --id | Required resource UUID |
 
 ```sh
-npx -y @knowttl/beyondtrust-axi scim-user show --id <uuid>
-npx -y @knowttl/beyondtrust-axi scim-user show --help
+npx -y @knowttl/beyondtrust-axi scim user show --id <uuid>
+npx -y @knowttl/beyondtrust-axi scim user show --help
 ```
