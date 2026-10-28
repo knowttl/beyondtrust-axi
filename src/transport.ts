@@ -6,7 +6,7 @@ import type { SecretRedactor } from "./redact.js";
 import { randomUUID } from "node:crypto";
 
 export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> };
-export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH"; headers: Record<string, string>; body?: string; signal: AbortSignal }) => Promise<HttpResponse>;
+export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
 export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void> };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
@@ -57,7 +57,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   function budget() {
     if (deadline.aborted || now() - started >= 60_000) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
-  async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH", headers: Record<string, string>, body?: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
+  async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH", headers: Record<string, string>, body?: string | Buffer, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
     if (requests >= (writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
@@ -150,7 +150,11 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
       const boundary = `beyondtrust-axi-${randomUUID()}`;
       const contentType = options.csv || options.policyFile ? `multipart/form-data; boundary=${boundary}` : "application/json";
-      const payload = options.policyFile ? Object.entries(body as Record<string, unknown>).filter(([key, value]) => key !== "PolicyFile" && value !== undefined).map(([key, value]) => `--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`).join("") + `--${boundary}\r\nContent-Disposition: form-data; name="PolicyFile"; filename="policy.xml"\r\nContent-Type: application/xml\r\n\r\n${options.policyFile.toString("utf8")}\r\n--${boundary}--\r\n`
+      const payload = options.policyFile ? Buffer.concat([
+        Buffer.from(Object.entries(body as Record<string, unknown>).filter(([key, value]) => key !== "PolicyFile" && value !== undefined).map(([key, value]) => `--${boundary}\r\nContent-Disposition: form-data; name="${key}"\r\n\r\n${value}\r\n`).join("") + `--${boundary}\r\nContent-Disposition: form-data; name="PolicyFile"; filename="policy.xml"\r\nContent-Type: application/xml\r\n\r\n`),
+        options.policyFile,
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ])
         : options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
       const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
       if (response.status < 200 || response.status >= 300) failure(response.status);

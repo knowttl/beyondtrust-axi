@@ -73,7 +73,7 @@ test.each([
   const cloud = fakeCloud(response(token), ...groupReads(), page(100001), response(other, 201));
   const executed = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
   expect(executed.data.status).toBe("sent");
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual({ filter: { host: "example", os: "Windows", daysDisconnected: 12 }, allComputers: true, ...groupBody });
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual({ filter: { host: "example", os: "Windows", daysDisconnected: 12 }, allComputers: true, ...groupBody });
   expect(cloud.calls.at(-2)!.url.searchParams.get("Filter.Host")).toBe("example");
   const changed = fakeCloud(response(token), ...groupReads(), page(100002));
   expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, changed)).data).toMatchObject({ error: { code: "CONFIRMATION_REQUIRED" } });

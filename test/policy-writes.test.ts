@@ -65,7 +65,25 @@ test.each([
     const journal = readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8");
     expect(JSON.parse(journal)).toMatchObject({ request: { method, path, body: { PolicyFile: { sha256 } } } });
     expect(journal).not.toContain("<?xml");
-  } else expect(JSON.parse(call.options.body!)).toEqual(command === "update" ? { name: "changed", description: "example description" } : { policyId: id, policyRevisionId: revisionId });
+  } else expect(JSON.parse(call.options.body!.toString())).toEqual(command === "update" ? { name: "changed", description: "example description" } : { policyId: id, policyRevisionId: revisionId });
+});
+
+test.each(["create", "upload"])("sends UTF-16 XML byte-identically for policy %s", async (command) => {
+  const f = fixture(command);
+  const bytes = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('<?xml version="1.0" encoding="UTF-16"?><Policy>example</Policy>\r\n', "utf16le")]);
+  writeFileSync(f.file, bytes);
+  const args = ["policy", command, ...(command === "create" ? ["--name", "example"] : [id]), "--file", f.file];
+  const reads = () => command === "create" ? response({ totalRecordCount: 0, data: [] }) : policy();
+  const preview = await f.run(args, {}, fakeCloud(response(token), reads()));
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  expect(preview.data).toMatchObject({ status: "preview", preview: { file: { size: bytes.length, sha256 } } });
+  expect(preview.data.confirmation).toContain(`sha256 ${sha256}`);
+  const cloud = fakeCloud(response(token), reads(), response(revisionId, 201));
+  const result = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
+  expect(result.data.status).toBe("sent");
+  const call = cloud.calls.at(-1)!;
+  const form = await new Response(call.options.body, { headers: { "content-type": call.options.headers["content-type"]! } }).formData();
+  expect(Buffer.from(await (form.get("PolicyFile") as File).arrayBuffer())).toEqual(bytes);
 });
 
 test.each(["windows", "macos"])("adds only %s applications with the documented envelope and response", async (os) => {
@@ -80,7 +98,7 @@ test.each(["windows", "macos"])("adds only %s applications with the documented e
   expect(result.data).toMatchObject({ status: "sent", result: { revisionId, created: [id], deleted: [] } });
   expect(cloud.calls[2]!.url.searchParams.get("Filter.ApplicationGroupId")).toBe(groupId);
   expect(cloud.calls.at(-1)!.url.pathname).toBe(`/management-api/PolicyEditor/v3/Policy/${id}/${os === "windows" ? "Windows" : "MacOS"}/ApplicationGroups/Applications`);
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual({ applicationData: { applicationGroups: { edit: [{ id: groupId, applications: { add: additions } }] } } });
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual({ applicationData: { applicationGroups: { edit: [{ id: groupId, applications: { add: additions } }] } } });
   expect(preview.output + result.output + readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8")).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
@@ -113,11 +131,11 @@ test.each(["file", "policy", "groups", "revision", "app-group"])("refuses execut
   expect(existsSync(f.journal)).toBe(false);
 });
 
-test.each(["empty", "oversized", "symlink", "utf8", "nul"])("refuses %s policy files before authentication", async (kind) => {
+test.each(["empty", "oversized", "symlink"])("refuses %s policy files before authentication", async (kind) => {
   const f = fixture("upload");
   const file = join(f.directory, "unsafe.xml");
   if (kind === "symlink") symlinkSync(f.file, file);
-  else writeFileSync(file, kind === "empty" ? "" : kind === "oversized" ? Buffer.alloc(10 * 1024 * 1024 + 1) : kind === "utf8" ? Buffer.from([0xff]) : Buffer.from([0]), { mode: 0o600 });
+  else writeFileSync(file, kind === "empty" ? "" : Buffer.alloc(10 * 1024 * 1024 + 1), { mode: 0o600 });
   const cloud = fakeCloud();
   expect((await f.run(["policy", "upload", id, "--file", file], {}, cloud)).code).not.toBe(0);
   expect(cloud.calls).toHaveLength(0);

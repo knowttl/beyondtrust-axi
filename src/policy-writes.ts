@@ -45,19 +45,17 @@ export function preparePolicyWrite(command: string, ids: string[], flags: Map<st
       let upload: { size: number; sha256: string } | undefined;
       if (file) {
         let bytes: Buffer;
-        let text: string;
         try {
           bytes = readPrivateBytes(file, false, true, { maxBytes: 10 * 1024 * 1024 });
-          text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-          if (!text.trim() || bytes.includes(0)) invalid("Provide a non-empty UTF-8 input file");
+          if (!bytes.length) invalid("Provide a non-empty input file");
         } catch (error) {
           if (error instanceof AxiError) throw error;
-          invalid("Cannot read a secure UTF-8 input file");
+          invalid("Cannot read a secure input file");
         }
         upload = { size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
         if (apps) {
           let data: unknown;
-          try { data = JSON.parse(text); } catch { invalid("Provide a JSON array of application additions"); }
+          try { data = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); } catch { invalid("Provide a JSON array of application additions"); }
           const parsed = z.array(documentedSchema(os === "windows" ? "WinApplicationPayload" : "MacApplicationPayload")).min(1).safeParse(data);
           if (!parsed.success) invalid("Applications must match the documented OS payload schema; only additions are accepted");
           additions = parsed.data;

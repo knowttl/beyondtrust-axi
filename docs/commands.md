@@ -10,7 +10,7 @@ Resume a non-null cursor with the same profile, command, ID, filters and sort.
 
 ## policy create
 
-Preview policy create; POST /v3/Policies; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation..
+Preview policy create; POST /v3/Policies; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
 
 | Flag | Meaning |
 |---|---|
@@ -32,7 +32,7 @@ beyondtrust-axi policy create --name example --file <policy-file>
 
 ## policy update
 
-Preview policy update; PUT /v3/Policies/{id}; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation..
+Preview policy update; PUT /v3/Policies/{id}; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
 
 | Flag | Meaning |
 |---|---|
@@ -53,7 +53,7 @@ beyondtrust-axi policy update <policy-uuid> --name example
 
 ## policy upload
 
-Preview policy upload; POST /v3/Policies/{id}/Upload; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation..
+Preview policy upload; POST /v3/Policies/{id}/Upload; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
 
 | Flag | Meaning |
 |---|---|
@@ -74,7 +74,7 @@ beyondtrust-axi policy upload <policy-uuid> --file <policy-file>
 
 ## policy auto-assign
 
-Preview policy auto-assign; POST /v3/Groups/AutoAssignPolicyRevision; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation..
+Preview policy auto-assign; POST /v3/Groups/AutoAssignPolicyRevision; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
 
 | Flag | Meaning |
 |---|---|
@@ -94,7 +94,7 @@ beyondtrust-axi policy auto-assign <policy-uuid> --revision <uuid>
 
 ## policy app add
 
-Preview policy app add; POST /PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications or POST /PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure UTF-8, at most 10 MiB, with sha256 bound into confirmation..
+Preview policy app add; POST /PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications or POST /PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications; requires exact file-profile operation permission (replace command spaces with dots); re-reads targets and sends once after exact confirmation and durable private intent. File inputs are secure, at most 10 MiB, with sha256 bound into confirmation. Policy files are sent byte-identically; application additions require UTF-8 JSON..
 
 | Flag | Meaning |
 |---|---|

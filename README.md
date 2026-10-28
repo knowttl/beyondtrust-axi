@@ -155,10 +155,10 @@ Import-computers accepts a non-empty UTF-8 CSV file without NUL bytes up to 10 M
 Group confirmations bind the intended change and re-read state of existing target groups, so a changed target group or input file requires a new preview.
 Create reads the group collection filtered by the requested name because it has no existing target group.
 Policy writes use the same gates with exact operation names derived by replacing command spaces with dots.
-Create and upload capture a secure non-empty UTF-8 policy file up to 10 MiB and bind its SHA-256 into confirmation; the journal records size and digest, and the multipart request sends the captured bytes under PolicyFile with a fixed filename.
+Create and upload capture a secure non-empty policy file up to 10 MiB and bind its SHA-256 into confirmation; the journal records size and digest, and the multipart request sends the captured bytes unchanged under PolicyFile with a fixed filename, including UTF-16 XML.
 Policy update preserves omitted name or description fields and previews the diff.
 Auto-assign requires a revision belonging to the policy and binds its revision and assigned-group re-reads into confirmation; upload --auto-assign also previews assigned groups.
-App add requires --os windows|macos, --app-group and --file containing a non-empty JSON array of application payloads using the committed export's lowercase field names, for example `[{"type":"exe","description":"example","fileName":{"matchType":"Exact","value":"<executable-name>"}}]` for Windows.
+App add requires --os windows|macos, --app-group and --file containing a non-empty UTF-8 JSON array of application payloads using the committed export's lowercase field names, for example `[{"type":"exe","description":"example","fileName":{"matchType":"Exact","value":"<executable-name>"}}]` for Windows.
 Application types and matcher schemas are validated locally; unsupported Windows matchers and any unknown fields or delete payloads are refused.
 The app request wraps these additions in the documented applicationData envelope for the selected group, and binds the file digest, policy and application-group re-reads into confirmation.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
