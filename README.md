@@ -92,7 +92,7 @@ SCIM password properties are omitted from output, including --full.
 Every list returns data, count, total and cursor; detail reads return data.
 When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.
 Cursors encode positions and a context digest, contain no credentials, and are not authorization tokens or a server snapshot.
-Unpaged API arrays are fetched again when resumed, so changes to the source may move rows.
+Unpaged lists, including roles, domains, API accounts and SCIM discovery, apply row limits client-side and fetch the response again when resumed, so changes to the source may move rows.
 The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
 The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
 For modeled responses, schemas marked additionalProperties:false reject unexpected fields with API_RESPONSE_INVALID, including differently cased property names.
