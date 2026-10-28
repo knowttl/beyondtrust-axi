@@ -51,6 +51,47 @@ test("event search freezes the default 24 hour window across paged cursors", asy
   expect(result.data).toMatchObject({ count: 0, cursor: null });
 });
 
+test("auth-request list reads subsequent array pages without claiming an overall total", async () => {
+  const cloud = fakeCloud(response(token), response(Array(200).fill({})), response(Array(50).fill({})));
+  const result = await fixture().run(["auth-request", "list", "--all"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ count: 250, total: null, cursor: null });
+  expect(cloud.calls[2]!.url.searchParams.get("Pagination.PageNumber")).toBe("2");
+});
+
+test("auth-request list resumes within an array page and checks the next page", async () => {
+  const f = fixture(), rows = Array(200).fill({});
+  const first = await f.run(["auth-request", "list", "--limit", "250"], {}, fakeCloud(response(token), response(rows), response(rows)));
+  expect(first.code).toBe(0);
+  expect(first.data).toMatchObject({ count: 250, total: null, cursor: expect.any(String) });
+  const cloud = fakeCloud(response(token), response(rows), response([]));
+  const next = await f.run(["auth-request", "list", "--all", "--cursor", String(first.data.cursor)], {}, cloud);
+  expect(next.code).toBe(0);
+  expect(next.data).toMatchObject({ count: 150, total: null, cursor: null });
+  expect(cloud.calls[1]!.url.searchParams.get("Pagination.PageNumber")).toBe("2");
+  expect(cloud.calls[2]!.url.searchParams.get("Pagination.PageNumber")).toBe("3");
+});
+
+test("auth-request list rejects arrays larger than the requested page size", async () => {
+  const result = await fixture().run(["auth-request", "list", "--all"], {}, fakeCloud(response(token), response(Array(201).fill({}))));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID" });
+});
+
+test.each([
+  ["example!system", "example%21system"],
+  ["example'system", "example%27system"],
+  ["example(system)", "example%28system%29"],
+  ["example~system", "example%7Esystem"],
+  ["example/system?%#", "example%2Fsystem%3F%25%23"],
+])("auth-request show encodes the opaque system identifier %s", async (systemId, segment) => {
+  const cloud = fakeCloud(response(token), response([{}]));
+  const result = await fixture().run(["auth-request", "show", "--id", systemId], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([{}]);
+  expect(cloud.calls[1]!.url.pathname).toBe(`/management-api/v3/AuthorizationRequest/${segment}`);
+});
+
 test("event list resumes within the endpoint's bounded 1000 row response", async () => {
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
   const f = fixture(), cloud = fakeCloud(response(token), response(events([event, event])));

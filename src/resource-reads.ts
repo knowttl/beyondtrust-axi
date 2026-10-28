@@ -143,7 +143,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
     // Freeze relative defaults across cursor resumes.
     if (!cursor) cursor = { version: 1, binding: "", page: 1, size: Math.min(limit, 200), offset: 0, since, until };
   }
-  const path = selectedPath.replace(/\{[^}]+\}/, encodeURIComponent(id ?? ""));
+  const path = selectedPath.replace(/\{[^}]+\}/, encodeURIComponent(id ?? "").replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`));
   return {
     fields: list ? ["data", "count", "total", "cursor", "help"] : ["data"],
     async run(client: { get: (path: string) => Promise<unknown> }, context: string, redactor: SecretRedactor) {
@@ -152,7 +152,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
       let page = cursor?.page ?? 1, offset = cursor?.offset ?? 0;
       const size = cursor?.size ?? Math.min(limit, 200);
       const data: unknown[] = [];
-      let total = 0, more = false;
+      let total: number | null = 0, more = false;
       for (;;) {
         const params = new URLSearchParams(query);
         if (definition.paged) { params.set("Pagination.PageSize", String(size)); params.set("Pagination.PageNumber", String(page)); }
@@ -175,7 +175,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse();
           rows = p.data.events ?? [];
           if (rows.length > (definition.paged ? size : 1000)) badResponse();
-          total += rows.length;
+          total = null;
           more = definition.paged && rows.length === size;
         } else if (definition.envelope && !definition.paged) {
           const p = z.object({ totalRecordCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
@@ -198,7 +198,10 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           if (more && !rows.length) badResponse();
         } else {
           if (!Array.isArray(value)) badResponse();
-          rows = value; total = rows.length; more = false;
+          rows = value;
+          if (definition.paged && rows.length > size) badResponse();
+          total = definition.paged ? null : rows.length;
+          more = definition.paged && rows.length === size;
         }
         if (offset > rows.length) badResponse();
         const taken = rows.slice(offset, offset + limit - data.length);
@@ -214,7 +217,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
       const next = more ? Buffer.from(JSON.stringify({ version: 1, binding, page, size, offset, ...(definition.events ? { since: cursor?.since, until: cursor?.until } : {}) })).toString("base64url") : null;
       const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--fields", "--full"].includes(flag))
         .map(([flag, value]) => `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
-      return { data, count: data.length, total: definition.events ? null : total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events; the API reports returned counts, not a total", ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
+      return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events; the API reports returned counts, not a total", ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
     },
   };
 }
