@@ -84,7 +84,7 @@ function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
 }
 const cursorSchema = z.strictObject({ version: z.literal(1), binding: z.string(), page: z.number().int().min(1).max(2147483647), size: z.number().int().min(1).max(200), offset: z.number().int().nonnegative().max(2147483647), since: z.string().optional(), until: z.string().optional() });
 
-// Validation runs before credential resolution; cursors carry only positions and a context digest.
+// Validation runs before credential resolution; cursors carry positions, a context digest and frozen event windows.
 export function prepareResourceRead(command: string, flags: Map<string, string>, definition?: ReturnType<typeof resourceReadDefinition>, type?: "user" | "role") {
   if (!definition) return undefined;
   const selectedPath = type && definition.variants ? definition.variants[type] : definition.path;

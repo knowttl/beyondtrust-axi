@@ -92,19 +92,18 @@ Group, policy, user and global-role paged lists accept --sort property:asc or pr
 SCIM user and role lists accept literal --filter expressions and translate bounded reads to startIndex/count pagination.
 Use scim resource-types user or scim resource-types role for resource-type detail; omit the type for the list.
 Use scim role list, scim user list and scim user show for SCIM roles and users.
-SCIM password properties are omitted from output, including --full.
+For server-supplied credential handling, see [Safety](#safety).
 Event windows default to the last 24 hours and accept at most 31 days, using UTC --since and event search --until timestamps.
 Event search requires --os as documented by the export, and supports group, action, code, type, application, host, domain, user and policy filters.
 Events default to time, host, user, action, code, application and rule columns; --full returns complete redacted ECS objects.
 Event total is null because totalRecordsReturned counts only the returned page; a full search page offers a cursor until an incomplete or empty page is read.
 Event list fetches at most 1000 records with RecordSize and applies row limits and cursor offsets locally; the endpoint has no server pagination or end-time parameter.
-Use event search for explicit bounded windows and server pagination.
-Event cursors freeze relative window defaults, but do not create a server snapshot.
+Event list requires --since within the last 31 days; use event search for historical windows, explicit end times and server pagination.
 Audit show IDs are decimal int64 identifiers; admin-request show takes a UUID and auth-request show takes an opaque system identifier via --id.
 Audit show endpoints return documented paged envelopes without request paging parameters, so their returned rows are bounded locally.
-Every list returns data, count, total and cursor; detail reads return data.
+Every list returns data, count, total and cursor, including audit show and auth-request show; object detail reads return data.
 When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.
-Cursors encode positions and a context digest, contain no credentials, and are not authorization tokens or a server snapshot.
+Cursors encode positions, a context digest and, for events, frozen window timestamps; they contain no credentials and are not authorization tokens or a server snapshot.
 Unpaged lists, including roles, domains, API accounts and SCIM discovery, apply row limits client-side and fetch the response again when resumed, so changes to the source may move rows.
 The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
 The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
@@ -114,6 +113,8 @@ The export's Policy Editor application-group examples use PascalCase keys that c
 ## Safety
 
 Secrets use env/file SecretRefs, never inline config or argv; output redacts secret-derived strings before truncation.
+Read responses omit password properties and documented audit integration credential fields, including with --full.
+Credential values discovered in those fields or URL passwords, including percent-encoded passwords, are redacted wherever repeated in the validated response before row selection, event projection and truncation.
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
 TLS certificate verification is always enabled and redirects are refused.
 Tokens stay in memory for one command, using form-encoded client credentials.
