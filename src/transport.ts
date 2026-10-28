@@ -107,7 +107,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         if (response.status === 401 && !refreshed) { refreshed = true; await authenticate(); continue; }
         if (response.status === 429 && retries < 2) {
           const retry = response.headers.get("retry-after");
-          const delay = retry === null ? 1000 : /^\d+$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - now();
+          const delay = retry === null ? 1000 : /^-?\d+$/.test(retry) ? Number(retry) * 1000 : Math.max(0, Date.parse(retry) - now());
           if (!Number.isFinite(delay) || delay < 0 || delay > 10_000) failure(429);
           retries++;
           try { await wait(delay, deadline); } catch { budget(); throw new AxiError("Retry wait failed", "TRANSPORT_ERROR", ["Run the command again"]); }

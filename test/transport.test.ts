@@ -88,17 +88,18 @@ test("read 429 honors Retry-After and retries at most twice", async () => {
   expect(cloud.calls).toHaveLength(4);
 });
 
-test("read 429 supports HTTP dates", async () => {
+test.each([[0, 3000], [3000, 0], [3500, 0]])("read 429 supports HTTP dates at elapsed %i ms", async (elapsed, delay) => {
   const waits: number[] = [];
-  const time = Date.parse("2026-01-01T00:00:00Z");
+  const time = Date.parse("2026-01-01T00:00:00Z") + elapsed;
   const cloud = fakeCloud(response(token), response({}, 429, { "retry-after": "Thu, 01 Jan 2026 00:00:03 GMT" }), response([]));
   await client({ ...cloud, now: () => time, wait: async (ms) => { waits.push(ms); } }).get("/v3/About");
-  expect(waits).toEqual([3000]);
+  expect(waits).toEqual([delay]);
+  expect(cloud.calls).toHaveLength(3);
 });
 
-test.each(["11", "invalid", "-1"]) ("refuses unbounded or malformed Retry-After: %s", async (retry) => {
+test.each(["11", "Thu, 01 Jan 2026 00:00:11 GMT", "invalid", "-1"]) ("refuses unbounded or malformed Retry-After: %s", async (retry) => {
   const cloud = fakeCloud(response(token), response({}, 429, { "retry-after": retry }));
-  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "RATE_LIMITED" });
+  await expect(client({ ...cloud, now: () => Date.parse("2026-01-01T00:00:00Z") }).get("/v3/About")).rejects.toMatchObject({ code: "RATE_LIMITED" });
   expect(cloud.calls).toHaveLength(2);
 });
 
