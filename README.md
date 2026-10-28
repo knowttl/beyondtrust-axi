@@ -10,7 +10,7 @@ Inspect BeyondTrust PM Cloud Endpoint Privilege Management through compact, guar
 
 Agents need compact, predictable access to BeyondTrust PM Cloud Endpoint Privilege Management without guessing routes or replaying disruptive requests.
 This project pins the vendor OpenAPI contract and builds bounded reads, explicit write gates and redacted output in separate slices.
-B1 supplies local discovery and credential readiness only; API commands arrive in later slices.
+B2 supplies local discovery, credential readiness, API diagnostics, versions and task status.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -54,15 +54,34 @@ Skill commands use npx for the future published package; until release, use the 
 | auth | Local credential readiness | Local read | [Configuration](docs/configuration.md) |
 | profile | Named profile list | Local read | [Configuration](docs/configuration.md) |
 | config | Effective config and state paths | Local read | [Configuration](docs/configuration.md) |
+| doctor | Authenticate and verify About access | API read | [Commands](docs/commands.md) |
+| about | Console, reporting database and policy editor versions | API read | [Commands](docs/commands.md) |
+| task status | Task detail by --id UUID | API read | [Commands](docs/commands.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
-No BeyondTrust tenant is contacted by B1; offline tests do not establish live compatibility.
+Local commands never contact BeyondTrust; doctor, about and task status explicitly make API requests.
+Offline tests do not establish live compatibility.
+Token lifetime and the documented rate limit remain unverified until commissioning through artium-axi.
+
+```sh
+node bin/beyondtrust-axi.js doctor
+node bin/beyondtrust-axi.js about
+node bin/beyondtrust-axi.js task status --id <uuid>
+```
+
+Only use an actual task ID with task status; undocumented write result UUIDs are not assumed to be task IDs.
 
 ## Safety
 
 Secrets use env/file SecretRefs, never inline config or argv; output redacts secret-derived strings before truncation.
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
+TLS certificate verification is always enabled and redirects are refused.
+Tokens stay in memory for one command, using form-encoded client credentials.
+Reads share a budget of 10 requests including authentication, 60 seconds and 8 MiB.
+One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
+Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
+Token exchanges are not retried.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.
@@ -95,7 +114,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | Exit | Meaning |
 |---|---|
 | 0 | Success |
-| 1 | Configuration or credential error |
+| 1 | Configuration, credential, transport or API error |
 | 2 | Invalid command, argument or flag |
 
 ## Troubleshooting
@@ -107,6 +126,14 @@ Bare --version, -v and -V print the package version without loading the command 
 | CONFIG_INVALID | Check host, unknown fields, SecretRefs and complete env metadata. |
 | CONFIG_INSECURE | Apply the private file protections in the configuration guide. |
 | AUTH_REQUIRED | Supply the selected secret source; never put it in argv. |
+| AUTH_ENDPOINT_NOT_FOUND | Check the configured host against the documented -services form; the tool never changes hosts. |
+| AUTH_FAILED | Check API account credentials and secret rotation. |
+| API_FORBIDDEN | Check API account permissions. |
+| REDIRECT_REFUSED | Verify the configured host; redirects are never followed. |
+| RATE_LIMITED | Retry later; automatic read retries are bounded. |
+| LIMIT_EXCEEDED | Reduce the selection or run the command again. |
+| TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
+| API_RESPONSE_INVALID | Check API compatibility with the committed export. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 ## Contributing

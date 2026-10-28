@@ -11,6 +11,11 @@ const host = z.string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?
 const nonempty = z.string().trim().min(1);
 export type CredentialContext = PrivateFileOptions & { env?: NodeJS.ProcessEnv; home?: string };
 
+export function profileOrigin(value: string): string {
+  if (!host.safeParse(value).success) throw new AxiError("Invalid HTTPS host", "CONFIG_INVALID", ["Run beyondtrust-axi auth status"]);
+  return `https://${value}`;
+}
+
 function schema(platform: NodeJS.Platform) {
   const secretRef = z.union([
     z.strictObject({ env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*(?![\s\S])/) }),
@@ -106,7 +111,7 @@ export function credentialStore(options: CredentialContext = {}, redactor = new 
     const loaded = load(explicit, true);
     const profile = select(loaded.config, flag);
     credentials(profile, true);
-    return { profile: profile.name, source: profile.source, host: profile.host, origin: `https://${profile.host}`,
+    return { profile: profile.name, source: profile.source, host: profile.host, origin: profileOrigin(profile.host),
       clientSecret: "env" in profile.clientSecret ? "env" : "file", readOnly: forced || !profile.writes.allowWrites || profile.writes.operations.length === 0 };
   }
   function list(explicit?: string) {

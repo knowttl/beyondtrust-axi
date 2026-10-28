@@ -5,7 +5,10 @@ export class SecretRedactor {
     if (!secret) return;
     this.secrets.add(secret);
     this.secrets.add(JSON.stringify(secret).slice(1, -1));
-    if (secret.isWellFormed()) this.secrets.add(encodeURIComponent(secret));
+    if (secret.isWellFormed()) {
+      this.secrets.add(encodeURIComponent(secret));
+      this.secrets.add(new URLSearchParams({ secret }).toString().slice("secret=".length));
+    }
   }
 
   text(value: string): string {

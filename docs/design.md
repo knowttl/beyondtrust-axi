@@ -5,17 +5,17 @@ The committed OpenAPI export is the operation contract, supplemented by the [API
 There are 78 paths and 94 operations with no operationId; inventory/capabilities.json cites method and path.
 The ledger records 43 JSON reads, four downloads, 40 writes, six deletes and one operation not built.
 Two Policy Editor application write routes also support separately gated removal.
-Inventory is planned coverage, independent of executable commands in src/catalogue.ts.
+Inventory records two implemented B2 reads; the remaining coverage is planned, independent of executable commands in src/catalogue.ts.
 
-## Safety contract for later slices
+## Safety contract
 
 Tokens use form-encoded client credentials and stay in memory.
 The API base is HTTPS on the selected host with /management-api; redirects are errors.
-On token 404, doctor will report AUTH_ENDPOINT_NOT_FOUND and hint the documented -services host form without switching hosts.
-Reads may exchange once again after 401 or near expiry; writes never retry or reauthenticate.
+On token 404, doctor reports AUTH_ENDPOINT_NOT_FOUND and hints the documented -services host form without switching hosts.
+For the implemented read budgets, token renewal and retry behavior, see [Safety](../README.md#safety).
+Writes in later slices must never retry or reauthenticate.
 Default lists return 50 rows; --all caps at 1000 rows, 10 requests, 60 seconds and 8 MiB with bound opaque cursors.
 Paged requests cap page size at 200; event windows default to 24 hours and cap at 31 days.
-Read 429 retries at most twice, honoring Retry-After up to 10 seconds within shared budgets.
 Writes require forced-read-only precedence, allowWrites, exact operation permission, validation and re-read, preview, --execute with exact --confirm, then durable redacted intent before one send.
 Deletes also require file-profile writes.allowDeletes and exact --confirm-delete.
 Explicit IDs cap at 20; bulk filters have no maximum, count matches with GET /v3/Computers, preview count and first 20 hosts, and bind count into confirmation.
@@ -47,3 +47,5 @@ All verification is offline; commissioning follows B1-B13 through artium-axi.
 | B13 | artium adapter, credentials, inventory and Allow deletes toggle |
 
 No live compatibility claim follows from offline fixtures.
+The token response's expires_in drives expiry.
+Token lifetime and the guide's 1000 requests per 100 seconds remain unverified live-only facts.

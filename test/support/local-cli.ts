@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { decode } from "@toon-format/toon";
 import { main } from "../../src/cli.js";
 import type { CredentialContext } from "../../src/profiles.js";
+import type { TransportOptions } from "../../src/transport.js";
 
 export function localFixture() {
   const directory = mkdtempSync(join(tmpdir(), "beyondtrust-axi-test-"));
@@ -15,10 +16,10 @@ export function localFixture() {
   return {
     directory, config, profile, env, context,
     save: () => writeFileSync(config, JSON.stringify(profile), { mode: 0o600 }),
-    run: async (args: string[], extra: CredentialContext = {}) => {
+    run: async (args: string[], extra: CredentialContext = {}, transport?: TransportOptions) => {
       let output = "";
       process.exitCode = 0;
-      await main(args, { credentials: { ...context, ...extra }, stdout: { write: (chunk) => { output += chunk; } } });
+      await main(args, { credentials: { ...context, ...extra }, transport, stdout: { write: (chunk) => { output += chunk; } } });
       const code = process.exitCode;
       process.exitCode = 0;
       return { code, output, data: decode(output) as Record<string, unknown> };
