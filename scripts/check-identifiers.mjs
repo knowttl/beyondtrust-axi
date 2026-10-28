@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { computerWrites } from "../dist/src/computer-writes.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const publicHosts = new Set([
@@ -8,6 +9,7 @@ const publicHosts = new Set([
   "img.shields.io", "www.npmjs.com",
   "docs.beyondtrust.com", "beyondtrustcloud.com", "example.pm.beyondtrustcloud.com", "example-services.pm.beyondtrustcloud.com",
 ]);
+const operationNames = new Set(Object.keys(computerWrites).map((command) => command.replaceAll(" ", ".")));
 
 export function identifierViolations(text) {
   const violations = [];
@@ -19,7 +21,7 @@ export function identifierViolations(text) {
     const host = domain.toLowerCase();
     // Source filenames and documented operation identifiers are not DNS names.
     if (/\.(?:md|json|ts|mts|mjs|js|yaml|yml|log|pdf)$/.test(host)
-      || ["writes.allowwrites", "writes.allowdeletes", "downloads.allow"].includes(host)) continue;
+      || ["writes.allowwrites", "writes.allowdeletes", "downloads.allow"].includes(host) || operationNames.has(host)) continue;
     if (!publicHosts.has(host) && !/(^|\.)(example\.(com|net|org)|test|invalid|example)$/.test(host)) violations.push("unapproved domain or internal host");
   }
   for (const [address] of text.matchAll(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g)) {

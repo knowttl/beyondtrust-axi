@@ -15,6 +15,7 @@ B3 adds 12 computer, group and policy reads, including Windows and macOS applica
 B4 adds 18 user, role, domain, account, authentication-provider and SCIM reads.
 B5 adds 11 event, audit and JIT request reads.
 B6 adds four raw-byte downloads for computer logs, policies, policy revisions and the API definition.
+B7 adds the write coordinator and computer authorise, reject, archive, unarchive, logs request and details request commands, covering eight POST operations.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -62,6 +63,7 @@ Skill commands use npx for the future published package; until release, use the 
 | about | Console, reporting database and policy editor versions | API read | [Commands](docs/commands.md) |
 | task status | Task detail by --id UUID | API read | [Commands](docs/commands.md) |
 | computer | List, detail, command logs and agent log metadata | API read | [Commands](docs/commands.md) |
+| computer authorise, reject, archive, unarchive, logs request, details request | Preview or send a computer action once | Gated write | [Commands](docs/commands.md) |
 | group | List and detail | API read | [Commands](docs/commands.md) |
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
 | user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
@@ -133,9 +135,20 @@ Token exchanges are not retried.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.
-Later writes require the exact operation allow-list, preview, --execute, exact --confirm and durable redacted intent before one send.
+Computer writes require a named file profile with writes.allowWrites and the exact operation in its operations list, for example `computer.authorise`.
+They validate locally, re-read the targets and preview by default; preview makes no mutation and creates no journal.
+Repeat the command with --execute and the exact --confirm phrase to persist a private durable intent and send once.
+Authorise accepts the same filter flags as computer list instead of IDs, for example --host example or --group-id <uuid>; --group <uuid> selects the destination group.
+Filter previews count matching computers and show the first 20 hosts, with no maximum count.
+Confirmation binds the count, filter fields and destination group; the server re-applies filters when executing, so membership can change after the count.
+Unfiltered all-computer selections are refused; reject, archive and unarchive accept only IDs, and logs/details request require exactly one ID.
+Explicit selections accept at most 20 distinct UUIDs; write preparation allows up to 26 total requests to accommodate 20 target re-reads, an optional group re-read, authentication and bounded read recovery, within the same 60 seconds and 8 MiB.
+No mutation is retried or reauthenticated, including 401 or 429 responses.
+The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
+Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.
+On OUTCOME_UNKNOWN, reconcile remote state using the returned auditId before any further action; never replay an ambiguous write.
 Deletes additionally require writes.allowDeletes and exact --confirm-delete.
-Ambiguous writes will never retry; bulk computer filters require the count in the confirmation and have no maximum.
+Delete commands are reserved for the later delete slice.
 The owner commissions the complete build through artium-axi afterwards.
 
 ## Configuration
@@ -156,7 +169,7 @@ The [credential schema](axi-credential.schema.json) describes host, clientId, cl
 ## Output and exit codes
 
 All data, errors and next-step hints use TOON on stdout.
-Strings truncate at 500 characters by default except for [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
+Strings truncate at 500 characters by default except for write previews, confirmations and results, and [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 
 | Exit | Meaning |
@@ -184,6 +197,10 @@ Bare --version, -v and -V print the package version without loading the command 
 | API_RESPONSE_INVALID | Check API compatibility with the committed export. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
+| WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
+| CONFIRMATION_REQUIRED | Preview again and copy the exact confirmation after checking the targets and count. |
+| JOURNAL_ERROR | Repair private state directory permissions or storage; no write was sent. |
+| OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 ## Contributing

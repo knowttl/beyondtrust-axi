@@ -157,6 +157,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   }
   const path = selectedPath.replace(/\{[^}]+\}/, encodeURIComponent(id ?? "").replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`));
   return {
+    query: new URLSearchParams(query),
     fields: list ? ["data", "count", "total", "cursor", "help"] : ["data"],
     async run(client: { get: (path: string) => Promise<unknown> }, context: string, redactor: SecretRedactor) {
       const binding = createHash("sha256").update(JSON.stringify([context, command, path, query.toString()])).digest("hex");

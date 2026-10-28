@@ -31,7 +31,7 @@ const failures: Record<number, [string, string]> = {
 };
 
 // One client belongs to one CLI invocation; authentication and all reads share these budgets.
-export function readClient(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, options: TransportOptions = {}) {
+export function readClient(profile: SelectedProfile, credentials: { clientId: string; clientSecret: string }, redactor: SecretRedactor, options: TransportOptions = {}, writePreparation = false) {
   const origin = profileOrigin(profile.host);
   const now = options.now ?? Date.now;
   const started = now();
@@ -57,7 +57,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   }
   async function exchange(path: string, method: "GET" | "POST", headers: Record<string, string>, body?: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
-    if (requests >= 10) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
+    if (requests >= (writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
     try {
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
@@ -134,6 +134,15 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     }
   return {
     get: (path: string) => get(path),
+    async write(path: string, body?: unknown): Promise<unknown> {
+      if (!/^\/v3\/Computers\/(?:Authorise|Reject|archive|Unarchive|Logs\/Request|Details\/Request|[0-9a-f-]{36}\/(?:archive|Unarchive))$/.test(path)) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
+      // Re-reads authenticate first. Never refresh or retry after entering the write path.
+      if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
+      const response = await exchange(`/management-api${path}`, "POST", { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": "application/json" }, body === undefined ? undefined : JSON.stringify(body));
+      if (response.status < 200 || response.status >= 300) failure(response.status);
+      if (response.status === 201 && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(response.data).success) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      return redactor.value(response.data ?? null);
+    },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,
   };
 }

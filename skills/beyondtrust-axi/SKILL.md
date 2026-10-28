@@ -136,6 +136,146 @@ npx -y @knowttl/beyondtrust-axi task status --id <uuid>
 npx -y @knowttl/beyondtrust-axi task status --id <uuid> --fields task
 ```
 
+## computer authorise
+
+Preview computer authorise; provide 1-20 explicit computer UUIDs or a non-empty computer-list filter selection; filter preview counts matches and shows the first 20 hosts with no maximum count; filter execution requires exact count-bearing confirmation; POST /v3/Computers/Authorise; requires file-profile permission for computer.authorise; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+| --group | Optional target group UUID |
+| --computer-id | Filter ComputerId (string) |
+| --host | Filter Host (string) |
+| --host-type | Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux) |
+| --agent-version | Filter AgentVersion (string) |
+| --adapter-version | Filter AdapterVersion (string) |
+| --package-manager-version | Filter PackageManagerVersion (string) |
+| --authorisation-state | Filter AuthorisationState (string) |
+| --last-connected-dates | Filter LastConnected Dates (array; comma-separated) |
+| --last-connected-selection-mode | Filter LastConnected SelectionMode (Single|Multiple|Range) |
+| --policy-revision-status | Filter PolicyRevisionStatus (string) |
+| --policy-id | Filter PolicyId (string) |
+| --policy-name | Filter PolicyName (string) |
+| --host-policy-name | Filter HostPolicyName (string) |
+| --group-id | Filter GroupId (string) |
+| --group-name | Filter GroupName (string) |
+| --os | Filter OS (Windows|Mac) |
+| --domain | Filter Domain (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --duplicate-count-min | Filter DuplicateCount Min (integer) |
+| --duplicate-count-max | Filter DuplicateCount Max (integer) |
+| --connection-status | Filter ConnectionStatus (array; comma-separated) |
+| --days-disconnected | Filter DaysDisconnected (integer) |
+| --days-since-archived | Filter DaysSinceArchived (integer) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer authorise <uuid>
+npx -y @knowttl/beyondtrust-axi computer authorise <uuid> --execute --confirm '<exact confirmation>'
+npx -y @knowttl/beyondtrust-axi computer authorise --host example
+```
+
+## computer reject
+
+Preview computer reject; positional computer UUIDs required (maximum 20); POST /v3/Computers/Reject; requires file-profile permission for computer.reject; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer reject <uuid>
+npx -y @knowttl/beyondtrust-axi computer reject <uuid> --execute --confirm '<exact confirmation>'
+```
+
+## computer archive
+
+Preview computer archive; positional computer UUIDs required (maximum 20); POST /v3/Computers/{computerId}/archive or /v3/Computers/archive; requires file-profile permission for computer.archive; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer archive <uuid>
+npx -y @knowttl/beyondtrust-axi computer archive <uuid> --execute --confirm '<exact confirmation>'
+```
+
+## computer unarchive
+
+Preview computer unarchive; positional computer UUIDs required (maximum 20); POST /v3/Computers/{computerId}/Unarchive or /v3/Computers/Unarchive; requires file-profile permission for computer.unarchive; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer unarchive <uuid>
+npx -y @knowttl/beyondtrust-axi computer unarchive <uuid> --execute --confirm '<exact confirmation>'
+```
+
+## computer logs request
+
+Preview computer logs request; positional computer UUIDs required (maximum 1); POST /v3/Computers/Logs/Request; requires file-profile permission for computer.logs.request; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer logs request <uuid>
+npx -y @knowttl/beyondtrust-axi computer logs request <uuid> --execute --confirm '<exact confirmation>'
+```
+
+## computer details request
+
+Preview computer details request; positional computer UUIDs required (maximum 1); POST /v3/Computers/Details/Request; requires file-profile permission for computer.details.request; sends once without retries.
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send after re-read, exact confirmation and durable private intent |
+| --confirm | Exact confirmation from preview; re-read must still match |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer details request <uuid>
+npx -y @knowttl/beyondtrust-axi computer details request <uuid> --execute --confirm '<exact confirmation>'
+```
+
 ## computer log download
 
 Download raw bytes (GET /v3/Computers/Logs/{id}/Content); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB.
