@@ -740,3 +740,286 @@ Read scim user show (GET /scim/v3/users/{userID}).
 beyondtrust-axi scim user show --id <uuid>
 beyondtrust-axi scim user show --help
 ```
+
+## event list
+
+Read event list (GET /v3/Events/FromStartDate).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete redacted ECS event objects instead of compact columns |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --since | UTC start time (default: 24 hours before end; maximum window: 31 days) |
+
+```sh
+beyondtrust-axi event list
+beyondtrust-axi event list --help
+```
+
+## event search
+
+Read event search (GET /v3/Events/search).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete redacted ECS event objects instead of compact columns |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --since | UTC start time (default: 24 hours before end; maximum window: 31 days) |
+| --until | UTC end time (default: now) |
+| --group | ComputerGroups; arrays use comma-separated values |
+| --os | OperatingSystem (required); arrays use comma-separated values |
+| --action | Events EventAction; arrays use comma-separated values |
+| --code | Events EventCode; arrays use comma-separated values |
+| --type | Events EventType; arrays use comma-separated values |
+| --app-type | Application ApplicationType; arrays use comma-separated values |
+| --host | Computers HostName; arrays use comma-separated values |
+| --domain | Computers HostDomain; arrays use comma-separated values |
+| --user | Users UserName; arrays use comma-separated values |
+| --workstyle | Policies WorkstyleName; arrays use comma-separated values |
+| --app-group | Policies ApplicationGroupName; arrays use comma-separated values |
+| --on-demand | Policies OnDemandRule; arrays use comma-separated values |
+
+```sh
+beyondtrust-axi event search --os Windows
+beyondtrust-axi event search --help
+```
+
+## audit activity list
+
+Read audit activity list (GET /v3/ActivityAudits).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --user | Filter User (string) |
+| --details | Filter Details (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --entity | Filter Entity (string) |
+| --audit-type | Filter AuditType (string) |
+| --changed-by | Filter ChangedBy (API|Portal|ManagementRule|Pathfinder) |
+
+```sh
+beyondtrust-axi audit activity list
+beyondtrust-axi audit activity list --help
+```
+
+## audit activity show
+
+Read audit activity show (GET /v3/ActivityAudits/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource int64 |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi audit activity show --id <int64>
+beyondtrust-axi audit activity show --help
+```
+
+## audit activity details
+
+Read audit activity details (GET /v3/ActivityAudits/Details).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --user | Filter User (string) |
+| --details | Filter Details (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --entity | Filter Entity (string) |
+| --audit-type | Filter AuditType (string) |
+| --changed-by | Filter ChangedBy (API|Portal|ManagementRule|Pathfinder) |
+
+```sh
+beyondtrust-axi audit activity details
+beyondtrust-axi audit activity details --help
+```
+
+## audit auth-request list
+
+Read audit auth request list (GET /v3/AuthorizationRequestAudits).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --ticket-id | Filter TicketId (string) |
+| --user | Filter User (string) |
+| --computer-name | Filter ComputerName (string) |
+| --product-name | Filter ProductName (string) |
+| --reason | Filter Reason (string) |
+| --decision-performed-by-user | Filter DecisionPerformedByUser (string) |
+| --decision | Filter Decision (string) |
+| --time-of-request-dates | Filter TimeOfRequest Dates (array; comma-separated) |
+| --time-of-request-selection-mode | Filter TimeOfRequest SelectionMode (Single|Multiple|Range) |
+| --decision-time-dates | Filter DecisionTime Dates (array; comma-separated) |
+| --decision-time-selection-mode | Filter DecisionTime SelectionMode (Single|Multiple|Range) |
+| --start-time-dates | Filter StartTime Dates (array; comma-separated) |
+| --start-time-selection-mode | Filter StartTime SelectionMode (Single|Multiple|Range) |
+| --duration | Filter Duration (string) |
+
+```sh
+beyondtrust-axi audit auth-request list
+beyondtrust-axi audit auth-request list --help
+```
+
+## audit auth-request show
+
+Read audit auth request show (GET /v3/AuthorizationRequestAudits/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource int64 |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi audit auth-request show --id <int64>
+beyondtrust-axi audit auth-request show --help
+```
+
+## admin-request list
+
+Read admin request list (GET /v3/AdminAccessRequest).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --decision | Filter Decision (string) |
+| --created-on | Filter CreatedOn (string) |
+| --active-only | Filter ActiveOnly (boolean) |
+| --modified-on | Filter ModifiedOn (string) |
+| --computer-id | Filter ComputerId (string) |
+| --endpoint-user-id | Filter EndpointUserId (string) |
+| --endpoint-user-name | Filter EndpointUserName (string) |
+
+```sh
+beyondtrust-axi admin-request list
+beyondtrust-axi admin-request list --help
+```
+
+## admin-request show
+
+Read admin request show (GET /v3/AdminAccessRequest/{requestId}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi admin-request show --id <uuid>
+beyondtrust-axi admin-request show --help
+```
+
+## auth-request list
+
+Read auth request list (GET /v3/AuthorizationRequest).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --decision | Filter Decision (string) |
+| --created-on | Filter CreatedOn (string) |
+| --active-only | Filter ActiveOnly (boolean) |
+| --modified-on | Filter ModifiedOn (string) |
+
+```sh
+beyondtrust-axi auth-request list
+beyondtrust-axi auth-request list --help
+```
+
+## auth-request show
+
+Read auth request show (GET /v3/AuthorizationRequest/{systemId}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource string |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi auth-request show --id <string>
+beyondtrust-axi auth-request show --help
+```

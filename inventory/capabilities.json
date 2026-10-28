@@ -16,7 +16,7 @@
       "method": "GET",
       "path": "/v3/ActivityAudits",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -40,7 +40,7 @@
       "method": "GET",
       "path": "/v3/AuthorizationRequestAudits",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -184,13 +184,13 @@
       "method": "GET",
       "path": "/v3/ActivityAudits/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/AdminAccessRequest",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -202,13 +202,13 @@
       "method": "GET",
       "path": "/v3/AuthorizationRequest",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/AuthorizationRequestAudits/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -240,19 +240,19 @@
       "method": "GET",
       "path": "/v3/ActivityAudits/Details",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/AdminAccessRequest/{requestId}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/AuthorizationRequest/{systemId}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -493,13 +493,13 @@
       "method": "GET",
       "path": "/v3/Events/FromStartDate",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/v3/Events/search",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",

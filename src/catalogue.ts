@@ -30,6 +30,17 @@ export const resourceReads = Object.fromEntries(Object.entries({
   "scim role list": "/scim/v3/Roles",
   "scim user list": "/scim/v3/users",
   "scim user show": "/scim/v3/users/{userID}",
+  "event list": "/v3/Events/FromStartDate",
+  "event search": "/v3/Events/search",
+  "audit activity list": "/v3/ActivityAudits",
+  "audit activity show": "/v3/ActivityAudits/{id}",
+  "audit activity details": "/v3/ActivityAudits/Details",
+  "audit auth-request list": "/v3/AuthorizationRequestAudits",
+  "audit auth-request show": "/v3/AuthorizationRequestAudits/{id}",
+  "admin-request list": "/v3/AdminAccessRequest",
+  "admin-request show": "/v3/AdminAccessRequest/{requestId}",
+  "auth-request list": "/v3/AuthorizationRequest",
+  "auth-request show": "/v3/AuthorizationRequest/{systemId}",
 }).map(([command, path]) => [command, resourceReadDefinition(command, path)]));
 export const catalogue = {
   home: { description: "Show local context without resolving secrets or making API calls", flags, examples: ["beyondtrust-axi", "beyondtrust-axi home --profile <name>"] },
