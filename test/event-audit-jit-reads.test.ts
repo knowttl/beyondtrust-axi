@@ -115,6 +115,33 @@ test("event search sends literal filters and accepts an exact 31 day window", as
 });
 
 test.each([
+  ["show", []],
+  ["show", ["--full"]],
+  ["details", []],
+  ["details", ["--full"]],
+])("activity audit %s omits integration credentials with flags %j", async (action, flags) => {
+  const row = {
+    id: 1,
+    azureADIntegrationDataAuditing: { oldAzureAdClientSecret: "synthetic-old-azure-secret", azureAdClientSecret: "synthetic-azure-secret", azureAdIntegrationEnabled: true },
+    authorizationRequestDataAuditing: {
+      oldAuthRequestClientSecret: "synthetic-old-auth-secret", oldAuthRequestPassword: "synthetic-old-auth-password", oldAuthRequestApiClientSecret: "synthetic-old-api-secret",
+      authRequestClientSecret: "synthetic-auth-secret", authRequestPassword: "synthetic-auth-password", authRequestApiClientSecret: "synthetic-api-secret", authRequestIntegrationEnabled: true,
+    },
+    reputationSettingsDataAuditing: { oldReputationIntegrationApiKey: "synthetic-old-reputation-key", reputationIntegrationApiKey: "synthetic-reputation-key", reputationIntegrationEnabled: true },
+  };
+  const args = action === "show" ? ["--id", "1"] : [];
+  const result = await fixture().run(["audit", "activity", action as string, ...args, ...flags as string[]], {}, fakeCloud(response(token), response(page([row]))));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([{
+    id: 1,
+    azureADIntegrationDataAuditing: { azureAdIntegrationEnabled: true },
+    authorizationRequestDataAuditing: { authRequestIntegrationEnabled: true },
+    reputationSettingsDataAuditing: { reputationIntegrationEnabled: true },
+  }]);
+  expect(result.output).not.toContain("synthetic-");
+});
+
+test.each([
   ["event", "search", "--os", "Windows", "--since", since, "--until", "2026-02-01T00:00:00.001Z"],
   ["event", "search", "--os", "Windows", "--since", until, "--until", since],
   ["event", "search", "--os", "Windows", "--until", "invalid"],
@@ -122,6 +149,7 @@ test.each([
   ["event", "search"],
   ["event", "search", "--os", "Windows", "--group", "invalid"],
   ["event", "search", "--os", "Windows", "--on-demand", "yes"],
+  ["event", "search", "--os", "Windows", "--user-domain", "example"],
   ["audit", "activity", "show", "--id", id],
   ["audit", "activity", "show", "--id", "9223372036854775808"],
   ["admin-request", "show", "--id", "invalid"],

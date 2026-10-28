@@ -31,7 +31,7 @@ function validator(input: Schema): z.ZodType {
   return s.nullable ? result.nullable() : result;
 }
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
-const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", "user-domain": "Users.UserDomain", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
+const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
 export function resourceReadDefinition(command: string, path: string) {
   const operation = spec.paths[path]!.get!;
   const events = command.startsWith("event ");
@@ -64,10 +64,10 @@ export function resourceReadDefinition(command: string, path: string) {
 
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
 function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
-// SCIM documents a password property; never return a credential supplied by the server.
-function withoutPasswords(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(withoutPasswords);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "password").map(([key, child]) => [key, withoutPasswords(child)]));
+const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
+function withoutCredentials(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutCredentials);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).filter(([key]) => !credentialFields.has(key)).map(([key, child]) => [key, withoutCredentials(child)]));
   return value;
 }
 const cursorSchema = z.strictObject({ version: z.literal(1), binding: z.string(), page: z.number().int().min(1).max(2147483647), size: z.number().int().min(1).max(200), offset: z.number().int().nonnegative().max(2147483647), since: z.string().optional(), until: z.string().optional() });
@@ -167,7 +167,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         const value = parsed?.success ? parsed.data : raw;
         if (!list) {
           if (!value || typeof value !== "object" || Array.isArray(value)) badResponse();
-          return { data: withoutPasswords(value) };
+          return { data: withoutCredentials(value) };
         }
         let rows: unknown[];
         if (definition.events) {
@@ -206,7 +206,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (offset > rows.length) badResponse();
         const taken = rows.slice(offset, offset + limit - data.length);
         data.push(...taken.map((row) => {
-          if (!definition.events || flags.has("--full")) return withoutPasswords(row);
+          if (!definition.events || flags.has("--full")) return withoutCredentials(row);
           const e = row as { "@timestamp"?: string; host?: { name?: string }; user?: { name?: string }; event?: { action?: string; code?: string }; process?: { name?: string }; file?: { name?: string }; rule?: { name?: string } };
           return { time: e["@timestamp"] ?? null, host: e.host?.name ?? null, user: e.user?.name ?? null, action: e.event?.action ?? null, code: e.event?.code ?? null, application: e.process?.name ?? e.file?.name ?? null, rule: e.rule?.name ?? null };
         })); offset += taken.length;
