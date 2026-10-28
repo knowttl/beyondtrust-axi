@@ -148,8 +148,10 @@ Explicit selections accept at most 20 distinct UUIDs; write preparation allows u
 Group writes require the exact group operation in the file profile and use the same preview, confirmation and durable intent gates.
 Group update previews the diff and preserves fields not supplied; clear-policy names the policy that endpoints lose.
 Add-computers and remove-computers also accept computer-list filters with counted, unbounded selections.
-Import-computers accepts a secure UTF-8 CSV file up to 10 MiB, binds its SHA-256 into confirmation and sends its captured bytes as multipart csvFile.
-Group confirmations bind the intended change and re-read group state, so a changed group or input file requires a new preview.
+Remove-computers changes only group membership; the computers remain and this operation does not require delete permission.
+Import-computers accepts a non-empty UTF-8 CSV file without NUL bytes up to 10 MiB, binds its SHA-256 into confirmation and sends its captured bytes as multipart csvFile; see the [file protection requirements](docs/configuration.md).
+Group confirmations bind the intended change and re-read state of existing target groups, so a changed target group or input file requires a new preview.
+Create reads the group collection filtered by the requested name because it has no existing target group.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.
