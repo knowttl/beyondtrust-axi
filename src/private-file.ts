@@ -1,9 +1,10 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, type Stats } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { open, unlink } from "node:fs/promises";
+import { lstat, open, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, win32 } from "node:path";
 import { AxiError } from "axi-sdk-js";
+import { windowsDownload, type DownloadFile } from "./windows-download.js";
 
 export type WindowsAcl = (path: string, verify: boolean) => void;
 export const windowsAcl: WindowsAcl = (path, verify) => {
@@ -26,30 +27,28 @@ export function toolDirectory(kind: "config" | "state", env = process.env, platf
 }
 
 export type PrivateFileOptions = { platform?: NodeJS.Platform; acl?: WindowsAcl; uid?: number };
-export async function newPrivateFile<T>(path: string, write: (file: Awaited<ReturnType<typeof open>>) => Promise<T>): Promise<T> {
+export async function newPrivateFile<T>(path: string, write: (file: DownloadFile) => Promise<T>): Promise<T> {
+  if (process.platform === "win32") return windowsDownload(path, write);
   let file;
-  try {
-    if (process.platform === "win32") {
-      const script = `$ErrorActionPreference='Stop'; $p='${path.replaceAll("'", "''")}'; `
-        + `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $acl=New-Object Security.AccessControl.FileSecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); `
-        + `foreach ($s in @($sid.Value,'S-1-5-18','S-1-5-32-544')) { $identity=New-Object Security.Principal.SecurityIdentifier($s); $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow'); $acl.AddAccessRule($rule) }; `
-        + `$file=[IO.FileStream]::new($p,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::ReadWrite,[IO.FileShare]::None,4096,[IO.FileOptions]::None,$acl); $file.Dispose();`;
-      execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "pipe" });
-    } else file = await open(path, "wx", 0o600);
-  }
+  try { file = await open(path, "wx", 0o600); }
   catch { throw new AxiError("Cannot create a new download file", "DOWNLOAD_FILE_ERROR", ["Choose a new --out path in an existing writable directory"]); }
   try {
-    if (!file) file = await open(path, "r+");
-    if (process.platform === "win32") windowsAcl(path, true);
-    else await file.chmod(0o600);
+    await file.chmod(0o600);
+    const stat = await file.stat();
+    if (!stat.isFile() || stat.uid !== process.getuid!() || (stat.mode & 0o777) !== 0o600) throw new Error("Insecure destination");
     const result = await write(file);
     await file.sync();
     await file.close();
     return result;
   } catch (error) {
-    await file?.close().catch(() => {});
-    try { await unlink(path); }
+    try {
+      const original = await file.stat();
+      const current = await lstat(path);
+      if (original.dev !== current.dev || original.ino !== current.ino) throw new Error("Destination changed");
+      await unlink(path);
+    }
     catch { throw new AxiError("Incomplete download could not be removed", "DOWNLOAD_FILE_ERROR", ["Remove the incomplete --out file before retrying"]); }
+    finally { await file.close().catch(() => {}); }
     if (error instanceof AxiError) throw error;
     throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]);
   }

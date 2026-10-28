@@ -120,7 +120,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
     return value;
   };
-  const projected = Object.fromEntries(fields.map((field) => [field, preview(store.redactor.value(result[field]))]));
+  const projected = Object.fromEntries(fields.map((field) => [field, download ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
   if (truncated) projected.help = ["Repeat the command with --full to see complete strings"];
   return projected;
 }

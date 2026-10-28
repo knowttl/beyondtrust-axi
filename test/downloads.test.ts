@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
@@ -22,15 +22,45 @@ function raw(...chunks: Uint8Array[]): HttpResponse {
   return { status: 200, headers: new Headers({ "content-type": "application/octet-stream" }), body: (async function* () { yield* chunks; })() };
 }
 
-test.skipIf(process.platform !== "win32")("Windows destination is private before Node opens it for streaming", async () => {
+test.each([false, true])("path substitution cannot redirect bytes or delete a replacement (failure: %s)", async (fail) => {
   const f = fixture();
-  const open = fsPromises.open;
-  vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
-    windowsAcl(f.out, true);
-    return open(...parameters);
+  const moved = join(f.directory, "moved.bin");
+  const bytes = Buffer.from([0, 255, 128]);
+  const download = newPrivateFile(f.out, async (file) => {
+    if (process.platform === "win32") expect(() => renameSync(f.out, moved)).toThrow();
+    else {
+      renameSync(f.out, moved);
+      writeFileSync(f.out, "replacement");
+    }
+    await file.writeFile(bytes);
+    if (fail) throw new Error("synthetic failure");
   });
-  await newPrivateFile(f.out, async (file) => { await file.writeFile(Buffer.from([0, 255, 128])); });
-  expect(readFileSync(f.out)).toEqual(Buffer.from([0, 255, 128]));
+  if (fail) await expect(download).rejects.toMatchObject({ code: "DOWNLOAD_FILE_ERROR" });
+  else await download;
+  if (process.platform === "win32") {
+    expect(existsSync(f.out)).toBe(!fail);
+    if (!fail) expect(readFileSync(f.out)).toEqual(bytes);
+  } else {
+    expect(readFileSync(f.out, "utf8")).toBe("replacement");
+    expect(readFileSync(moved)).toEqual(bytes);
+  }
+});
+
+test.skipIf(process.platform === "win32").each([
+  ["computer", "log", "download", id],
+  ["policy", "download", id],
+  ["policy", "revision", "download", id],
+  ["api-definition", "download"],
+])("returns the complete long destination path: %j", async (...args) => {
+  const f = fixture();
+  const directory = join(f.directory, "a".repeat(180), "b".repeat(180), "c".repeat(180));
+  mkdirSync(directory, { recursive: true });
+  const out = join(directory, "download.bin");
+  const result = await f.run([...args, "--out", out], {}, fakeCloud(response(token), raw(Buffer.from("complete"))));
+  expect(result.code).toBe(0);
+  expect(result.data.path).toBe(out);
+  expect(result.data.help).toBeUndefined();
+  expect(readFileSync(out, "utf8")).toBe("complete");
 });
 
 // inventory/swagger.json: these four GET routes return downloaded bytes; Content routes omit success schemas.
@@ -121,7 +151,7 @@ test("removes partially streamed output after transport failure", async () => {
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
-test.each([
+test.skipIf(process.platform === "win32").each([
   ["computer", "log", "download", id],
   ["policy", "download", id],
   ["policy", "revision", "download", id],
