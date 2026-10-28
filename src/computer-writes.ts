@@ -67,7 +67,7 @@ export function prepareComputerWrite(command: string, inputIds: string[], flags:
         path = ids.length === 1 ? path.replace("{computerId}", ids[0]!) : paths[1]!;
         if (ids.length === 1) body = undefined;
       }
-      if (command === "computer authorise" || command === "computer reject") body = { ...(query ? { filter, allComputers: false } : { computerIds: ids, allComputers: false }), ...(group ? { groupId: group } : {}) };
+      if (command === "computer authorise" || command === "computer reject") body = { ...(query ? { filter, allComputers: true } : { computerIds: ids, allComputers: false }), ...(group ? { groupId: group } : {}) };
       const selection = query ? `filter ${count} computers ${JSON.stringify(filter)}` : ids.join(" ");
       return { path, body, confirmation: `${operation} ${selection}${group ? ` group ${group}` : ""}`, preview: { count, hosts, ...(query ? { filter, warning: "The server re-applies this filter at execution; membership can change after this count. No maximum count is imposed." } : { ids }), ...(group ? { group } : {}) } };
     },

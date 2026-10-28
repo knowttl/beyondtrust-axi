@@ -19,7 +19,7 @@ Paged requests cap page size at 200; event windows default to 24 hours and cap a
 Writes require forced-read-only precedence, allowWrites, exact operation permission, validation and re-read, preview, --execute with exact --confirm, then durable redacted intent before one send.
 Deletes also require file-profile writes.allowDeletes and exact --confirm-delete.
 Explicit IDs cap at 20; bulk filters have no maximum, count matches with GET /v3/Computers, preview count and first 20 hosts, and bind count into confirmation.
-Bulk previews warn that the server re-applies filters at execution; allComputers is refused.
+Bulk previews warn that the server re-applies filters at execution; an unfiltered all-computers selection is refused.
 Inputs cap at 10 MiB with SHA-256 bound into confirmation.
 Policy Editor addition and deletion arrays must never be mixed.
 Pre-approved AdminAccessRequest grants admin rights and requires write gates.

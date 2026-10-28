@@ -60,21 +60,39 @@ test.each([
   if (process.platform !== "win32") expect(statSync(journal).mode & 0o777).toBe(0o600);
 });
 
-test("counts an unbounded authorise filter and binds count and filter into confirmation", async () => {
+test.each([
+  { groupArgs: [], groupReads: () => [], groupBody: {}, readCount: 2 },
+  { groupArgs: ["--group", other], groupReads: () => [response({ id: other })], groupBody: { groupId: other }, readCount: 3 },
+])("counts an unbounded authorise filter and binds its selection into confirmation: $groupArgs", async ({ groupArgs, groupReads, groupBody, readCount }) => {
   const f = fixture();
-  const args = ["computer", "authorise", "--host", "example", "--os", "Windows", "--days-disconnected", "12"];
-  const preview = await f.run(args, {}, fakeCloud(response(token), page(100001)));
+  const args = ["computer", "authorise", "--host", "example", "--os", "Windows", "--days-disconnected", "12", ...groupArgs];
+  const preview = await f.run(args, {}, fakeCloud(response(token), ...groupReads(), page(100001)));
   expect(preview.data).toMatchObject({ status: "preview", preview: { count: 100001, filter: { host: "example", os: "Windows", daysDisconnected: 12 } } });
   expect((preview.data.preview as { hosts: string[] }).hosts).toHaveLength(20);
   expect(preview.data.confirmation).toContain("filter 100001 computers");
-  const cloud = fakeCloud(response(token), page(100001), response(other, 201));
+  const cloud = fakeCloud(response(token), ...groupReads(), page(100001), response(other, 201));
   const executed = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, cloud);
   expect(executed.data.status).toBe("sent");
-  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual({ filter: { host: "example", os: "Windows", daysDisconnected: 12 }, allComputers: false });
-  expect(cloud.calls[1]!.url.searchParams.get("Filter.Host")).toBe("example");
-  const changed = fakeCloud(response(token), page(100002));
+  expect(JSON.parse(cloud.calls.at(-1)!.options.body!)).toEqual({ filter: { host: "example", os: "Windows", daysDisconnected: 12 }, allComputers: true, ...groupBody });
+  expect(cloud.calls.at(-2)!.url.searchParams.get("Filter.Host")).toBe("example");
+  const changed = fakeCloud(response(token), ...groupReads(), page(100002));
   expect((await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, changed)).data).toMatchObject({ error: { code: "CONFIRMATION_REQUIRED" } });
-  expect(changed.calls).toHaveLength(2);
+  expect(changed.calls).toHaveLength(readCount);
+});
+
+test.each([
+  [], ["--all"], ["--host", " "],
+  ["--execute", "--confirm", "computer.authorise"],
+  ["--all", "--execute", "--confirm", "computer.authorise"],
+  ["--host", " ", "--execute", "--confirm", "computer.authorise"],
+])("refuses unfiltered authorise selections before any request: %j", async (...args) => {
+  const f = fixture();
+  const cloud = fakeCloud();
+  const result = await f.run(["computer", "authorise", ...args], {}, cloud);
+  expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+  expect(result.code).toBe(2);
+  expect(cloud.calls).toHaveLength(0);
+  expect(existsSync(f.journal)).toBe(false);
 });
 
 test("authorise re-reads the group and binds it into confirmation", async () => {
