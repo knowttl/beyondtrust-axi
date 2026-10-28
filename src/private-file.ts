@@ -5,13 +5,11 @@ import { homedir } from "node:os";
 import { isAbsolute, join, win32 } from "node:path";
 import { AxiError } from "axi-sdk-js";
 
-export type WindowsAcl = (path: string, verify: boolean, protect?: boolean) => void;
-export const windowsAcl: WindowsAcl = (path, verify, protect = false) => {
+export type WindowsAcl = (path: string, verify: boolean) => void;
+export const windowsAcl: WindowsAcl = (path, verify) => {
   const quoted = `'${path.replaceAll("'", "''")}'`;
   const script = `$ErrorActionPreference='Stop'; $p=${quoted}; $item=Get-Item -LiteralPath $p -Force; `
     + `if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Reparse point' }; `
-    + (protect ? `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $acl=New-Object Security.AccessControl.FileSecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); `
-      + `foreach ($s in @($sid.Value,'S-1-5-18','S-1-5-32-544')) { $identity=New-Object Security.Principal.SecurityIdentifier($s); $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow'); $acl.AddAccessRule($rule) }; Set-Acl -LiteralPath $p -AclObject $acl; ` : "")
     + (verify ? `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $allowed=@($sid.Value,'S-1-5-18','S-1-5-32-544'); `
       + `$acl=Get-Acl -LiteralPath $p; if (!$acl.AreAccessRulesProtected -or ($acl.Owner -ne $sid.Translate([Security.Principal.NTAccount]).Value -and $acl.Owner -ne $sid.Value)) { throw 'Unprotected ACL' }; `
       + `$seen=@(); foreach ($r in $acl.Access) { $s=$r.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value; if ($s -notin $allowed -or $r.IsInherited -or $r.AccessControlType -ne 'Allow' -or $r.FileSystemRights -ne [Security.AccessControl.FileSystemRights]::FullControl) { throw 'Unexpected ACL' }; $seen+=$s }; foreach ($s in $allowed) { if ($s -notin $seen) { throw 'Missing ACL' } }` : "");
@@ -30,17 +28,26 @@ export function toolDirectory(kind: "config" | "state", env = process.env, platf
 export type PrivateFileOptions = { platform?: NodeJS.Platform; acl?: WindowsAcl; uid?: number };
 export async function newPrivateFile<T>(path: string, write: (file: Awaited<ReturnType<typeof open>>) => Promise<T>): Promise<T> {
   let file;
-  try { file = await open(path, "wx", 0o600); }
+  try {
+    if (process.platform === "win32") {
+      const script = `$ErrorActionPreference='Stop'; $p='${path.replaceAll("'", "''")}'; `
+        + `$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User; $acl=New-Object Security.AccessControl.FileSecurity; $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); `
+        + `foreach ($s in @($sid.Value,'S-1-5-18','S-1-5-32-544')) { $identity=New-Object Security.Principal.SecurityIdentifier($s); $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','Allow'); $acl.AddAccessRule($rule) }; `
+        + `$file=[IO.FileStream]::new($p,[IO.FileMode]::CreateNew,[Security.AccessControl.FileSystemRights]::ReadWrite,[IO.FileShare]::None,4096,[IO.FileOptions]::None,$acl); $file.Dispose();`;
+      execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "pipe" });
+    } else file = await open(path, "wx", 0o600);
+  }
   catch { throw new AxiError("Cannot create a new download file", "DOWNLOAD_FILE_ERROR", ["Choose a new --out path in an existing writable directory"]); }
   try {
-    if (process.platform === "win32") windowsAcl(path, true, true);
+    if (!file) file = await open(path, "r+");
+    if (process.platform === "win32") windowsAcl(path, true);
     else await file.chmod(0o600);
     const result = await write(file);
     await file.sync();
     await file.close();
     return result;
   } catch (error) {
-    await file.close().catch(() => {});
+    await file?.close().catch(() => {});
     try { await unlink(path); }
     catch { throw new AxiError("Incomplete download could not be removed", "DOWNLOAD_FILE_ERROR", ["Remove the incomplete --out file before retrying"]); }
     if (error instanceof AxiError) throw error;

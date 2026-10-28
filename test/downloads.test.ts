@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync, symlinkSync, writeFileSync } from "
 import * as fsPromises from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
-import { windowsAcl } from "../src/private-file.js";
+import { newPrivateFile, windowsAcl } from "../src/private-file.js";
 import { localFixture } from "./support/local-cli.js";
 import { fakeCloud, response, token } from "./support/fake-pm-cloud.js";
 import type { HttpResponse } from "../src/transport.js";
@@ -21,6 +21,17 @@ afterEach(() => { vi.restoreAllMocks(); for (const f of fixtures.splice(0)) f.cl
 function raw(...chunks: Uint8Array[]): HttpResponse {
   return { status: 200, headers: new Headers({ "content-type": "application/octet-stream" }), body: (async function* () { yield* chunks; })() };
 }
+
+test.skipIf(process.platform !== "win32")("Windows destination is private before Node opens it for streaming", async () => {
+  const f = fixture();
+  const open = fsPromises.open;
+  vi.spyOn(fsPromises, "open").mockImplementationOnce(async (...parameters) => {
+    windowsAcl(f.out, true);
+    return open(...parameters);
+  });
+  await newPrivateFile(f.out, async (file) => { await file.writeFile(Buffer.from([0, 255, 128])); });
+  expect(readFileSync(f.out)).toEqual(Buffer.from([0, 255, 128]));
+});
 
 // inventory/swagger.json: these four GET routes return downloaded bytes; Content routes omit success schemas.
 test.each([
