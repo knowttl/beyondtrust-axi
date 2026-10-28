@@ -155,6 +155,7 @@ Import-computers accepts a non-empty UTF-8 CSV file without NUL bytes up to 10 M
 Group confirmations bind the intended change and re-read state of existing target groups, so a changed target group or input file requires a new preview.
 Create reads the group collection filtered by the requested name because it has no existing target group.
 Policy writes use the same gates with exact operation names derived by replacing command spaces with dots.
+Policy and application-addition files follow the [file protection requirements](docs/configuration.md).
 Create and upload capture a secure non-empty policy file up to 10 MiB and bind its SHA-256 into confirmation; the journal records size and digest, and the multipart request sends the captured bytes unchanged under PolicyFile with a fixed filename, including UTF-16 XML.
 Policy update preserves omitted name or description fields and previews the diff.
 Auto-assign requires a revision belonging to the policy and binds its revision and assigned-group re-reads into confirmation; upload --auto-assign also previews assigned groups.
