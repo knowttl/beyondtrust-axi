@@ -2,10 +2,11 @@ import { AxiError, runAxiCli } from "axi-sdk-js";
 import { encode } from "@toon-format/toon";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
-import { catalogue, DESCRIPTION, help } from "./catalogue.js";
+import { catalogue, DESCRIPTION, help, resourceReads } from "./catalogue.js";
 import { credentialStore, type CredentialContext } from "./profiles.js";
 import { readClient, type TransportOptions } from "./transport.js";
 import { z } from "zod";
+import { prepareResourceRead } from "./resource-reads.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
@@ -39,7 +40,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full"].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all"].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -47,10 +48,11 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     }
   }
   if (flags.has("--help")) return { command: name, ...entry };
+  const resourceRead = prepareResourceRead(name, flags, resourceReads[name]);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
-      : ["bin", "description", "status", "profiles", "count", "help"];
+      : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
@@ -59,6 +61,12 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
+  else if (resourceRead) {
+    store.readOnly();
+    const profile = store.select(store.load(config, true).config, flags.get("--profile"));
+    const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
+    result = await resourceRead.run(client, JSON.stringify([store.configPath(config), profile.name, profile.host, profile.clientId]));
+  }
   else if (["doctor", "about", "task status"].includes(name)) {
     store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));

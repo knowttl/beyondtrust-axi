@@ -73,6 +73,15 @@ test("published metadata includes credential schema, inventory and generated dis
   expect(JSON.parse(readFileSync(join(packageRoot, "inventory/capabilities.json"), "utf8")).coverage).toHaveLength(94);
 });
 
+test("installed resource commands expose their read filters without credentials or network", () => {
+  const result = cli(["computer", "list", "--help"]);
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(decode(result.stdout)).toMatchObject({ command: "computer list", flags: { limit: expect.any(String), cursor: expect.any(String), "host-type": expect.stringContaining("Linux") } });
+  const policy = cli(["policy", "macos-application-groups", "--help"]);
+  expect(policy.status).toBe(0);
+  expect(decode(policy.stdout)).toMatchObject({ command: "policy macos-application-groups", flags: { "application-id": expect.any(String) } });
+});
+
 test("all version aliases work without the compiled command graph", () => {
   const dist = join(packageRoot, "dist");
   renameSync(dist, `${dist}-hidden`);

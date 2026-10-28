@@ -5,7 +5,7 @@ The committed OpenAPI export is the operation contract, supplemented by the [API
 There are 78 paths and 94 operations with no operationId; inventory/capabilities.json cites method and path.
 The ledger records 43 JSON reads, four downloads, 40 writes, six deletes and one operation not built.
 Two Policy Editor application write routes also support separately gated removal.
-Inventory records two implemented B2 reads; the remaining coverage is planned, independent of executable commands in src/catalogue.ts.
+Inventory records 14 implemented reads across B2 and B3; the remaining coverage is planned, independent of executable commands in src/catalogue.ts.
 
 ## Safety contract
 
