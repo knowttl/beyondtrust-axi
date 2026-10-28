@@ -87,6 +87,8 @@ Cursors encode positions and a context digest, contain no credentials, and are n
 Unpaged API arrays are fetched again when resumed, so changes to the source may move rows.
 The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
 The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
+For modeled responses, schemas marked additionalProperties:false reject unexpected fields with API_RESPONSE_INVALID, including differently cased property names.
+The export's Policy Editor application-group examples use PascalCase keys that conflict with its camelCase schemas; responses matching those examples are rejected.
 
 ## Safety
 
