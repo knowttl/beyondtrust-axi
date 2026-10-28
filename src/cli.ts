@@ -65,7 +65,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));
     const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
-    result = await resourceRead.run(client, JSON.stringify([store.configPath(config), profile.name, profile.host, profile.clientId]));
+    result = await resourceRead.run(client, JSON.stringify([store.configPath(config), profile.name, profile.host, profile.clientId]), store.redactor);
   }
   else if (["doctor", "about", "task status"].includes(name)) {
     store.readOnly();

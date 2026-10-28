@@ -132,6 +132,25 @@ test("resource values and continuation hints redact secrets and token variants",
 });
 
 test.each([
+  ["computer list", "host", page([{ id }], 1, 1, 2, 2)],
+  ["group list", "name", page([{ id }], 1, 1, 2, 2)],
+  ["policy list", "name", page([{ id }], 1, 1, 2, 2)],
+  ["policy windows-application-groups", "application-description", [{ id }, { id }]],
+  ["policy macos-application-groups", "application-description", [{ id }, { id }]],
+])("redacts apostrophe-containing credentials before quoting %s continuation flags", async (command, flag, body) => {
+  const f = fixture();
+  f.env.SYNTHETIC_SECRET = "synthetic'secret";
+  const accessToken = "synthetic'token";
+  const filter = `${f.env.SYNTHETIC_SECRET} ${accessToken} example's`;
+  const args = command.split(" ");
+  if (!command.endsWith(" list")) args.push("--id", id);
+  const result = await f.run([...args, `--${flag}`, filter, "--limit", "1"], {}, fakeCloud(response({ ...token, access_token: accessToken }), response(body)));
+  expect(result.code).toBe(0);
+  expect(result.data.cursor).toEqual(expect.any(String));
+  expect(result.data.help).toEqual([`Run beyondtrust-axi ${command}${command.endsWith(" list") ? "" : ` --id '${id}'`} --${flag} '***redacted*** ***redacted*** example'\\''s' --cursor <cursor> to continue with the same profile`]);
+});
+
+test.each([
   ["computer list", page([{ host: 42 }])], ["group list", page([], 2)],
   ["policy list", page([], 1, 50, 100, 2)], ["computer view", []],
   ["policy revisions", [{ revision: "bad" }]], ["computer command-log", {}],

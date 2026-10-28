@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
+import type { SecretRedactor } from "./redact.js";
 
 // The committed export owns parameter types and response shapes, including nullable fields.
 export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; items?: Schema; minimum?: number; maximum?: number };
@@ -87,11 +88,9 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
     } catch { invalid("Invalid cursor"); }
   }
   const path = definition.path.replace(/\{[^}]+\}/, id ?? "");
-  const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--fields", "--full"].includes(flag))
-    .map(([flag, value]) => `${flag} '${value.replaceAll("'", "'\\''")}'`).join(" ");
   return {
     fields: definition.list ? ["data", "count", "total", "cursor", "help"] : ["data"],
-    async run(client: { get: (path: string) => Promise<unknown> }, context: string) {
+    async run(client: { get: (path: string) => Promise<unknown> }, context: string, redactor: SecretRedactor) {
       const binding = createHash("sha256").update(JSON.stringify([context, command, path, query.toString()])).digest("hex");
       if (cursor && cursor.binding !== binding) invalid("Cursor does not match this profile, command or filters");
       let page = cursor?.page ?? 1, offset = cursor?.offset ?? 0;
@@ -132,6 +131,8 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (!more || data.length >= limit) break;
       }
       const next = more ? Buffer.from(JSON.stringify({ version: 1, binding, page, size, offset })).toString("base64url") : null;
+      const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--fields", "--full"].includes(flag))
+        .map(([flag, value]) => `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
       return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`] };
     },
   };
