@@ -4,8 +4,10 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { catalogue, DESCRIPTION, help } from "./catalogue.js";
 import { credentialStore, type CredentialContext } from "./profiles.js";
+import { readClient, type TransportOptions } from "./transport.js";
+import { z } from "zod";
 
-export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
+export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
   await runAxiCli({
     description: DESCRIPTION, argv: ["local"], topLevelHelp: "", home: help,
@@ -16,20 +18,21 @@ export async function main(argv = process.argv.slice(2), options: { credentials?
         : { error: { code: "CONFIG_INVALID", message: "Command could not complete" }, help: ["Check local configuration; run beyondtrust-axi config path"] }))}\n`,
       exitCode: error instanceof AxiError && error.code === "VALIDATION_ERROR" ? 2 : 1,
     }),
-    commands: { local: () => localCommand(argv, store) },
+    commands: { local: () => localCommand(argv, store, options.transport) },
   });
 }
 
-function localCommand(argv: string[], store: ReturnType<typeof credentialStore>): Record<string, unknown> {
+async function localCommand(argv: string[], store: ReturnType<typeof credentialStore>, transport?: TransportOptions): Promise<Record<string, unknown>> {
   if (argv.length === 1 && argv[0] === "--help") return help();
-  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : argv[0] === "home" ? "home" : argv.slice(0, 2).join(" ");
+  const single = ["home", "doctor", "about"].includes(argv[0] ?? "");
+  const name = !argv.length || argv[0]?.startsWith("--") ? "home" : single ? argv[0]! : argv.slice(0, 2).join(" ");
   const entry = Object.hasOwn(catalogue, name) ? catalogue[name as keyof typeof catalogue] : undefined;
   const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
     `Valid commands: ${Object.keys(catalogue).join(", ")}; valid flags: ${Object.keys(entry?.flags ?? catalogue.home.flags).map((flag) => `--${flag}`).join(", ")}`,
   ]); };
   if (!entry) return usage();
   const flags = new Map<string, string>();
-  for (let index = name === "home" ? (argv[0] === "home" ? 1 : 0) : 2; index < argv.length; index++) {
+  for (let index = name === "home" ? (argv[0] === "home" ? 1 : 0) : single ? 1 : 2; index < argv.length; index++) {
     const flag = argv[index]!;
     if (!flag.startsWith("--")) usage();
     if (!Object.hasOwn(entry.flags, flag.slice(2)) || flags.has(flag)) {
@@ -46,14 +49,30 @@ function localCommand(argv: string[], store: ReturnType<typeof credentialStore>)
   if (flags.has("--help")) return { command: name, ...entry };
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
+      : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
       : ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
+  if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
   const config = flags.get("--config");
   let result: Record<string, unknown>;
   if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
+  else if (["doctor", "about", "task status"].includes(name)) {
+    store.readOnly();
+    const profile = store.select(store.load(config, true).config, flags.get("--profile"));
+    const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
+    const data = await client.get(name === "task status" ? `/v3/Tasks/${flags.get("--id")}` : "/v3/About");
+    const text = z.string().nullable().optional();
+    const version = z.object({ consoleVersion: text, reportingDatabaseVersion: text, policyEditorVersion: text });
+    const task = z.object({ id: z.string(), name: text, state: z.number().int().optional(), stateName: text, initiated: text, completed: text, completedWithErrors: z.boolean().nullable().optional() });
+    const parsed = (name === "task status" ? task : z.array(version)).safeParse(data);
+    if (!parsed.success) throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]);
+    result = name === "doctor" ? { profile: profile.name, host: profile.host, authentication: "verified for this run", api: "GET /v3/About succeeded",
+      unverified: ["Token lifetime and rate limits are guide-only facts", "Live tenant compatibility requires commissioning through artium-axi"] }
+      : name === "about" ? { versions: parsed.data } : { task: parsed.data };
+  }
   else {
     const listed = store.list(config);
     let status = "not configured";
