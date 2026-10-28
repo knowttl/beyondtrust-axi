@@ -64,7 +64,7 @@ No BeyondTrust tenant is contacted by B1; offline tests do not establish live co
 Secrets use env/file SecretRefs, never inline config or argv; output redacts secret-derived strings before truncation.
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
 Environment profiles cannot enable writes, deletes or downloads.
-File permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
+File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.
 Later writes require the exact operation allow-list, preview, --execute, exact --confirm and durable redacted intent before one send.
 Deletes additionally require writes.allowDeletes and exact --confirm-delete.

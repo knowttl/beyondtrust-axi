@@ -48,7 +48,7 @@ Secret files strip a BOM and trailing whitespace; secrets and their escaped/enco
 Unix defaults are ~/.config/beyondtrust-axi/config.json and ~/.local/state/beyondtrust-axi.
 Windows defaults use APPDATA/beyondtrust-axi/config.json and LOCALAPPDATA/beyondtrust-axi.
 Windows ignores XDG; relative base overrides use platform defaults.
-Partial environment profiles fail closed; environment profiles never enable writes, deletes or downloads.
+Partial environment profiles fail closed unless --profile or BEYONDTRUST_AXI_PROFILE selects a file profile; environment profiles never enable writes, deletes or downloads.
 Unknown profile fields and invalid read-only overrides fail closed.
 File profiles default downloads.allow, writes.allowWrites and writes.allowDeletes to false with no allowed operations.
 Only B1 local commands are executable; setting permissions does not add API commands.
