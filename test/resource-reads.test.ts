@@ -48,6 +48,23 @@ test("computer filters use encoded query parameters and created ascending sortin
   expect(query.get("Sorts[0].order")).toBe("asc");
 });
 
+test.each([
+  ["computer list", "host", "Filter.Host", page([])],
+  ["group list", "description", "Filter.Description", page([])],
+  ["policy list", "name", "Filter.Name", page([])],
+  ["policy windows-application-groups", "application-description", "Filter.ApplicationDescription", []],
+  ["policy macos-application-groups", "application-description", "Filter.ApplicationDescription", []],
+])("preserves literal asterisks in %s filters", async (command, flag, parameter, body) => {
+  const f = fixture();
+  const cloud = fakeCloud(response(token), response(body));
+  const args = command.split(" ");
+  if (!command.endsWith(" list")) args.push("--id", id);
+  const result = await f.run([...args, `--${flag}`, "example *"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual([]);
+  expect(cloud.calls[1]!.url.searchParams.get(parameter)).toBe("example *");
+});
+
 test("all stops at 1000 rows and resumes without skipping a partial page", async () => {
   const f = fixture();
   const rows = Array.from({ length: 200 }, (_, index) => ({ name: `example-${index}` }));
