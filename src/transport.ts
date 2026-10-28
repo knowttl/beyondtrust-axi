@@ -97,7 +97,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   return {
     async get(path: string): Promise<unknown> {
       const url = new URL(path, origin);
-      if (!/^\/v3\/[A-Za-z0-9/{}?=&%_.-]+$/.test(path) || url.origin !== origin || url.pathname !== path.split("?")[0]) throw new AxiError("Invalid API path", "VALIDATION_ERROR", ["Use a supported read command"]);
+      if (!/^\/(?:v3|PolicyEditor\/v3)\/[A-Za-z0-9/{}?=&%_.*+\-]+$/.test(path) || url.origin !== origin || url.pathname !== path.split("?")[0]) throw new AxiError("Invalid API path", "VALIDATION_ERROR", ["Use a supported read command"]);
       if (!token) await authenticate();
       if (token!.expires - now() <= 30_000 && !refreshed) { refreshed = true; await authenticate(); }
       if (token!.expires <= now()) throw new AxiError("Token expired within this run", "AUTH_EXPIRED", ["Run the read command again"]);

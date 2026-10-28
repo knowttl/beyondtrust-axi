@@ -11,6 +11,7 @@ Inspect BeyondTrust PM Cloud Endpoint Privilege Management through compact, guar
 Agents need compact, predictable access to BeyondTrust PM Cloud Endpoint Privilege Management without guessing routes or replaying disruptive requests.
 This project pins the vendor OpenAPI contract and builds bounded reads, explicit write gates and redacted output in separate slices.
 B2 supplies local discovery, credential readiness, API diagnostics, versions and task status.
+B3 adds 12 computer, group and policy reads, including Windows and macOS application groups.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -57,10 +58,13 @@ Skill commands use npx for the future published package; until release, use the 
 | doctor | Authenticate and verify About access | API read | [Commands](docs/commands.md) |
 | about | Console, reporting database and policy editor versions | API read | [Commands](docs/commands.md) |
 | task status | Task detail by --id UUID | API read | [Commands](docs/commands.md) |
+| computer | List, detail, command logs and agent log metadata | API read | [Commands](docs/commands.md) |
+| group | List and detail | API read | [Commands](docs/commands.md) |
+| policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
-Local commands never contact BeyondTrust; doctor, about and task status explicitly make API requests.
+Local commands never contact BeyondTrust; doctor, about, task status and the resource commands explicitly make API requests.
 Offline tests do not establish live compatibility.
 Token lifetime and the documented rate limit remain unverified until commissioning through artium-axi.
 
@@ -71,6 +75,20 @@ node bin/beyondtrust-axi.js task status --id <uuid>
 ```
 
 Only use an actual task ID with task status; undocumented write result UUIDs are not assumed to be task IDs.
+
+Resource lists default to 50 rows; use --limit 1-1000 or --all for up to 1000 rows.
+Paged API requests use at most 200 rows per page, with computers sorted by created date ascending to reduce duplicates.
+Filters map to the committed API parameters; run each command with --help for the available filter flags.
+Array filter values are comma-separated; date filters require matching dates and selection mode.
+Group and policy lists accept --sort property:asc or property:desc, defaulting to created:asc.
+Every list returns data, count, total and cursor; detail reads return data.
+When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.
+Cursors encode positions and a context digest, contain no credentials, and are not authorization tokens or a server snapshot.
+Unpaged API arrays are fetched again when resumed, so changes to the source may move rows.
+The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
+The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
+For modeled responses, schemas marked additionalProperties:false reject unexpected fields with API_RESPONSE_INVALID, including differently cased property names.
+The export's Policy Editor application-group examples use PascalCase keys that conflict with its camelCase schemas; responses matching those examples are rejected.
 
 ## Safety
 

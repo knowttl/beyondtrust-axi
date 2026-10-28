@@ -46,7 +46,7 @@
       "method": "GET",
       "path": "/v3/Computers",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "DELETE",
@@ -70,7 +70,7 @@
       "method": "GET",
       "path": "/v3/Groups",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -88,7 +88,7 @@
       "method": "GET",
       "path": "/v3/Groups/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "DELETE",
@@ -100,7 +100,7 @@
       "method": "GET",
       "path": "/v3/Policies",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -112,7 +112,7 @@
       "method": "GET",
       "path": "/v3/Policies/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PUT",
@@ -130,13 +130,13 @@
       "method": "GET",
       "path": "/PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
       "path": "/PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -214,7 +214,7 @@
       "method": "GET",
       "path": "/v3/Computers/{id}",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -325,7 +325,7 @@
       "method": "GET",
       "path": "/v3/Policies/{id}/Revisions",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -343,7 +343,7 @@
       "method": "GET",
       "path": "/v3/Policies/{id}/AssignedGroups",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -397,7 +397,7 @@
       "method": "GET",
       "path": "/v3/Computers/{id}/CommandLog",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -421,7 +421,7 @@
       "method": "GET",
       "path": "/v3/Computers/{id}/Logs",
       "classification": "read",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
