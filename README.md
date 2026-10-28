@@ -124,10 +124,7 @@ Reads share a budget of 10 requests including authentication, 60 seconds and 8 M
 Downloads require a named file profile with downloads.allow enabled and a new --out path.
 They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
 The destination is created exclusively with mode 0600; existing files and symlinks are refused.
-On any failure after creation, the tool attempts to truncate the partial content through the original open handle, closes it, and leaves the file for operator removal.
-It never deletes a download by pathname; the error names the partial destination, with secrets redacted, for inspection and removal before retrying.
-Truncation can fail, so the remaining file may still contain partial content.
-On Windows, the new file must pass the protected DACL check before any request is sent.
+For failure cleanup, Windows file protections and platform verification limits, see [Downloads](docs/downloads.md).
 Success reports path, size in bytes, sha256 and contentType.
 The three resource downloads take a positional UUID; api-definition download needs only --out.
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
@@ -159,7 +156,7 @@ The [credential schema](axi-credential.schema.json) describes host, clientId, cl
 ## Output and exit codes
 
 All data, errors and next-step hints use TOON on stdout.
-Strings truncate at 500 characters by default; --full restores complete strings and --fields selects top-level fields.
+Strings truncate at 500 characters by default except for [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 
 | Exit | Meaning |
@@ -186,7 +183,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
 | API_RESPONSE_INVALID | Check API compatibility with the committed export. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
-| DOWNLOAD_FILE_ERROR | Choose a new --out file in an existing writable directory and check private file permissions. |
+| DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 ## Contributing

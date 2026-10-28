@@ -8,6 +8,10 @@ import { localFixture } from "./support/local-cli.js";
 import { fakeCloud, response, token } from "./support/fake-pm-cloud.js";
 import type { HttpResponse } from "../src/transport.js";
 
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...await importOriginal<typeof import("node:fs/promises")>(),
+}));
+
 const id = "00000000-0000-0000-0000-000000000001";
 const fixtures: ReturnType<typeof localFixture>[] = [];
 function fixture(allow = true) {

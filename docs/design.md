@@ -24,7 +24,7 @@ Inputs cap at 10 MiB with SHA-256 bound into confirmation.
 Policy Editor addition and deletion arrays must never be mixed.
 Pre-approved AdminAccessRequest grants admin rights and requires write gates.
 Ambiguous outcomes return OUTCOME_UNKNOWN with auditId and must never be replayed automatically.
-Downloads need file-profile opt-in, a new 0600 file, raw bytes and a 50 MiB cap; only path, size and SHA-256 are printed.
+For implemented download gates, limits and output, see [Safety](../README.md#safety); [Downloads](downloads.md) owns failure cleanup and platform protections.
 Computer Deactivate archives and deletes; certificate renewal documents only 410 and is not built.
 All verification is offline; commissioning follows B1-B13 through artium-axi.
 
