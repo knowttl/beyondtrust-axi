@@ -141,7 +141,7 @@ Repeat the command with --execute and the exact --confirm phrase to persist a pr
 Authorise accepts the same filter flags as computer list instead of IDs, for example --host example or --group-id <uuid>; --group <uuid> selects the destination group.
 Filter previews count matching computers and show the first 20 hosts, with no maximum count.
 Confirmation binds the count, filter fields and destination group; the server re-applies filters when executing, so membership can change after the count.
-All-computer selections are refused; reject, archive and unarchive accept only IDs, and logs/details request require exactly one ID.
+Unfiltered all-computer selections are refused; reject, archive and unarchive accept only IDs, and logs/details request require exactly one ID.
 Explicit selections accept at most 20 distinct UUIDs; write preparation allows up to 26 total requests to accommodate 20 target re-reads, an optional group re-read, authentication and bounded read recovery, within the same 60 seconds and 8 MiB.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.

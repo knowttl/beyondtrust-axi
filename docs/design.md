@@ -13,7 +13,7 @@ Tokens use form-encoded client credentials and stay in memory.
 The API base is HTTPS on the selected host with /management-api; redirects are errors.
 On token 404, doctor reports AUTH_ENDPOINT_NOT_FOUND and hints the documented -services host form without switching hosts.
 For the implemented read budgets, token renewal and retry behavior, see [Safety](../README.md#safety).
-Writes in later slices must never retry or reauthenticate.
+For implemented write gates and retry protections, see [Safety](../README.md#safety).
 Default lists return 50 rows; --all caps at 1000 rows, 10 requests, 60 seconds and 8 MiB with bound opaque cursors.
 Paged requests cap page size at 200; event windows default to 24 hours and cap at 31 days.
 Writes require forced-read-only precedence, allowWrites, exact operation permission, validation and re-read, preview, --execute with exact --confirm, then durable redacted intent before one send.
