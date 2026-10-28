@@ -12,6 +12,7 @@ Agents need compact, predictable access to BeyondTrust PM Cloud Endpoint Privile
 This project pins the vendor OpenAPI contract and builds bounded reads, explicit write gates and redacted output in separate slices.
 B2 supplies local discovery, credential readiness, API diagnostics, versions and task status.
 B3 adds 12 computer, group and policy reads, including Windows and macOS application groups.
+B4 adds 18 user, role, domain, account, authentication-provider and SCIM reads.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -61,6 +62,9 @@ Skill commands use npx for the future published package; until release, use the 
 | computer | List, detail, command logs and agent log metadata | API read | [Commands](docs/commands.md) |
 | group | List and detail | API read | [Commands](docs/commands.md) |
 | policy | List, detail, revisions, assigned groups and platform application groups | API read | [Commands](docs/commands.md) |
+| user, role, global-role, domain | List and show identity and access metadata | API read | [Commands](docs/commands.md) |
+| api-account, auth-provider | List API accounts and show authentication provider configuration | API read | [Commands](docs/commands.md) |
+| scim, scim-user, scim-role | Resource types, schemas, service configuration, users and roles | API read | [Commands](docs/commands.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
 The [design](docs/design.md) records planned API behavior and B1-B13 slices.
@@ -80,7 +84,10 @@ Resource lists default to 50 rows; use --limit 1-1000 or --all for up to 1000 ro
 Paged API requests use at most 200 rows per page, with computers sorted by created date ascending to reduce duplicates.
 Filters map to the committed API parameters; run each command with --help for the available filter flags.
 Array filter values are comma-separated; date filters require matching dates and selection mode.
-Group and policy lists accept --sort property:asc or property:desc, defaulting to created:asc.
+Group, policy, user and global-role paged lists accept --sort property:asc or property:desc, defaulting to created:asc.
+SCIM user and role lists accept literal --filter expressions and translate bounded reads to startIndex/count pagination.
+Use scim resource-types --type user or --type role for resource-type detail; omit --type for the list.
+SCIM password properties are omitted from output, including --full.
 Every list returns data, count, total and cursor; detail reads return data.
 When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.
 Cursors encode positions and a context digest, contain no credentials, and are not authorization tokens or a server snapshot.

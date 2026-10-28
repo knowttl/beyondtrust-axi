@@ -419,3 +419,323 @@ Read policy macos application groups (GET /PolicyEditor/v3/Policy/{policyId}/Mac
 beyondtrust-axi policy macos-application-groups --id <uuid>
 beyondtrust-axi policy macos-application-groups --help
 ```
+
+## user list
+
+Read user list (GET /v3/Users).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --email-address | Filter EmailAddress (string) |
+| --role-id | Filter RoleId (string) |
+| --permission-id | Filter PermissionId (string) |
+| --last-signed-in-dates | Filter LastSignedIn Dates (array; comma-separated) |
+| --last-signed-in-selection-mode | Filter LastSignedIn SelectionMode (Single|Multiple|Range) |
+| --disabled | Filter Disabled (boolean) |
+| --language | Filter Language (string) |
+
+```sh
+beyondtrust-axi user list
+beyondtrust-axi user list --help
+```
+
+## user show
+
+Read user show (GET /v3/Users/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+
+```sh
+beyondtrust-axi user show --id <uuid>
+beyondtrust-axi user show --help
+```
+
+## role list
+
+Read role list (GET /v3/Roles).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi role list
+beyondtrust-axi role list --help
+```
+
+## role show
+
+Read role show (GET /v3/Roles/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+
+```sh
+beyondtrust-axi role show --id <uuid>
+beyondtrust-axi role show --help
+```
+
+## global-role list
+
+Read global role list (GET /v3/GlobalRoles).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --id | Filter Id (string) |
+| --name | Filter Name (string) |
+| --description | Filter Description (string) |
+| --is-built-in | Filter IsBuiltIn (boolean) |
+
+```sh
+beyondtrust-axi global-role list
+beyondtrust-axi global-role list --help
+```
+
+## global-role show
+
+Read global role show (GET /v3/GlobalRoles/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+
+```sh
+beyondtrust-axi global-role show --id <uuid>
+beyondtrust-axi global-role show --help
+```
+
+## domain list
+
+Read domain list (GET /v3/AcceptedDomains).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi domain list
+beyondtrust-axi domain list --help
+```
+
+## domain show
+
+Read domain show (GET /v3/AcceptedDomains/{id}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+
+```sh
+beyondtrust-axi domain show --id <uuid>
+beyondtrust-axi domain show --help
+```
+
+## api-account list
+
+Read api account list (GET /v3/ApiAccounts).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi api-account list
+beyondtrust-axi api-account list --help
+```
+
+## auth-provider show
+
+Read auth provider show (GET /v3/AuthenticationProvider).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+
+```sh
+beyondtrust-axi auth-provider show
+beyondtrust-axi auth-provider show --help
+```
+
+## scim resource-types
+
+Read scim resource types (GET /scim/v3/ResourceTypes[/User|/Role]).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --type | Resource type detail: user|role (default: list all resource types) |
+
+```sh
+beyondtrust-axi scim resource-types
+beyondtrust-axi scim resource-types --help
+```
+
+## scim schemas
+
+Read scim schemas (GET /scim/v3/Schemas).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+
+```sh
+beyondtrust-axi scim schemas
+beyondtrust-axi scim schemas --help
+```
+
+## scim config
+
+Read scim config (GET /scim/v3/ServiceProviderConfig).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+
+```sh
+beyondtrust-axi scim config
+beyondtrust-axi scim config --help
+```
+
+## scim-role list
+
+Read scim role list (GET /scim/v3/Roles).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --filter | SCIM filter expression (sent literally) |
+
+```sh
+beyondtrust-axi scim-role list
+beyondtrust-axi scim-role list --help
+```
+
+## scim-user list
+
+Read scim user list (GET /scim/v3/users).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --limit | Maximum rows, 1-1000 (default: 50) |
+| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
+| --cursor | Resume an opaque cursor with the same profile, command and filters |
+| --filter | SCIM filter expression (sent literally) |
+
+```sh
+beyondtrust-axi scim-user list
+beyondtrust-axi scim-user list --help
+```
+
+## scim-user show
+
+Read scim user show (GET /scim/v3/users/{userID}).
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --id | Required resource UUID |
+
+```sh
+beyondtrust-axi scim-user show --id <uuid>
+beyondtrust-axi scim-user show --help
+```

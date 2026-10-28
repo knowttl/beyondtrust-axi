@@ -13,7 +13,7 @@ const operations = Object.entries(spec.paths).flatMap(([path, methods]) => Objec
   .map((method) => `${method.toUpperCase()} ${path}`)).sort();
 const recorded = coverage.map(({ method, path }) => `${method} ${path}`).sort();
 const counts = Object.fromEntries(["read", "download", "write", "delete", "not-built"].map((kind) => [kind, coverage.filter((row) => row.classification === kind).length]));
-const implemented = ["/v3/About", "/v3/Tasks/{id}", ...Object.values(resourceReads).map(({ path }) => path)];
+const implemented = ["/v3/About", "/v3/Tasks/{id}", ...Object.values(resourceReads).flatMap(({ path, variants }) => [path, ...Object.values(variants ?? {})])];
 if (process.argv.slice(2).some((arg) => arg !== "--check")
   || createHash("sha256").update(bytes).digest("hex") !== pin.sha256
   || pin.originalSha256 !== "02e50021358738930d6f009c78e8330f67a37a4bfd761e182f870b592cfe042f"
