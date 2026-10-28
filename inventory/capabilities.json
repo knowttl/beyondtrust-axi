@@ -1,0 +1,571 @@
+{
+  "coverage": [
+    {
+      "method": "GET",
+      "path": "/v3/AcceptedDomains",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/AcceptedDomains",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/ActivityAudits",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/AdminAccessRequest/approval",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/AppSwitcher/connector",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/AuthorizationRequest/notification",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AuthorizationRequestAudits",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Computers",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v3/Computers",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/File/download/GetYamlApiDefinitionFile",
+      "classification": "download",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/GlobalRoles",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Groups",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/v3/Groups",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Groups/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v3/Groups/{id}",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Policies",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/v3/Policies/{id}",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v3/Policies/{id}",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Roles",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Tasks/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Users",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Users",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AcceptedDomains/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/v3/AcceptedDomains/{id}",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "DELETE",
+      "path": "/v3/AcceptedDomains/{id}",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/ActivityAudits/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AdminAccessRequest",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/AdminAccessRequest",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AuthorizationRequest",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AuthorizationRequestAudits/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Computers/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications",
+      "classification": "write",
+      "status": "planned",
+      "sharedDelete": true
+    },
+    {
+      "method": "POST",
+      "path": "/PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications",
+      "classification": "write",
+      "status": "planned",
+      "sharedDelete": true
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Roles/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/ActivityAudits/Details",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AdminAccessRequest/{requestId}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AuthorizationRequest/{systemId}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Authorise",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/GlobalRoles/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Groups/{id}/MarkAsDefault",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Policies/{id}/DiscardDraft",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Users/{id}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/v3/Users/{id}",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Deactivate",
+      "classification": "delete",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/AutoAssignPolicyRevision",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies/{id}/Content",
+      "classification": "download",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Certificate/Renew",
+      "classification": "not-built",
+      "status": "not-built",
+      "reason": "Only HTTP 410 is documented; certificate renewal is unavailable."
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/{id}/AssignPolicyRevision",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies/{id}/Revisions",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Reject",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/AssignPolicyToMultipleGroups",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies/{id}/AssignedGroups",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Logs/Request",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Groups/{id}/ClearPolicy",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/bulkclearpolicy",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Policies/PolicyRevision/{policyRevisionId}/Content",
+      "classification": "download",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Users/{id}/AssignRoles",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Details/Request",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/UnassignComputers",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Users/{id}/Disable",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Computers/{id}/CommandLog",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/{id}/AssignComputers",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Policies/{id}/Upload",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Users/{id}/Enable",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Computers/{id}/Logs",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Groups/{id}/AssignComputersByCsv",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/v3/Users/{id}/ModifyUserPreferences",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Computers/Logs/{id}/Content",
+      "classification": "download",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/v3/Users/{id}/ResendInvite",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/{computerId}/archive",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/{computerId}/Unarchive",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/archive",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/v3/Computers/Unarchive",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/About",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/ApiAccounts",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/AuthenticationProvider",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Events/FromStartDate",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/v3/Events/search",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/ResourceTypes",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/ResourceTypes/User",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/ResourceTypes/Role",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/Roles",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/Schemas",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/ServiceProviderConfig",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/users",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "POST",
+      "path": "/scim/v3/users",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "GET",
+      "path": "/scim/v3/users/{userID}",
+      "classification": "read",
+      "status": "planned"
+    },
+    {
+      "method": "PUT",
+      "path": "/scim/v3/users/{userID}",
+      "classification": "write",
+      "status": "planned"
+    },
+    {
+      "method": "PATCH",
+      "path": "/scim/v3/users/{userID}",
+      "classification": "write",
+      "status": "planned"
+    }
+  ]
+}

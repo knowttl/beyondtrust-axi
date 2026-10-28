@@ -1,0 +1,14 @@
+{
+  "title": "BeyondTrust PM Cloud Management API - Version 3",
+  "source": "https://docs.beyondtrust.com/epm-wm/reference",
+  "file": "inventory/swagger.json",
+  "originalSha256": "02e50021358738930d6f009c78e8330f67a37a4bfd761e182f870b592cfe042f",
+  "sha256": "8464e3301bd2a2f4596c9ed0552ba2a9e170a16a8c6af47ba45055f6a87e8639",
+  "substitution": {
+    "pointer": "/components/securitySchemes/oauth2/flows/clientCredentials/tokenUrl",
+    "line": 27588,
+    "change": "Only the organization label was replaced by example; all other bytes are preserved.",
+    "replacement": "https://example-services.pm.beyondtrustcloud.com/oauth/connect/token"
+  },
+  "operationCount": 94
+}

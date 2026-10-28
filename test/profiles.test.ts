@@ -1,0 +1,207 @@
+import { chmodSync, symlinkSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, expect, test } from "vitest";
+import { credentialStore } from "../src/profiles.js";
+import { localFixture } from "./support/local-cli.js";
+
+const fixtures: ReturnType<typeof localFixture>[] = [];
+function fixture() { const value = localFixture(); fixtures.push(value); return value; }
+afterEach(() => { for (const value of fixtures.splice(0)) value.cleanup(); });
+
+test("auth status validates a local SecretRef without printing credential material", async () => {
+  const f = fixture();
+  const result = await f.run(["auth", "status"]);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ profile: "example", host: "example.pm.beyondtrustcloud.com", clientSecret: "env", readOnly: true });
+  expect(result.output).not.toContain("synthetic-secret-sentinel");
+  expect(result.output).not.toContain("synthetic-client");
+  expect(result.output).not.toContain("SYNTHETIC_SECRET");
+});
+
+test.each([[], ["profile", "list"]])("local discovery does not resolve missing secret files: %j", async (...args) => {
+  const f = fixture();
+  f.profile.profiles.example.clientSecret = { file: join(f.directory, "missing-secret") };
+  f.save();
+  expect((await f.run(args as string[])).code).toBe(0);
+});
+
+test.each([
+  [{ origin: "https://example.test" }, "CONFIG_INVALID"],
+  [{ clientSecret: "synthetic-inline-secret" }, "CONFIG_INVALID"],
+  [{ clientSecret: { env: "NOT VALID" } }, "CONFIG_INVALID"],
+  [{ host: "elsewhere" }, "CONFIG_INVALID"],
+  [{ host: "example.pm.beyondtrustcloud.com\n" }, "CONFIG_INVALID"],
+  [{ clientSecret: { env: "SYNTHETIC_SECRET\n" } }, "CONFIG_INVALID"],
+  [{ writes: { allowWrites: true, operations: ["computer.authorise\n"] } }, "CONFIG_INVALID"],
+])("invalid file profiles fail without echoing input: %j", async (changes, code) => {
+  const f = fixture();
+  Object.assign(f.profile.profiles.example, changes);
+  f.save();
+  const result = await f.run(["auth", "status"]);
+  expect(result.data).toMatchObject({ error: { code } });
+  expect(result.output).not.toContain("synthetic-inline-secret");
+});
+
+test.each([
+  ["config-default", "example", undefined],
+  ["config-default", "example", { env: "BEYONDTRUST_AXI_CLIENT_SECRET" }],
+  ["sole", undefined, undefined],
+  ["sole", undefined, { env: "BEYONDTRUST_AXI_CLIENT_SECRET" }],
+])("a default SecretRef preserves %s file profile selection (%s, %j)", async (source, defaultProfile, clientSecret) => {
+  const f = fixture();
+  f.profile.profiles.example.clientSecret = clientSecret;
+  f.profile.defaultProfile = defaultProfile;
+  f.save();
+  f.env.BEYONDTRUST_AXI_CLIENT_SECRET = "synthetic-default-secret";
+  const status = await f.run(["auth", "status"]);
+  expect(status.code).toBe(0);
+  expect(status.data).toMatchObject({ profile: "example", source, host: "example.pm.beyondtrustcloud.com", clientSecret: "env" });
+  expect(status.output).not.toContain("synthetic-default-secret");
+  const home = await f.run(["home"]);
+  expect(home.code).toBe(0);
+  expect(home.data.status).toBe("configured: example (example.pm.beyondtrustcloud.com); not verified with the API");
+});
+
+test.each(["HOST", "CLIENT_ID"])("profile flags take precedence over partial env metadata %s without mixing sources", async (field) => {
+  const f = fixture();
+  f.env[`BEYONDTRUST_AXI_${field}`] = "ca";
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+  expect((await f.run(["auth", "status", "--profile", "example"])).data).toMatchObject({ host: "example.pm.beyondtrustcloud.com", source: "flag" });
+});
+
+test("a complete environment profile overrides the default and cannot enable writes or downloads", () => {
+  const f = fixture();
+  Object.assign(f.env, { BEYONDTRUST_AXI_HOST: "example-services.pm.beyondtrustcloud.com", BEYONDTRUST_AXI_CLIENT_ID: "synthetic-env-client", BEYONDTRUST_AXI_CLIENT_SECRET: "synthetic-env-secret" });
+  const store = credentialStore(f.context);
+  const profile = store.select(store.load().config);
+  expect(profile).toMatchObject({ host: "example-services.pm.beyondtrustcloud.com", source: "env-profile", writes: { allowWrites: false, allowDeletes: false, operations: [] }, downloads: { allow: false } });
+});
+
+test("environment profile hosts reject a trailing newline", async () => {
+  const f = fixture();
+  Object.assign(f.env, { BEYONDTRUST_AXI_HOST: "example.pm.beyondtrustcloud.com\n", BEYONDTRUST_AXI_CLIENT_ID: "synthetic-env-client", BEYONDTRUST_AXI_CLIENT_SECRET: "synthetic-env-secret" });
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test("file profile names reject a trailing newline", async () => {
+  const f = fixture();
+  f.profile.profiles["example\n"] = f.profile.profiles.example;
+  delete f.profile.profiles.example;
+  f.profile.defaultProfile = "example\n";
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test("default profile names reject a trailing newline", async () => {
+  const f = fixture();
+  f.profile.defaultProfile = "example\n";
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test.each([
+  [undefined, ["auth", "status", "--profile", "example\n"]],
+  ["example\n", ["auth", "status"]],
+])("profile selectors reject a trailing newline: %j %j", async (selected, args) => {
+  const f = fixture();
+  f.env.BEYONDTRUST_AXI_PROFILE = selected;
+  expect((await f.run(args)).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test.each(["example.pm.beyondtrustcloud.com", "example-services.pm.beyondtrustcloud.com", "example.beyondtrustcloud.com"])("accepts approved lowercase host %s", async (host) => {
+  const f = fixture();
+  f.profile.profiles.example.host = host;
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ host, origin: `https://${host}` });
+});
+
+test.each(["https://example.pm.beyondtrustcloud.com", "EXAMPLE.pm.beyondtrustcloud.com", "example.pm.beyondtrustcloud.com:443", "example.pm.beyondtrustcloud.com/path", "user@example.pm.beyondtrustcloud.com", "example.pm.beyondtrustcloud.com.example.test", "127.0.0.1", "-example.beyondtrustcloud.com", "example..beyondtrustcloud.com"])("rejects unsafe host %s", async (host) => {
+  const f = fixture();
+  f.profile.profiles.example.host = host;
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test("delete permission defaults closed independently of write permission", () => {
+  const f = fixture();
+  f.profile.profiles.example.writes = { allowWrites: true, operations: ["computer.authorise"] };
+  f.save();
+  const store = credentialStore(f.context);
+  expect(store.select(store.load().config).writes).toEqual({ allowWrites: true, allowDeletes: false, operations: ["computer.authorise"] });
+});
+
+test.each([
+  [undefined, "PROFILE_AMBIGUOUS"], ["absent", "PROFILE_NOT_FOUND"],
+])("multiple profiles require a known selector: %s", async (selected, code) => {
+  const f = fixture();
+  delete f.profile.defaultProfile;
+  f.profile.profiles.second = { ...f.profile.profiles.example, host: "example-services.pm.beyondtrustcloud.com" };
+  f.save();
+  expect((await f.run(["auth", "status", ...(selected ? ["--profile", selected] : [])])).data).toMatchObject({ error: { code } });
+});
+
+test("read-only override wins over configured operation permission", async () => {
+  const f = fixture();
+  f.profile.profiles.example.writes = { allowWrites: true, operations: ["computer.authorise"] };
+  f.save();
+  f.env.BEYONDTRUST_AXI_READ_ONLY = "TRUE";
+  expect((await f.run(["auth", "status"])).data.readOnly).toBe(true);
+  f.env.BEYONDTRUST_AXI_READ_ONLY = "perhaps";
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INVALID" } });
+});
+
+test.skipIf(process.platform === "win32")("auth status rejects exposed secret files and symlinks", async () => {
+  const f = fixture();
+  const secret = join(f.directory, "secret");
+  writeFileSync(secret, "synthetic-file-secret", { mode: 0o644 });
+  f.profile.profiles.example.clientSecret = { file: secret };
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INSECURE" } });
+  chmodSync(secret, 0o600);
+  const link = join(f.directory, "secret-link");
+  symlinkSync(secret, link);
+  f.profile.profiles.example.clientSecret = { file: link };
+  f.save();
+  expect((await f.run(["auth", "status"])).data).toMatchObject({ error: { code: "CONFIG_INSECURE" } });
+});
+
+test.skipIf(process.platform === "win32")("config reads reject foreign ownership and group-writable files", async () => {
+  const f = fixture();
+  expect((await f.run(["profile", "list"], { uid: process.getuid!() + 1 })).data).toMatchObject({ error: { code: "CONFIG_INSECURE" } });
+  chmodSync(f.config, 0o660);
+  expect((await f.run(["profile", "list"])).data).toMatchObject({ error: { code: "CONFIG_INSECURE" } });
+});
+
+test("file SecretRefs strip a BOM and trailing whitespace", () => {
+  const f = fixture();
+  const secret = join(f.directory, "secret");
+  writeFileSync(secret, "\uFEFFsynthetic-file-secret\r\n ", { mode: 0o600 });
+  f.profile.profiles.example.clientSecret = { file: secret };
+  f.save();
+  const store = credentialStore(f.context);
+  expect(store.credentials(store.select(store.load().config)).clientSecret).toBe("synthetic-file-secret");
+});
+
+test("Windows auth status verifies ACLs while ordinary discovery only checks reparse points", async () => {
+  const f = fixture();
+  const checks: boolean[] = [];
+  const options = { platform: "win32" as const, acl: (_path: string, verify: boolean) => { checks.push(verify); if (verify) throw new Error("synthetic ACL denial"); } };
+  expect((await f.run(["profile", "list"], options)).code).toBe(0);
+  expect(checks).toEqual([false]);
+  expect((await f.run(["auth", "status"], options)).data).toMatchObject({ error: { code: "CONFIG_INSECURE" } });
+});
+
+test("platform paths ignore relative XDG values and Windows ignores XDG entirely", () => {
+  const f = fixture();
+  expect(credentialStore({ home: "/synthetic-home", platform: "linux", env: { XDG_CONFIG_HOME: "relative" } }).configPath()).toBe("/synthetic-home/.config/beyondtrust-axi/config.json");
+  expect(credentialStore({ home: "C:\\Synthetic", platform: "win32", env: { APPDATA: "C:\\Roaming", LOCALAPPDATA: "C:\\Local", XDG_CONFIG_HOME: "/ignored" } }).configPath()).toBe("C:\\Roaming\\beyondtrust-axi\\config.json");
+  expect(credentialStore(f.context).configPath("explicit.json")).toMatch(/explicit\.json$/);
+});
+
+test("registered secrets are removed from profile names before TOON encoding", async () => {
+  const f = fixture();
+  f.env.SYNTHETIC_SECRET = "example";
+  const result = await f.run(["profile", "list"]);
+  expect(result.output).not.toContain("example");
+  expect(result.output).toContain("***redacted***");
+});

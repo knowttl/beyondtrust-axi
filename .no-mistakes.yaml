@@ -1,0 +1,63 @@
+agent: codex
+agent_args_override:
+  codex:
+    - -m
+    - gpt-6.1-sol
+    - -c
+    - model_reasoning_effort="medium"
+no_ci: true
+commands:
+  prepare: 'node scripts/isolated.mjs corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
+  test: 'corepack pnpm test && corepack pnpm run spec:check && corepack pnpm run docs:check && corepack pnpm run identifiers:check'
+  lint: 'node scripts/isolated.mjs corepack pnpm run lint'
+document:
+  instructions: |
+    README.md owns the quickstart, safety and current command overview.
+    src/catalogue.ts generates docs/commands.md and skills/beyondtrust-axi/SKILL.md.
+    docs/configuration.md owns strict profile selection and file security.
+    docs/design.md owns the approved safety invariants and build slices.
+    inventory/specs.json pins the original and sanitized export hashes and the single organization-label substitution.
+    inventory/capabilities.json is the 94-operation method/path ledger; planned coverage never enables execution.
+review:
+  path_instructions:
+    - path: "src/**/profile*"
+      instructions: |
+        Reject unknown fields, partial env profiles and inline secrets. File profiles never mix env metadata.
+        Accept only lowercase DNS hosts ending .beyondtrustcloud.com; HTTPS only, no ports, paths, userinfo or IPs.
+        Secrets use env/file SecretRefs and never enter argv or output. Env profiles cannot enable writes, deletes or downloads.
+    - path: "src/**/private*"
+      instructions: |
+        Validate ownership, regular files, symlink rejection and POSIX permissions before reads.
+        Windows auth status verifies protected DACLs; never render dependency errors or secret paths.
+    - path: "src/**/redact*"
+      instructions: |
+        Register raw, escaped and encoded secrets before use; register tokens on receipt.
+        Redact all output, errors, previews and journal metadata before truncating.
+    - path: "src/**/transport*"
+      instructions: |
+        HTTPS with verified TLS and redirect:error only. Never change tenant hosts automatically.
+        Token exchange is form-encoded client credentials, tokens in memory only.
+        Read 401 allows one re-exchange per run; writes never retry or reauthenticate.
+        Reads share 10 requests, 60 seconds and 8 MiB budgets; read 429 retries at most twice with Retry-After at most 10 seconds.
+    - path: "src/**/write*"
+      instructions: |
+        READ_ONLY wins, then allowWrites, exact operation allow-list, validation/re-read, preview, exact --confirm and durable redacted intent before one send.
+        Deletes also require file-profile writes.allowDeletes and exact --confirm-delete; never mix Policy Editor add and delete.
+        Explicit IDs cap at 20. Bulk computer filters have no maximum; count with GET /v3/Computers, preview first 20 hosts, bind count into confirmation and warn server re-applies filters.
+        Refuse allComputers. Ambiguous outcomes return OUTCOME_UNKNOWN with auditId and never retry.
+    - path: "src/**/download*"
+      instructions: |
+        File-profile downloads.allow, new 0600 file, 50 MiB maximum; raw bytes, never parse undocumented content or write it to stdout.
+    - path: "inventory/**"
+      instructions: |
+        Preserve the committed export exactly, with only the approved organization label replaced by example.
+        Check both provenance hashes and all 94 method/path operations; no operationId exists.
+        Certificate renewal is not built (410); Deactivate archives and deletes.
+    - path: "test/**"
+      instructions: |
+        Offline only with network deny guard, synthetic tenant example and schema-derived fixtures citing method/path.
+        Never contact a real BeyondTrust tenant; live commissioning belongs to the owner through artium-axi after the build.
+auto_fix:
+  review: 1
+  test: 3
+  lint: 0
