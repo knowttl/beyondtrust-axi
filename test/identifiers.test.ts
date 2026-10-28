@@ -17,6 +17,11 @@ test("identifier guard accepts public gateways and reserved synthetic examples",
   expect(identifierViolations("example.pm.beyondtrustcloud.com user@example.test 192.0.2.1 00000000-0000-4000-8000-000000000001 writes.allowDeletes writes.allowWrites")).toEqual([]);
 });
 
+test("identifier guard distinguishes executable operation names from unapproved hosts", () => {
+  expect(identifierViolations("computer.authorise computer.logs.request")).toEqual([]);
+  expect(identifierViolations("computer.authorise.internal")).toContain("unapproved domain or internal host");
+});
+
 test("documentation and fixtures contain only approved identifiers", () => {
   const result = spawnSync(process.execPath, [fileURLToPath(new URL("../scripts/check-identifiers.mjs", import.meta.url))], { encoding: "utf8" });
   expect(result.status, result.stderr).toBe(0);

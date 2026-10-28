@@ -1,5 +1,6 @@
 import { resourceReadDefinition } from "./resource-reads.js";
 import { downloads } from "./downloads.js";
+import { computerWrites, computerWriteFilters } from "./computer-writes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -51,6 +52,11 @@ export const catalogue = {
   doctor: { description: "Verify credentials and API access with a bounded About read", flags, examples: ["beyondtrust-axi doctor", "beyondtrust-axi doctor --profile <name>"] },
   about: { description: "Read API versions (GET /v3/About)", flags, examples: ["beyondtrust-axi about", "beyondtrust-axi about --profile <name>"] },
   "task status": { description: "Read task detail (GET /v3/Tasks/{id}); a write result is not assumed to be a task ID", flags: { ...flags, id: "Required task UUID" }, examples: ["beyondtrust-axi task status --id <uuid>", "beyondtrust-axi task status --id <uuid> --fields task"] },
+  ...Object.fromEntries(Object.entries(computerWrites).map(([name, paths]) => [name, {
+    description: `Preview ${name}; positional computer UUIDs required (maximum ${name.endsWith(" request") ? 1 : 20}); POST ${paths.join(" or ")}; requires file-profile permission for ${name.replaceAll(" ", ".")}; sends once without retries`,
+    flags: { ...flags, execute: "Send after re-read, exact confirmation and durable private intent", confirm: "Exact confirmation from preview; re-read must still match", ...(name === "computer authorise" ? { group: "Optional target group UUID", ...computerWriteFilters } : {}) },
+    examples: [`beyondtrust-axi ${name} <uuid>`, `beyondtrust-axi ${name} <uuid> --execute --confirm '<exact confirmation>'`, ...(name === "computer authorise" ? ["beyondtrust-axi computer authorise --host example"] : [])],
+  }])),
   ...Object.fromEntries(Object.entries(downloads).map(([name, path]) => [name, {
     description: `Download raw bytes (GET ${path}); requires file-profile downloads.allow; new 0600 file only, maximum 50 MiB`,
     flags: { ...flags, out: "Required new destination file; never overwritten" },

@@ -258,7 +258,7 @@
       "method": "POST",
       "path": "/v3/Computers/Authorise",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -331,7 +331,7 @@
       "method": "POST",
       "path": "/v3/Computers/Reject",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -349,7 +349,7 @@
       "method": "POST",
       "path": "/v3/Computers/Logs/Request",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
@@ -379,7 +379,7 @@
       "method": "POST",
       "path": "/v3/Computers/Details/Request",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -451,25 +451,25 @@
       "method": "POST",
       "path": "/v3/Computers/{computerId}/archive",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/Computers/{computerId}/Unarchive",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/Computers/archive",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/Computers/Unarchive",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
