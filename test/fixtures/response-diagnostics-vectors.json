@@ -29,6 +29,49 @@
     "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 2 }, { "path": "$[*]", "type": "object" }, { "path": "$[*][\"field\"]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[*][\"field\"]"], "issuePathsTruncated": false }
   },
   {
+    "name": "truncated issue does not annotate its ancestor",
+    "status": 200,
+    "data": { "Resources": [{ "attributes": [{ "name": 123 }] }] },
+    "issues": [{ "path": ["Resources", 0, "attributes", 0, "name"], "expected": "string" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"Resources\"]", "type": "array", "count": 1 }, { "path": "$[\"Resources\"][*]", "type": "object" }, { "path": "$[\"Resources\"][*][\"attributes\"]", "type": "array", "count": 1 }, { "path": "$[\"Resources\"][*][\"attributes\"][*]", "type": "object" }], "shapeTruncated": true, "issuePaths": ["$[\"Resources\"][*][\"attributes\"][*]"], "issuePathsTruncated": true }
+  },
+  {
+    "name": "later array element does not annotate the sampled element",
+    "status": 200,
+    "data": [{ "field": "private" }, { "field": 123 }],
+    "issues": [{ "path": [1, "field"], "expected": "string" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 2 }, { "path": "$[*]", "type": "object" }, { "path": "$[*][\"field\"]", "type": "string" }], "shapeTruncated": false, "issuePaths": ["$[*][\"field\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "nested array indices preserve sampled node identity",
+    "status": 200,
+    "data": [[123, "private"], [false]],
+    "issues": [{ "path": [0, 0], "expected": "string" }, { "path": [0, 1], "expected": "number" }, { "path": [1, 0], "expected": "object" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 2 }, { "path": "$[*]", "type": "array", "count": 2 }, { "path": "$[*][*]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[*][*]", "$[*][*]", "$[*][*]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "placeholder keys preserve distinct node identity",
+    "status": 200,
+    "data": { "first.example.test": "private", "second.example.test": 123 },
+    "issues": [{ "path": ["second.example.test"], "expected": "string" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"<key>\"]", "type": "string" }, { "path": "$[\"<key>\"]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[\"<key>\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "redacted keys preserve distinct node identity",
+    "status": 200,
+    "secrets": ["SECRETONE", "SECRETTWO"],
+    "data": { "SECRETONE": "private", "SECRETTWO": 123 },
+    "issues": [{ "path": ["SECRETTWO"], "expected": "string" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"***redacted***\"]", "type": "string" }, { "path": "$[\"***redacted***\"]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[\"***redacted***\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "numeric object keys remain object keys",
+    "status": 200,
+    "data": { "0": 123 },
+    "issues": [{ "path": ["0"], "expected": "string" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"<key>\"]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[\"<key>\"]"], "issuePathsTruncated": false }
+  },
+  {
     "name": "empty arrays",
     "status": 204,
     "data": [],

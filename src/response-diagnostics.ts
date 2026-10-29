@@ -13,6 +13,7 @@ function keySegment(key: string, redactor: DiagnosticRedactor): string {
 // Retain structure only, never the response body or validation-library errors.
 export class ResponseDiagnostics {
   private details: Record<string, unknown> = {};
+  private readonly shapeByPath = new Map<string, ShapeEntry>();
 
   constructor(private readonly redactor: DiagnosticRedactor, private readonly errorCodes: readonly string[] = ["API_RESPONSE_INVALID", "AUTH_RESPONSE_INVALID"]) {}
 
@@ -39,8 +40,8 @@ export class ResponseDiagnostics {
       issuePaths.push(path);
       // Validator messages and arbitrary expected strings can contain response values.
       // Annotate only types from the contract vocabulary, on the recorded received shape.
-      if (typeof issue.expected === "string" && types.has(issue.expected)) {
-        const entry = (this.details.shape as ShapeEntry[] | undefined)?.find((entry) => entry.path === path);
+      if (!truncated && typeof issue.expected === "string" && types.has(issue.expected)) {
+        const entry = this.shapeByPath.get(JSON.stringify(issue.path));
         if (entry) entry.expected = issue.expected;
       }
       if (truncated) break;
@@ -49,30 +50,33 @@ export class ResponseDiagnostics {
   }
 
   private shape(data: unknown): Record<string, unknown> {
+    this.shapeByPath.clear();
     const shape: ShapeEntry[] = [];
     let truncated = false;
     let characters = 0;
-    const visit = (value: unknown, path: string, depth: number): void => {
+    const visit = (value: unknown, path: string, keys: readonly (string | number)[]): void => {
       if (shape.length >= 64 || path.length > 256 || characters + path.length > 4096) { truncated = true; return; }
       characters += path.length;
       const type = value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
-      shape.push({ path, type, ...(Array.isArray(value) ? { count: value.length } : {}) });
+      const entry = { path, type, ...(Array.isArray(value) ? { count: value.length } : {}) };
+      shape.push(entry);
+      this.shapeByPath.set(JSON.stringify(keys), entry);
       if (value === null || typeof value !== "object") return;
       if (Array.isArray(value)) {
         if (value.length === 0) return;
-        if (depth >= 4) { truncated = true; return; }
-        visit(value[0], path + "[*]", depth + 1);
+        if (keys.length >= 4) { truncated = true; return; }
+        visit(value[0], path + "[*]", [...keys, 0]);
         return;
       }
       for (const key in value) {
         if (!Object.hasOwn(value, key)) continue;
-        if (depth >= 4 || shape.length >= 64) { truncated = true; break; }
+        if (keys.length >= 4 || shape.length >= 64) { truncated = true; break; }
         const segment = keySegment(key, this.redactor);
-        visit((value as Record<string, unknown>)[key], path + segment, depth + 1);
+        visit((value as Record<string, unknown>)[key], path + segment, [...keys, key]);
         if (truncated) break;
       }
     };
-    visit(data, "$", 0);
+    visit(data, "$", []);
     return { shape, shapeTruncated: truncated };
   }
 
