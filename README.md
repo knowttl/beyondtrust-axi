@@ -82,6 +82,7 @@ Skill commands use npx for the future published package; until release, use the 
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
 | admin-request create, decide; auth-request notify | Preview or send an admin request, decision or ITSM ticket callback once | Gated write | [Commands](docs/commands.md) |
 | app-switcher connect | Preview or register Insight connectors once | Gated write | [Commands](docs/commands.md) |
+| computer delete, deactivate; group delete; domain delete; policy delete, discard-draft, app remove | Preview or send a deletion once | Gated delete | [Commands](docs/commands.md) |
 | computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Downloads](docs/downloads.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
@@ -187,9 +188,9 @@ The journal stores an auditId, operation, time and redacted request in a new pri
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.
 On OUTCOME_UNKNOWN, reconcile remote state using the returned auditId before any further action; never replay an ambiguous write.
 Deletes additionally require writes.allowDeletes and exact --confirm-delete.
-The delete commands are computer delete, computer deactivate, group delete, domain delete, policy delete, policy discard-draft and policy app remove.
+See the [command overview](#what-it-covers) for delete commands.
 Preview returns confirmation and deleteConfirmation; execution requires both --confirm and --confirm-delete exactly as returned after re-reading current targets.
-Policy delete --force additionally requires the policy.delete.force operation and previews assigned groups.
+Policy delete previews assigned groups; --force additionally requires the policy.delete.force operation.
 Policy app remove accepts a policy UUID, --os windows|macos, --app-group and 1-20 application UUIDs, verifies group membership and sends only the documented delete array.
 Computer delete and deactivate support explicit UUIDs or computer-list filters with a count-bearing confirmation and no maximum filter count.
 Deactivate archives and deletes computers; discard-draft irreversibly loses policy draft changes.
