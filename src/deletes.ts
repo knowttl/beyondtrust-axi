@@ -52,7 +52,7 @@ export function prepareDelete(command: string, args: string[], flags: Map<string
         const readPath = command.startsWith("group ") ? `/v3/Groups/${id}` : command.startsWith("domain ") ? `/v3/AcceptedDomains/${id}` : `/v3/Policies/${id}`;
         const current = await client.get(readPath);
         const nameField = command === "domain delete" ? "domain" : "name";
-        const parsed = z.object({ id: uuid, [nameField]: z.string().nullable().optional() }).passthrough().safeParse(current);
+        const parsed = z.object({ [nameField]: z.string().nullable().optional() }).passthrough().and(z.object({ id: uuid })).safeParse(current);
         if (!parsed.success || parsed.data.id.toLowerCase() !== id) badRead();
         preview = { current };
         targets = `${id} ${JSON.stringify(parsed.data[nameField] ?? id)}`;
