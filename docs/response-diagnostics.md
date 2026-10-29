@@ -1,0 +1,38 @@
+# Response diagnostics copy contract
+
+`src/response-diagnostics.ts` is the canonical, self-contained TypeScript helper.
+Change it here and re-copy it byte-for-byte into consumers; do not edit copies.
+Inject the consumer's redactor through `{ text(value: string): string }` and pass its response-invalid codes as the optional second constructor argument.
+The default codes are `API_RESPONSE_INVALID` and `AUTH_RESPONSE_INVALID`.
+Render `forError(error)` as structured fields beside the stable error message.
+Never put diagnostics inside the message.
+
+`record(status, headers, data)` replaces the previous response's diagnostics.
+Only integer HTTP statuses from 100 through 599 and media types of at most 128 characters are accepted; other metadata becomes null.
+Content-type parameters are discarded before redaction.
+Values and validator messages are never emitted.
+Keys use the existing identifier-only rule: an ASCII letter followed by up to 39 ASCII letters, digits or underscores, excluding GUID-like keys.
+Accepted keys pass through the injected redactor and appear as escaped path segments.
+Other keys become `<key>`, including hostnames, email addresses and GUIDs used as map keys.
+Arrays carry a `count` and only their first element is visited at `[*]`.
+The report stops at 64 entries, depth 4, 256 characters per path or 4096 total path characters.
+
+`validationFailed(issues)` adds bounded `issuePaths` using the same key policy and `[*]` for array indices.
+Each admitted issue also produces an `issues` entry with `path`, `received` and `expected` type names.
+Received types are read from the latest recorded response using the complete original validator path, including the actual array index; absent own properties have type `undefined`.
+Recognized expected types use the contract vocabulary; absent or arbitrary expected strings become `unknown`.
+Values, messages and other validator fields are ignored.
+The issue entries share the path list's 64-entry, 256-character per-path and 4096-character total path limits.
+Paths deeper than four segments display only the first four and carry `pathTruncated: true`; their types still describe the original leaf.
+Recognized validator `expected` types also annotate exactly matching received `shape` entries, whose `type` describes the received value.
+Truncated paths, later array elements and keys with colliding display paths never annotate a different sampled node.
+Shape array paths describe the first element only; issue types describe the element that failed validation.
+`shapeTruncated` and `issuePathsTruncated` report budget exhaustion separately.
+Successful command output and response validation remain owned by the consumer.
+
+`test/fixtures/response-diagnostics-vectors.json` contains portable synthetic inputs and expected diagnostics for TypeScript copies and language ports.
+Absent `contentType` means no header; absent `issues` means no validation callback.
+Optional `secrets` use literal replacement with `***redacted***` for the vector redactor.
+`test/fixtures/response-diagnostics-sha256.json` records SHA-256 hashes of the canonical source and the vectors.
+After an intentional contract change, update those hashes and the vectors together.
+Each consumer must verify its copied bytes against those recorded hashes and execute the vectors through the helper's public interface.

@@ -11,6 +11,42 @@ const fixtures: ReturnType<typeof localFixture>[] = [];
 function fixture() { const f = localFixture(); fixtures.push(f); return f; }
 afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
 
+test.each(["token", "API"])("reports an HTML login page from the %s endpoint without echoing it", async (endpoint) => {
+  const html = { status: 200, headers: new Headers({ "content-type": "text/html; charset=utf-8" }), body: (async function* () { yield Buffer.from("<html>synthetic-private-login</html>"); })() };
+  const cloud = endpoint === "token" ? fakeCloud(html) : fakeCloud(response(token), html);
+  const result = await fixture().run(["about"], {}, cloud);
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({
+    code: endpoint === "token" ? "AUTH_RESPONSE_INVALID" : "API_RESPONSE_INVALID",
+    status: 200, contentType: "text/html", shape: [{ path: "$", type: "undefined" }],
+  });
+  expect(result.output).not.toContain("synthetic-private-login");
+  expect(cloud.calls).toHaveLength(endpoint === "token" ? 1 : 2);
+});
+
+test("adds diagnostics to a wrong-shaped token response without echoing values", async () => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response({ access_token: "synthetic-private-token", token_type: 123, expires_in: 3600 })));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "AUTH_RESPONSE_INVALID", status: 200, issuePaths: ['$["token_type"]'], shape: expect.arrayContaining([{ path: '$["token_type"]', type: "number", expected: "string" }]) });
+  expect(result.output).not.toContain("synthetic-private-token");
+});
+
+test("leaves a healthy API response unchanged", async () => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response(token), response([{ consoleVersion: "1.2.3" }])));
+  expect(result.code).toBe(0);
+  expect(result.data).toEqual({ versions: [{ consoleVersion: "1.2.3" }] });
+});
+
+test("reports received and expected types for every absent token field", async () => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response({})));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "AUTH_RESPONSE_INVALID", issues: [
+    { path: '$["access_token"]', received: "undefined", expected: "string" },
+    { path: '$["token_type"]', received: "undefined", expected: "string" },
+    { path: '$["expires_in"]', received: "undefined", expected: "number" },
+  ] });
+});
+
 test.each(["tenant-01.example.com", "ops@example.com", "3f2504e0-4f89-11d3-9a0c-0305e82c3301"])("hides data-shaped keys at every level: %s", async (key) => {
   const result = await fixture().run(["about"], {}, fakeCloud(response(token), response({
     [key]: "synthetic-private-value", nested: { [key]: "synthetic-private-value", consoleVersion: 1 },
@@ -48,7 +84,7 @@ test.each(endpoints)("reports schema failure metadata for GET $path ($args)", as
   const cloud = fakeCloud(response(token), response("synthetic-private-value", 200, { "content-type": "application/json; charset=utf-8" }));
   const result = await fixture().run(args, {}, cloud);
   expect(result.code).toBe(1);
-  expect(result.data.error).toEqual({
+  expect(result.data.error).toMatchObject({
     code: "API_RESPONSE_INVALID", message: "API response does not match the documented schema",
     status: 200, contentType: "application/json", shape: [{ path: "$", type: "string" }], shapeTruncated: false,
     ...issueDetails,
@@ -61,13 +97,12 @@ const values = { text: "synthetic-private-text", number: 8675309, token: token.a
 test.each([
   { name: "object instead of array", args: ["about"], body: values, shape: [{ path: "$", type: "object" }, ...Object.keys(values).map((key) => ({ path: `$["${key}"]`, type: key === "number" ? "number" : "string" }))] },
   { name: "wrapper envelope", args: ["doctor"], body: { items: [values], total: 8675309 }, shape: [
-    { path: "$", type: "object" }, { path: '$["items"]', type: "array" }, { path: '$["items"][0]', type: "object" },
-    ...Object.keys(values).map((key) => ({ path: `$["items"][0]["${key}"]`, type: key === "number" ? "number" : "string" })), { path: '$["total"]', type: "number" },
+    { path: "$", type: "object" }, { path: '$["items"]', type: "array", count: 1 }, { path: '$["items"][*]', type: "object" },
+    ...Object.keys(values).map((key) => ({ path: `$["items"][*]["${key}"]`, type: key === "number" ? "number" : "string" })), { path: '$["total"]', type: "number" },
   ] },
   { name: "nested arrays", args: ["group", "list"], body: [[Object.values(values), null, true]], shape: [
-    { path: "$", type: "array" }, { path: "$[0]", type: "array" }, { path: "$[0][0]", type: "array" },
-    ...Object.keys(values).map((key, index) => ({ path: `$[0][0][${index}]`, type: key === "number" ? "number" : "string" })),
-    { path: "$[0][1]", type: "null" }, { path: "$[0][2]", type: "boolean" },
+    { path: "$", type: "array", count: 1 }, { path: "$[*]", type: "array", count: 3 }, { path: "$[*][*]", type: "array", count: 5 },
+    { path: "$[*][*][*]", type: "string" },
   ] },
 ])("reports only paths and types for $name", async ({ args, body, shape }) => {
   const result = await fixture().run(args, {}, fakeCloud(response(token), response(body, 202, { "content-type": "application/problem+json" })));
@@ -77,18 +112,18 @@ test.each([
 });
 
 test.each([
-  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[0]["consoleVersion"]'], shape: [
-    { path: "$", type: "array" }, { path: "$[0]", type: "object" }, { path: '$[0]["consoleVersion"]', type: "number" },
+  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[*]["consoleVersion"]'], issues: [{ path: '$[*]["consoleVersion"]', received: "number", expected: "string" }], shape: [
+    { path: "$", type: "array", count: 1 }, { path: "$[*]", type: "object" }, { path: '$[*]["consoleVersion"]', type: "number", expected: "string" },
   ] },
-  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], shape: [{ path: "$", type: "object" }] },
-])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, shape }) => {
+  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], issues: [{ path: '$["id"]', received: "undefined", expected: "string" }], shape: [{ path: "$", type: "object" }] },
+])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, issues, shape }) => {
   const result = await fixture().run(args, {}, fakeCloud(response(token), response(body)));
   expect(result.code).toBe(1);
-  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issuePaths, issuePathsTruncated: false });
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issues, issuePaths, issuePathsTruncated: false });
 });
 
 test.each([
-  { name: "width", body: Array(1000).fill("synthetic-private-value"), count: 64 },
+  { name: "width", body: Object.fromEntries(Array.from({ length: 1000 }, (_, i) => [`field${i}`, "synthetic-private-value"])), count: 64 },
   { name: "depth", body: { nested: [[[["synthetic-private-value"]]]] }, count: 5 },
   { name: "total path characters", body: { ["x".repeat(40)]: { ["y".repeat(40)]: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`field${i}`, null])) } }, count: 42 },
 ])("bounds report $name", async ({ body, count }) => {

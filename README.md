@@ -247,7 +247,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | RATE_LIMITED | Retry later; automatic read retries are bounded. |
 | LIMIT_EXCEEDED | Reduce the selection or run the command again. |
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
-| API_RESPONSE_INVALID | Check API compatibility with the committed export using the bounded shape report, HTTP status and content type. |
+| API_RESPONSE_INVALID, AUTH_RESPONSE_INVALID | Check API compatibility with the committed export using the bounded response diagnostics. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
@@ -258,14 +258,8 @@ Bare --version, -v and -V print the package version without loading the command 
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
-For schema failures, the `shape` field of `error` contains JSON paths and value types only, never response values.
-Response keys appear only as escaped path segments when they match `^[A-Za-z][A-Za-z0-9_]{0,39}$` and are not GUID-like, with known credentials redacted.
-All other keys render as `<key>`, including hostnames, email addresses and GUIDs used as map keys.
-The shape report always describes the response structure.
-When validation provides issue paths, the separate `issuePaths` field adds those failing paths under the same key-redaction rule, including `$` for a root failure.
-The report stops at 64 entries, four levels below the root, 256 characters per path or 4096 total path characters; `shapeTruncated` indicates omitted structure.
-The same limits apply independently to `issuePaths`; `issuePathsTruncated` indicates omitted paths or path segments.
-`status` is the HTTP status and `contentType` is the media type without parameters, capped at 128 characters, or null when missing or invalid.
+API and token response failures include structured diagnostics beside the stable error message.
+See the [response diagnostics contract](docs/response-diagnostics.md) for HTTP metadata, sampled response shapes, issue-level received and expected types, key redaction and truncation limits.
 Use this evidence to investigate compatibility; it does not establish the cause of a live mismatch.
 
 ## Contributing

@@ -110,8 +110,12 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     const response = await exchange("/oauth/connect/token", "POST", { "content-type": "application/x-www-form-urlencoded", accept: "application/json" }, form);
     if (response.data && typeof response.data === "object" && "access_token" in response.data && typeof response.data.access_token === "string") redactor.add(response.data.access_token);
     if (response.status !== 200) failure(response.status, true);
+    diagnostics?.record(response.status, response.headers, response.data);
     const parsed = tokenSchema.safeParse(response.data);
-    if (!parsed.success) throw new AxiError("Invalid token response", "AUTH_RESPONSE_INVALID", ["Check API compatibility; token lifetime remains unverified until commissioning"]);
+    if (!parsed.success) {
+      diagnostics?.validationFailed(parsed.error.issues);
+      throw new AxiError("Invalid token response", "AUTH_RESPONSE_INVALID", ["Check API compatibility; token lifetime remains unverified until commissioning"]);
+    }
     token = { value: parsed.data.access_token, expires: requested + parsed.data.expires_in * 1000 };
   }
   async function get(path: string, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>): Promise<unknown> {
