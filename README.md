@@ -79,6 +79,8 @@ Skill commands use npx for the future published package; until release, use the 
 | event | Compact ECS events from a start date or filtered window | API read | [Commands](docs/commands.md) |
 | audit activity, audit auth-request | Vendor activity and authorization request audits | API read | [Commands](docs/commands.md) |
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
+| admin-request create, decide; auth-request notify | Preview or send an admin request, decision or ITSM ticket callback once | Gated write | [Commands](docs/commands.md) |
+| app-switcher connect | Preview or register Insight connectors once | Gated write | [Commands](docs/commands.md) |
 | computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Downloads](docs/downloads.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
