@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.1...v0.1.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* include redacted diagnostics for API schema failures ([#19](https://github.com/knowttl/beyondtrust-axi/issues/19)) ([da3451b](https://github.com/knowttl/beyondtrust-axi/commit/da3451bf08cedce443721adb524e16979d1f107b))
+
 ## [0.1.1](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.0...v0.1.1) (2026-10-29)
 
 
