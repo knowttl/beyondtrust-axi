@@ -1,6 +1,6 @@
 {
   "name": "@knowttl/beyondtrust-axi",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands",
   "license": "MIT",
   "type": "module",

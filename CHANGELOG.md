@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.0...v0.1.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* **auth:** request the urn:management:api scope ([#14](https://github.com/knowttl/beyondtrust-axi/issues/14)) ([bf9689a](https://github.com/knowttl/beyondtrust-axi/commit/bf9689a65789e8d41e1d0d016f9f289332995b42))
+* unblock patch releases after 0.1.0 ([#16](https://github.com/knowttl/beyondtrust-axi/issues/16)) ([1ff4437](https://github.com/knowttl/beyondtrust-axi/commit/1ff4437ac293c716e590a6b51649c8a8a3a26f79))
+
 ## 0.1.0 (2026-10-29)
 
 
