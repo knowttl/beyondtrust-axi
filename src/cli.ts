@@ -108,7 +108,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));
     const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
-    result = await resourceRead.run(client, JSON.stringify([store.configPath(config), profile.name, profile.host, profile.clientId]), store.redactor);
+    result = await resourceRead.run(client, JSON.stringify([store.configPath(config), profile.name, profile.host, profile.clientId]), store.redactor, transport?.diagnostics);
   }
   else if (["doctor", "about", "task status"].includes(name)) {
     store.readOnly();
@@ -119,7 +119,10 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     const version = z.object({ consoleVersion: text, reportingDatabaseVersion: text, policyEditorVersion: text });
     const task = z.object({ id: z.string(), name: text, state: z.number().int().optional(), stateName: text, initiated: text, completed: text, completedWithErrors: z.boolean().nullable().optional() });
     const parsed = (name === "task status" ? task : z.array(version)).safeParse(data);
-    if (!parsed.success) throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]);
+    if (!parsed.success) {
+      transport?.diagnostics?.validationFailed(data, parsed.error.issues);
+      throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]);
+    }
     result = name === "doctor" ? { profile: profile.name, host: profile.host, authentication: "verified for this run", api: "GET /v3/About succeeded",
       unverified: ["Token lifetime and rate limits are guide-only facts", "Live tenant compatibility requires commissioning through artium-axi"] }
       : name === "about" ? { versions: parsed.data } : { task: parsed.data };

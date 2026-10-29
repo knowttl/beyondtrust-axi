@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
 import type { SecretRedactor } from "./redact.js";
+import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
 // The committed export owns parameter types and response shapes, including nullable fields.
 export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
@@ -160,7 +161,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   return {
     query: new URLSearchParams(query),
     fields: list ? ["data", "count", "total", "cursor", "help"] : ["data"],
-    async run(client: { get: (path: string) => Promise<unknown> }, context: string, redactor: SecretRedactor) {
+    async run(client: { get: (path: string) => Promise<unknown> }, context: string, redactor: SecretRedactor, diagnostics?: ResponseDiagnostics) {
       const binding = createHash("sha256").update(JSON.stringify([context, command, path, query.toString()])).digest("hex");
       if (flags.has("--cursor") && cursor?.binding !== binding) invalid("Cursor does not match this profile, command or filters");
       let page = cursor?.page ?? 1, offset = cursor?.offset ?? 0;
@@ -177,7 +178,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         catch (error) { if (data.length && error instanceof AxiError && error.code === "LIMIT_EXCEEDED") { more = true; break; } throw error; }
         const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
         const parsed = schema ? validator(schema).safeParse(raw) : undefined;
-        if (parsed && !parsed.success) badResponse();
+        if (parsed && !parsed.success) { diagnostics?.validationFailed(raw, parsed.error.issues); badResponse(); }
         const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {
           if (!value || typeof value !== "object" || Array.isArray(value)) badResponse();
@@ -186,6 +187,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         let rows: unknown[];
         if (definition.events) {
           const p = z.object({ totalRecordsReturned: z.number().int().nonnegative(), events: z.array(z.unknown()).nullable() }).safeParse(value);
+          if (!p.success) diagnostics?.validationFailed(value, p.error.issues);
           if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse();
           rows = p.data.events ?? [];
           if (rows.length > (definition.paged ? size : 1000)) badResponse();
@@ -193,10 +195,12 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           more = definition.paged && rows.length === size;
         } else if (definition.envelope && !definition.paged) {
           const p = z.object({ totalRecordCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
+          if (!p.success) diagnostics?.validationFailed(value, p.error.issues);
           if (!p.success) badResponse();
           rows = p.data.data ?? []; total = p.data.totalRecordCount; more = false;
         } else if (definition.paged && !Array.isArray(value)) {
           const p = z.object({ pageNumber: z.literal(page), pageSize: z.literal(size), totalRecordCount: z.number().int().nonnegative(), pageCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
+          if (!p.success) diagnostics?.validationFailed(value, p.error.issues);
           if (!p.success || (p.data.data?.length ?? 0) > size) badResponse();
           rows = p.data.data ?? [];
           total = p.data.totalRecordCount;
@@ -204,6 +208,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           if (more && !rows.length) badResponse();
         } else if (definition.scimList) {
           const p = z.object({ totalResults: z.number().int().nonnegative(), startIndex: z.number().int().min(1), itemsPerPage: z.number().int().nonnegative(), Resources: z.array(z.unknown()).nullable() }).safeParse(value);
+          if (!p.success) diagnostics?.validationFailed(value, p.error.issues);
           if (!p.success) badResponse();
           rows = p.data.Resources ?? [];
           if (p.data.itemsPerPage !== rows.length || (rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse();
