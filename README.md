@@ -19,6 +19,7 @@ B7 adds the write coordinator and computer authorise, reject, archive, unarchive
 B8 adds group create, update, set-default, assign-policy, clear-policy, add-computers, import-computers and remove-computers through the coordinator, covering ten operations.
 B9 adds policy create, update, upload, auto-assign and Windows/macOS app add through the coordinator, covering six operations.
 B10 adds twelve user, accepted-domain and SCIM write operations through the coordinator.
+B11 adds admin-request create/decide, auth-request notify and app-switcher connect through the coordinator, covering four operations.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -171,6 +172,12 @@ For example, user assign-roles accepts `{"globalRolesIds":["<role-uuid>"]}` and 
 File digests and re-read state are bound into confirmation; SCIM passwords are redacted from previews, results and durable intent.
 User create previews the roles and admin flag; resend-invite warns that it sends email, and SCIM deactivation warns that it deactivates the user.
 The operation for user preferences set is `user.preferences`; other identity operation names replace command spaces with dots.
+JIT and integration writes use exact operations `admin-request.create`, `admin-request.decide`, `auth-request.notify` and `app-switcher.connect`.
+Admin-request create takes --computer and --user; --decision approve with --by creates a pre-approved request, and the preview warns that it grants admin rights.
+Admin-request decide takes a request UUID, --decision approve|deny and --by, with optional --duration in seconds and --message.
+Notification files require all ten documented fields; connector files follow AppSwitcherRequest in the committed export.
+Both files use the same private file checks, 10 MiB limit and SHA-256 confirmation binding as other JSON writes.
+JIT commands re-read the computer or request; App Switcher has no connector read endpoint in the export, so it checks About access and warns that existing connector state cannot be re-read.
 Domain create takes a domain argument, and domain update takes a UUID followed by the new domain; both send the documented domainName property.
 The journal stores an auditId, operation, time and redacted request in a new private file under the state directory's writes subdirectory.
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.

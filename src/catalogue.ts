@@ -4,6 +4,7 @@ import { computerWrites, computerWriteFilters } from "./computer-writes.js";
 import { groupWrites } from "./group-writes.js";
 import { policyWrites } from "./policy-writes.js";
 import { identityWrites } from "./identity-writes.js";
+import { jitWrites } from "./jit-writes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -48,6 +49,13 @@ export const resourceReads = Object.fromEntries(Object.entries({
   "auth-request show": "/v3/AuthorizationRequest/{systemId}",
 }).map(([command, path]) => [command, resourceReadDefinition(command, path)]));
 export const catalogue = {
+  ...Object.fromEntries(Object.entries(jitWrites).map(([name, route]) => [name, {
+    description: `Preview ${name}; POST ${route.path}; requires file-profile permission for ${name.replaceAll(" ", ".")}; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. ${name === "admin-request create" ? "A pre-approved request grants admin rights." : name === "app-switcher connect" ? "No connector read endpoint exists in the export; checks API access and previews the registration request." : ""}`,
+    flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; state and file digest must still match",
+      ...(route.file ? { file: `Required secure UTF-8 JSON matching ${route.schema} in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation${name === "auth-request notify" ? "; all ten fields required" : ""}` } : { decision: "approve|deny (required for decide); approve grants admin rights", by: "Decision maker; required with --decision", duration: "Session duration in seconds", message: "Decision message", "system-id": "Internal ticket system ID", "ticket-id": "External ticket ID", "ticket-url": "Ticket URL", ...(name === "admin-request create" ? { computer: "Required computer UUID", user: "Required endpoint user ID", "user-name": "Endpoint user name", reason: "Request reason" } : {}) }),
+    },
+    examples: [`beyondtrust-axi ${name}${route.file ? " --file <input.json>" : name === "admin-request create" ? " --computer <uuid> --user <user>" : " <request-uuid> --decision approve --by <user>"}`, `beyondtrust-axi ${name} --help`],
+  }])),
   ...Object.fromEntries(Object.entries(identityWrites).map(([name, route]) => [name, {
     description: `Preview ${name}; ${route.method} ${route.path}; requires file-profile permission for ${route.operation ?? name.replaceAll(" ", ".")}; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. ${name === "user resend-invite" ? "Sends an invitation email." : name.startsWith("scim") ? "Deactivation is identified in the preview." : ""}`,
     flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; state and file digest must still match", ...(route.schema ? { file: `Required secure UTF-8 JSON matching ${route.schema} in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation` } : {}) },

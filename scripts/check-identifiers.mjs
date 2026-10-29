@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { computerWrites } from "../dist/src/computer-writes.js";
 import { groupWrites } from "../dist/src/group-writes.js";
 import { identityWrites } from "../dist/src/identity-writes.js";
+import { jitWrites } from "../dist/src/jit-writes.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const publicHosts = new Set([
@@ -11,7 +12,7 @@ const publicHosts = new Set([
   "img.shields.io", "www.npmjs.com",
   "docs.beyondtrust.com", "beyondtrustcloud.com", "example.pm.beyondtrustcloud.com", "example-services.pm.beyondtrustcloud.com",
 ]);
-const operationNames = new Set([...Object.keys(computerWrites), ...Object.keys(groupWrites)].map((command) => command.replaceAll(" ", ".")).concat(Object.entries(identityWrites).map(([command, route]) => route.operation ?? command.replaceAll(" ", "."))));
+const operationNames = new Set([...Object.keys(computerWrites), ...Object.keys(groupWrites), ...Object.keys(jitWrites)].map((command) => command.replaceAll(" ", ".")).concat(Object.entries(identityWrites).map(([command, route]) => route.operation ?? command.replaceAll(" ", "."))));
 
 export function identifierViolations(text) {
   const violations = [];

@@ -149,7 +149,8 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const identity = method === "POST" ? /^\/(?:v3\/(?:Users|AcceptedDomains)|scim\/v3\/users)$/.test(path) || /^\/v3\/Users\/[0-9a-f-]{36}\/AssignRoles$/.test(path)
         : method === "PUT" ? /^\/v3\/(?:AcceptedDomains\/[0-9a-f-]{36}|Users\/[0-9a-f-]{36}(?:\/ModifyUserPreferences)?)$/.test(path) || /^\/scim\/v3\/users\/[0-9a-f-]{36}$/.test(path)
           : /^\/v3\/Users\/[0-9a-f-]{36}\/(?:Disable|Enable|ResendInvite)$/.test(path) || /^\/scim\/v3\/users\/[0-9a-f-]{36}$/.test(path);
-      if ((!computer && !group && !policy && !identity) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path)) || (policyUpload !== (options.policyFile !== undefined))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
+      const jit = method === "POST" && ["/v3/AdminAccessRequest", "/v3/AdminAccessRequest/approval", "/v3/AuthorizationRequest/notification", "/v3/AppSwitcher/connector"].includes(path);
+      if ((!computer && !group && !policy && !identity && !jit) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path)) || (policyUpload !== (options.policyFile !== undefined))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
       // Re-reads authenticate first. Never refresh or retry after entering the write path.
       if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
       const boundary = `beyondtrust-axi-${randomUUID()}`;
@@ -165,7 +166,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
       const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
       const appResult = z.object({ revisionId: uuid, created: z.array(uuid).nullable().optional(), deleted: z.array(uuid).nullable().optional() });
-      if ((policyApps ? !appResult.safeParse(response.data).success : ((response.status === 201 && !path.startsWith("/scim/")) || assignment || autoAssign) && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      if ((policyApps ? !appResult.safeParse(response.data).success : ((response.status === 201 && !path.startsWith("/scim/")) || assignment || autoAssign || path === "/v3/AppSwitcher/connector") && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
       return redactor.value(path.startsWith("/scim/") ? withoutCredentials(response.data ?? null, redactor) : response.data ?? null);
     },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,

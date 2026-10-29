@@ -22,19 +22,19 @@
       "method": "POST",
       "path": "/v3/AdminAccessRequest/approval",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/AppSwitcher/connector",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
       "path": "/v3/AuthorizationRequest/notification",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -196,7 +196,7 @@
       "method": "POST",
       "path": "/v3/AdminAccessRequest",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
