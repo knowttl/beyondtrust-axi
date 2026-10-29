@@ -52,7 +52,7 @@
       "method": "DELETE",
       "path": "/v3/Computers",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -94,7 +94,7 @@
       "method": "DELETE",
       "path": "/v3/Groups/{id}",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -124,7 +124,7 @@
       "method": "DELETE",
       "path": "/v3/Policies/{id}",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -178,7 +178,7 @@
       "method": "DELETE",
       "path": "/v3/AcceptedDomains/{id}",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -276,7 +276,7 @@
       "method": "PATCH",
       "path": "/v3/Policies/{id}/DiscardDraft",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -294,7 +294,7 @@
       "method": "POST",
       "path": "/v3/Computers/Deactivate",
       "classification": "delete",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",

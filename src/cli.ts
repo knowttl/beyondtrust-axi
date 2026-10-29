@@ -13,7 +13,8 @@ import { groupWrites, prepareGroupWrite } from "./group-writes.js";
 import { policyWrites, preparePolicyWrite } from "./policy-writes.js";
 import { identityWrites, prepareIdentityWrite } from "./identity-writes.js";
 import { jitWrites, prepareJitWrite } from "./jit-writes.js";
-import { coordinateWrite, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
+import { deletes, prepareDelete } from "./deletes.js";
+import { coordinateWrite, requireDeletePermission, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
@@ -42,7 +43,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   let index = implicitHome ? 0 : name.split(" ").length;
   const definition = resourceReads[name];
   const writeIds: string[] = [];
-  if (computerWrites[name] || groupWrites[name] || policyWrites[name] || identityWrites[name] || jitWrites[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
+  if (computerWrites[name] || groupWrites[name] || policyWrites[name] || identityWrites[name] || jitWrites[name] || deletes[name]) while (argv[index] !== undefined && !argv[index]!.startsWith("--")) writeIds.push(argv[index++]!);
   const downloadTemplate = downloads[name];
   const downloadId = downloadTemplate?.includes("{") && argv[index] !== undefined && !argv[index]!.startsWith("--") ? argv[index++] : undefined;
   let type: "user" | "role" | undefined;
@@ -54,12 +55,15 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   const flags = new Map<string, string>();
   for (; index < argv.length; index++) {
     const flag = argv[index]!;
-    if (!flag.startsWith("--")) usage();
+    if (!flag.startsWith("--")) {
+      if (name === "policy app remove") { writeIds.push(flag); continue; }
+      usage();
+    }
     if (!Object.hasOwn(entry.flags, flag.slice(2)) || flags.has(flag)) {
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--execute", "--auto-assign", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--full", "--all", "--execute", "--auto-assign", "--force", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -69,11 +73,11 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   if (flags.has("--help")) return { command: name, ...entry };
   const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
   const resourceRead = prepareResourceRead(name, flags, definition, type);
-  const write = prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags) ?? preparePolicyWrite(name, writeIds, flags) ?? prepareIdentityWrite(name, writeIds, flags, store.redactor) ?? prepareJitWrite(name, writeIds, flags, store.redactor);
+  const write = prepareDelete(name, writeIds, flags) ?? prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags) ?? preparePolicyWrite(name, writeIds, flags) ?? prepareIdentityWrite(name, writeIds, flags, store.redactor) ?? prepareJitWrite(name, writeIds, flags, store.redactor);
   const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
-      : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
+      : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", ...(deletes[name] ? ["deleteConfirmation"] : []), "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
@@ -86,8 +90,10 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     const forcedReadOnly = store.readOnly();
     const profile = store.select(store.load(config, true).config, flags.get("--profile"));
     requireWritePermission(profile, forcedReadOnly, write.operation);
+    if (deletes[name]) requireDeletePermission(profile);
+    if (name === "policy delete" && flags.has("--force")) requireWritePermission(profile, forcedReadOnly, "policy.delete.force");
     const client = readClient(profile, store.credentials(profile, true), store.redactor, transport, true);
-    result = await coordinateWrite({ operation: write.operation, execute: flags.has("--execute"), confirm: flags.get("--confirm"), statePath: store.statePath(), redactor: store.redactor, prepare: () => write.prepare(client), send: client.write });
+    result = await coordinateWrite({ operation: write.operation, execute: flags.has("--execute"), confirm: flags.get("--confirm"), confirmDelete: flags.get("--confirm-delete"), statePath: store.statePath(), redactor: store.redactor, prepare: () => write.prepare(client), send: client.write });
   }
   else if (download) {
     store.readOnly();

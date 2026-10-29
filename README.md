@@ -20,6 +20,7 @@ B8 adds group create, update, set-default, assign-policy, clear-policy, add-comp
 B9 adds policy create, update, upload, auto-assign and Windows/macOS app add through the coordinator, covering six operations.
 B10 adds twelve user, accepted-domain and SCIM write operations through the coordinator.
 B11 adds admin-request create/decide, auth-request notify and app-switcher connect through the coordinator, covering four operations.
+B12 completes six delete operations and Windows/macOS application removal with separate delete permission and confirmation, and prepares the initial 0.1.0 release.
 The [94-operation ledger](inventory/capabilities.json) describes planned coverage and never enables execution.
 
 ## Quickstart
@@ -81,6 +82,7 @@ Skill commands use npx for the future published package; until release, use the 
 | admin-request, auth-request | List and show JIT requests | API read | [Commands](docs/commands.md) |
 | admin-request create, decide; auth-request notify | Preview or send an admin request, decision or ITSM ticket callback once | Gated write | [Commands](docs/commands.md) |
 | app-switcher connect | Preview or register Insight connectors once | Gated write | [Commands](docs/commands.md) |
+| computer delete, deactivate; group delete; domain delete; policy delete, discard-draft, app remove | Preview or send a deletion once | Gated delete | [Commands](docs/commands.md) |
 | computer log download, policy download, policy revision download, api-definition download | Save raw bytes to a new private file | Gated download | [Downloads](docs/downloads.md) |
 
 Run `beyondtrust-axi <command> --help` for flags and examples.
@@ -186,7 +188,12 @@ The journal stores an auditId, operation, time and redacted request in a new pri
 Journal contents are flushed before sending; POSIX also flushes the directory, and Windows uses the existing handle-bound protected-file writer.
 On OUTCOME_UNKNOWN, reconcile remote state using the returned auditId before any further action; never replay an ambiguous write.
 Deletes additionally require writes.allowDeletes and exact --confirm-delete.
-Delete commands are reserved for the later delete slice.
+See the [command overview](#what-it-covers) for delete commands.
+Preview returns confirmation and deleteConfirmation; execution requires both --confirm and --confirm-delete exactly as returned after re-reading current targets.
+Policy delete previews assigned groups; --force additionally requires the policy.delete.force operation.
+Policy app remove accepts a policy UUID, --os windows|macos, --app-group and 1-20 application UUIDs, verifies group membership and sends only the documented delete array.
+Computer delete and deactivate support explicit UUIDs or computer-list filters with a count-bearing confirmation and no maximum filter count.
+Deactivate archives and deletes computers; discard-draft irreversibly loses policy draft changes.
 The owner commissions the complete build through artium-axi afterwards.
 
 ## Configuration
@@ -237,6 +244,8 @@ Bare --version, -v and -V print the package version without loading the command 
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
 | CONFIRMATION_REQUIRED | Preview again and copy the exact confirmation after checking the targets and count. |
+| DELETES_DISABLED | Enable writes.allowDeletes in a named file profile with the exact delete operation allowed. |
+| DELETE_CONFIRM_REQUIRED | Preview again and copy deleteConfirmation exactly into --confirm-delete. |
 | JOURNAL_ERROR | Repair private state directory permissions or storage; no write was sent. |
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |

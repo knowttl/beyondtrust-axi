@@ -18,15 +18,20 @@ export function requireWritePermission(profile: SelectedProfile, forcedReadOnly:
   }
 }
 
+export function requireDeletePermission(profile: SelectedProfile): void {
+  if (profile.source === "env-profile" || !profile.writes.allowDeletes) throw new AxiError("Delete operations are disabled for this profile", "DELETES_DISABLED", ["Enable writes.allowDeletes in a named file profile"]);
+}
+
 export async function coordinateWrite(options: {
-  operation: string; execute: boolean; confirm?: string; statePath: string; redactor: SecretRedactor;
-  prepare: () => Promise<{ path: string; body?: unknown; method?: "POST" | "PUT" | "PATCH"; csv?: Buffer; policyFile?: Buffer; confirmation: string; preview: Record<string, unknown> }>;
-  send: (path: string, body?: unknown, options?: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer; policyFile?: Buffer }) => Promise<unknown>;
+  operation: string; execute: boolean; confirm?: string; confirmDelete?: string; statePath: string; redactor: SecretRedactor;
+  prepare: () => Promise<{ path: string; body?: unknown; method?: "POST" | "PUT" | "PATCH" | "DELETE"; csv?: Buffer; policyFile?: Buffer; confirmation: string; deleteConfirmation?: string; preview: Record<string, unknown> }>;
+  send: (path: string, body?: unknown, options?: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; csv?: Buffer; policyFile?: Buffer }) => Promise<unknown>;
 }): Promise<Record<string, unknown>> {
   const plan = await options.prepare();
   const preview = options.redactor.value(plan.preview);
-  if (!options.execute) return { status: "preview", operation: options.operation, preview, confirmation: options.redactor.text(plan.confirmation), help: ["Repeat with --execute --confirm '<exact confirmation>' to send once"] };
+  if (!options.execute) return { status: "preview", operation: options.operation, preview, confirmation: options.redactor.text(plan.confirmation), ...(plan.deleteConfirmation ? { deleteConfirmation: options.redactor.text(plan.deleteConfirmation) } : {}), help: [`Repeat with --execute --confirm '<exact confirmation>'${plan.deleteConfirmation ? " --confirm-delete '<exact delete confirmation>'" : ""} to send once`] };
   if (options.confirm !== plan.confirmation || options.redactor.text(plan.confirmation) !== plan.confirmation) throw new AxiError("Exact write confirmation is required", "CONFIRMATION_REQUIRED", ["Run a preview again and copy its confirmation exactly"]);
+  if (plan.deleteConfirmation && (options.confirmDelete !== plan.deleteConfirmation || options.redactor.text(plan.deleteConfirmation) !== plan.deleteConfirmation)) throw new AxiError("Exact delete confirmation is required", "DELETE_CONFIRM_REQUIRED", ["Run a preview again and copy deleteConfirmation into --confirm-delete exactly"]);
   const auditId = randomUUID();
   const directory = join(options.statePath, "writes");
   try {

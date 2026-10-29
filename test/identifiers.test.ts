@@ -18,7 +18,7 @@ test("identifier guard accepts public gateways and reserved synthetic examples",
 });
 
 test("identifier guard distinguishes executable operation names from unapproved hosts", () => {
-  expect(identifierViolations("computer.authorise computer.logs.request")).toEqual([]);
+  expect(identifierViolations("computer.authorise computer.logs.request policy.delete.force policy.app.remove")).toEqual([]);
   expect(identifierViolations("computer.authorise.internal")).toContain("unapproved domain or internal host");
 });
 
