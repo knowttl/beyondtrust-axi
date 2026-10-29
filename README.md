@@ -46,13 +46,13 @@ A fresh home prints status: not configured and count: 0 without network access.
 For local readiness, supply BEYONDTRUST_AXI_CLIENT_SECRET through a secret manager or private environment, then run:
 
 ```sh
-export BEYONDTRUST_AXI_HOST=example.pm.beyondtrustcloud.com
+export BEYONDTRUST_AXI_HOST=example-services.pm.beyondtrustcloud.com
 export BEYONDTRUST_AXI_CLIENT_ID=synthetic-client
 node bin/beyondtrust-axi.js auth status
 ```
 
 Replace the synthetic host and client ID with your API account metadata.
-The PM Cloud API host is a lowercase DNS name in the documented organization-specific services form, such as `example-services.pm.beyondtrustcloud.com`, ending in `.beyondtrustcloud.com`, with no scheme, port or path.
+See the [configuration guide](docs/configuration.md) for the PM Cloud API host format.
 auth status validates local credentials and makes no token exchange or API request.
 
 ## Use with your agent

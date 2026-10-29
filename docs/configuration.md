@@ -12,7 +12,7 @@ The default SecretRef alone does not select an environment profile.
   "defaultProfile": "example",
   "profiles": {
     "example": {
-      "host": "example.pm.beyondtrustcloud.com",
+      "host": "example-services.pm.beyondtrustcloud.com",
       "clientId": "synthetic-client",
       "clientSecret": { "env": "BEYONDTRUST_AXI_CLIENT_SECRET" },
       "downloads": { "allow": false },
