@@ -19,8 +19,8 @@ afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
 // POST /v3/AppSwitcher/connector and their GET re-reads below.
 const notification = { status: "closed", decision: "Approved", decisionPerformedByUser: "example", decisionTime: "2026-10-28T00:00:00Z", duration: "300", itsmRequestId: "example", message: "example", systemId: "example/ticket", ticketId: "example", ticketUrl: "https://example.com/ticket" };
 const cases = [
-  { command: "admin-request create", args: ["--computer", id, "--user", "example", "--duration", "300", "--reason", "example", "--decision", "approve", "--by", "example"], path: "/v3/AdminAccessRequest", body: { computerId: id, userId: "example", duration: "300", reason: "example", decision: "Approved", decisionPerformedByUser: "example" }, readPath: `/v3/Computers/${id}`, read: { id }, file: false },
-  { command: "admin-request decide", args: [id, "--decision", "deny", "--by", "example", "--message", "example"], path: "/v3/AdminAccessRequest/approval", body: { requestId: id, decision: "Denied", decisionPerformedByUser: "example", message: "example" }, readPath: `/v3/AdminAccessRequest/${id}`, read: [{ requestInfo: { requestId: id } }], file: false },
+  { command: "admin-request create", args: ["--computer", id, "--user", "example", "--decision", "approve", "--by", "example"], path: "/v3/AdminAccessRequest", body: { computerId: id, userId: "example", decision: "Approved", decisionPerformedByUser: "example" }, readPath: `/v3/Computers/${id}`, read: { id }, file: false },
+  { command: "admin-request decide", args: [id, "--decision", "deny", "--by", "example", "--duration", "300", "--message", "example"], path: "/v3/AdminAccessRequest/approval", body: { requestId: id, decision: "Denied", decisionPerformedByUser: "example", duration: "300", message: "example" }, readPath: `/v3/AdminAccessRequest/${id}`, read: [{ requestInfo: { requestId: id } }], file: false },
   { command: "auth-request notify", args: [], path: "/v3/AuthorizationRequest/notification", body: notification, readPath: "/v3/AuthorizationRequest/example%2Fticket", read: [{ requestInfo: { user: "example" } }], file: true },
   { command: "app-switcher connect", args: [], path: "/v3/AppSwitcher/connector", body: { organizationId: id, connectorList: [{ connectorName: "example", connectorType: "Insight", url: "https://example.com", connectorId: id, tenantId: id }] }, readPath: "/v3/About", read: [{ consoleVersion: "26.3" }], file: true },
 ];
@@ -72,6 +72,41 @@ test.each(["forced", "operation", "disabled", "env"])("denies %s JIT writes befo
   f.save();
   const cloud = fakeCloud();
   expect((await f.run(argsFor(cases[0]!, f), {}, cloud)).data).toMatchObject({ error: { code: "WRITES_DISABLED" } });
+  expect(cloud.calls).toHaveLength(0);
+});
+
+test("rejects creation-time denial before authentication", async () => {
+  const f = fixture("admin-request.create");
+  const cloud = fakeCloud();
+  const result = await f.run(["admin-request", "create", "--computer", id, "--user", "example", "--decision", "deny", "--by", "example"], {}, cloud);
+  expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
+  expect(cloud.calls).toHaveLength(0);
+});
+
+test("previews creation without a decision", async () => {
+  const f = fixture("admin-request.create");
+  const cloud = fakeCloud(response(token), response({ id }));
+  const result = await f.run(["admin-request", "create", "--computer", id, "--user", "example"], {}, cloud);
+  expect(result.data).toMatchObject({ status: "preview", preview: { request: { computerId: id, userId: "example" } } });
+  expect(result.data.preview).not.toHaveProperty("request.decision");
+});
+
+test.each([
+  { action: "create", flag: "--duration" },
+  { action: "create", flag: "--message" },
+  { action: "create", flag: "--user-name" },
+  { action: "create", flag: "--reason" },
+  { action: "create", flag: "--system-id" },
+  { action: "create", flag: "--ticket-id" },
+  { action: "create", flag: "--ticket-url" },
+  { action: "decide", flag: "--system-id" },
+  { action: "decide", flag: "--ticket-id" },
+  { action: "decide", flag: "--ticket-url" },
+])("rejects removed $action flag $flag before authentication", async ({ action, flag }) => {
+  const f = fixture(`admin-request.${action}`);
+  const cloud = fakeCloud();
+  const result = await f.run(["admin-request", action, flag, "example"], {}, cloud);
+  expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR", message: `Unknown or duplicate flag ${flag}` } });
   expect(cloud.calls).toHaveLength(0);
 });
 

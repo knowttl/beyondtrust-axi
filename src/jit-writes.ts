@@ -24,7 +24,7 @@ export function prepareJitWrite(command: string, args: string[], flags: Map<stri
   if (flags.has("--confirm") && !flags.has("--execute")) invalid("--confirm requires --execute");
   if (route.file && !flags.has("--file")) invalid("--file is required");
   const decision = flags.get("--decision");
-  if ((decide && !decision) || (decision !== undefined && !["approve", "deny"].includes(decision))) invalid("--decision must be approve or deny");
+  if ((decide && !decision) || (decision !== undefined && !(decide ? ["approve", "deny"] : ["approve"]).includes(decision))) invalid(decide ? "--decision must be approve or deny" : "--decision must be approve");
   if ((decision !== undefined) !== flags.has("--by")) invalid("--decision and --by must be provided together");
   if (flags.has("--by") && !flags.get("--by")!.trim()) invalid("--by requires a decision maker");
   if (command === "admin-request create" && (!uuid.safeParse(flags.get("--computer")).success || !flags.get("--user")?.trim())) invalid("--computer UUID and --user are required");
@@ -43,7 +43,7 @@ export function prepareJitWrite(command: string, args: string[], flags: Map<stri
         file = { size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
       } else {
         body = decide ? { requestId: args[0]!.toLowerCase() } : { computerId: flags.get("--computer")!.toLowerCase(), userId: flags.get("--user") };
-        for (const [flag, field] of Object.entries({ duration: "duration", reason: "reason", "user-name": "userName", "system-id": "systemId", "ticket-id": "ticketId", "ticket-url": "ticketUrl", message: "message", by: "decisionPerformedByUser" })) {
+        for (const [flag, field] of Object.entries({ by: "decisionPerformedByUser", ...(decide ? { duration: "duration", message: "message" } : {}) })) {
           if (flags.has(`--${flag}`)) body[field] = flags.get(`--${flag}`);
         }
         if (decision) body.decision = decision === "approve" ? "Approved" : "Denied";

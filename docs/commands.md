@@ -21,17 +21,10 @@ Preview admin-request create; POST /v3/AdminAccessRequest; requires file-profile
 | --help | Show command help |
 | --execute | Send once after re-read and exact confirmation |
 | --confirm | Exact confirmation from preview; state and file digest must still match |
-| --decision | approve|deny (required for decide); approve grants admin rights |
+| --decision | Optional approve; grants admin rights |
 | --by | Decision maker; required with --decision |
-| --duration | Session duration in seconds |
-| --message | Decision message |
-| --system-id | Internal ticket system ID |
-| --ticket-id | External ticket ID |
-| --ticket-url | Ticket URL |
 | --computer | Required computer UUID |
 | --user | Required endpoint user ID |
-| --user-name | Endpoint user name |
-| --reason | Request reason |
 
 ```sh
 beyondtrust-axi admin-request create --computer <uuid> --user <user>
@@ -51,13 +44,10 @@ Preview admin-request decide; POST /v3/AdminAccessRequest/approval; requires fil
 | --help | Show command help |
 | --execute | Send once after re-read and exact confirmation |
 | --confirm | Exact confirmation from preview; state and file digest must still match |
-| --decision | approve|deny (required for decide); approve grants admin rights |
+| --decision | Required approve|deny; approve grants admin rights |
 | --by | Decision maker; required with --decision |
 | --duration | Session duration in seconds |
 | --message | Decision message |
-| --system-id | Internal ticket system ID |
-| --ticket-id | External ticket ID |
-| --ticket-url | Ticket URL |
 
 ```sh
 beyondtrust-axi admin-request decide <request-uuid> --decision approve --by <user>
