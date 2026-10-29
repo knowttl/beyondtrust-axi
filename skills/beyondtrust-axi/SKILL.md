@@ -16,6 +16,92 @@ The 0.0.0 scaffold is unpublished; use a built checkout until release.
 Never put secrets in argv or contact a live tenant during automated verification.
 Token lifetime, rate limits and live compatibility remain unverified until commissioning through artium-axi.
 
+## admin-request create
+
+Preview admin-request create; POST /v3/AdminAccessRequest; requires file-profile permission for admin-request.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. A pre-approved request grants admin rights..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --decision | Optional approve; grants admin rights |
+| --by | Decision maker; required with --decision |
+| --computer | Required computer UUID |
+| --user | Required endpoint user ID |
+
+```sh
+npx -y @knowttl/beyondtrust-axi admin-request create --computer <uuid> --user <user>
+npx -y @knowttl/beyondtrust-axi admin-request create --help
+```
+
+## admin-request decide
+
+Preview admin-request decide; POST /v3/AdminAccessRequest/approval; requires file-profile permission for admin-request.decide; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --decision | Required approve|deny; approve grants admin rights |
+| --by | Decision maker; required with --decision |
+| --duration | Session duration in seconds |
+| --message | Decision message |
+
+```sh
+npx -y @knowttl/beyondtrust-axi admin-request decide <request-uuid> --decision approve --by <user>
+npx -y @knowttl/beyondtrust-axi admin-request decide --help
+```
+
+## auth-request notify
+
+Preview auth-request notify; POST /v3/AuthorizationRequest/notification; requires file-profile permission for auth-request.notify; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching AuthorizationRequestNotificationModel in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation; all ten fields required |
+
+```sh
+npx -y @knowttl/beyondtrust-axi auth-request notify --file <input.json>
+npx -y @knowttl/beyondtrust-axi auth-request notify --help
+```
+
+## app-switcher connect
+
+Preview app-switcher connect; POST /v3/AppSwitcher/connector; requires file-profile permission for app-switcher.connect; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. No connector read endpoint exists in the export; checks API access and previews the registration request..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and exact confirmation |
+| --confirm | Exact confirmation from preview; state and file digest must still match |
+| --file | Required secure UTF-8 JSON matching AppSwitcherRequest in inventory/swagger.json; maximum 10 MiB; sha256 bound into confirmation |
+
+```sh
+npx -y @knowttl/beyondtrust-axi app-switcher connect --file <input.json>
+npx -y @knowttl/beyondtrust-axi app-switcher connect --help
+```
+
 ## user create
 
 Preview user create; POST /v3/Users; requires file-profile permission for user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. .
