@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { withoutCredentials } from "./resource-reads.js";
 
 export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> };
-export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
+export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
 export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void> };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
@@ -58,7 +58,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   function budget() {
     if (deadline.aborted || now() - started >= 60_000) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
-  async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH", headers: Record<string, string>, body?: string | Buffer, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
+  async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", headers: Record<string, string>, body?: string | Buffer, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
     if (requests >= (writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
@@ -137,20 +137,22 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     }
   return {
     get: (path: string) => get(path),
-    async write(path: string, body?: unknown, options: { method?: "POST" | "PUT" | "PATCH"; csv?: Buffer; policyFile?: Buffer } = {}): Promise<unknown> {
+    async write(path: string, body?: unknown, options: { method?: "POST" | "PUT" | "PATCH" | "DELETE"; csv?: Buffer; policyFile?: Buffer } = {}): Promise<unknown> {
       const method = options.method ?? "POST";
       const computer = method === "POST" && /^\/v3\/Computers\/(?:Authorise|Reject|archive|Unarchive|Logs\/Request|Details\/Request|[0-9a-f-]{36}\/(?:archive|Unarchive))$/.test(path);
       const group = method === "POST" ? /^\/v3\/Groups(?:\/(?:AssignPolicyToMultipleGroups|bulkclearpolicy|UnassignComputers|[0-9a-f-]{36}\/(?:AssignPolicyRevision|AssignComputers|AssignComputersByCsv)))?$/.test(path)
-        : method === "PUT" ? path === "/v3/Groups" : /^\/v3\/Groups\/[0-9a-f-]{36}\/(?:MarkAsDefault|ClearPolicy)$/.test(path);
+        : method === "PUT" ? path === "/v3/Groups" : method === "PATCH" && /^\/v3\/Groups\/[0-9a-f-]{36}\/(?:MarkAsDefault|ClearPolicy)$/.test(path);
       const policyUpload = method === "POST" && /^\/v3\/Policies(?:\/[0-9a-f-]{36}\/Upload)?$/.test(path);
       const policyApps = method === "POST" && /^\/PolicyEditor\/v3\/Policy\/[0-9a-f-]{36}\/(?:Windows|MacOS)\/ApplicationGroups\/Applications$/.test(path);
       const autoAssign = method === "POST" && path === "/v3/Groups/AutoAssignPolicyRevision";
       const policy = policyUpload || policyApps || autoAssign || (method === "PUT" && /^\/v3\/Policies\/[0-9a-f-]{36}$/.test(path));
       const identity = method === "POST" ? /^\/(?:v3\/(?:Users|AcceptedDomains)|scim\/v3\/users)$/.test(path) || /^\/v3\/Users\/[0-9a-f-]{36}\/AssignRoles$/.test(path)
         : method === "PUT" ? /^\/v3\/(?:AcceptedDomains\/[0-9a-f-]{36}|Users\/[0-9a-f-]{36}(?:\/ModifyUserPreferences)?)$/.test(path) || /^\/scim\/v3\/users\/[0-9a-f-]{36}$/.test(path)
-          : /^\/v3\/Users\/[0-9a-f-]{36}\/(?:Disable|Enable|ResendInvite)$/.test(path) || /^\/scim\/v3\/users\/[0-9a-f-]{36}$/.test(path);
+          : method === "PATCH" && (/^\/v3\/Users\/[0-9a-f-]{36}\/(?:Disable|Enable|ResendInvite)$/.test(path) || /^\/scim\/v3\/users\/[0-9a-f-]{36}$/.test(path));
       const jit = method === "POST" && ["/v3/AdminAccessRequest", "/v3/AdminAccessRequest/approval", "/v3/AuthorizationRequest/notification", "/v3/AppSwitcher/connector"].includes(path);
-      if ((!computer && !group && !policy && !identity && !jit) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path)) || (policyUpload !== (options.policyFile !== undefined))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
+      const deletion = method === "DELETE" ? path === "/v3/Computers" || /^\/v3\/(?:Groups|AcceptedDomains)\/[0-9a-f-]{36}$/.test(path) || /^\/v3\/Policies\/[0-9a-f-]{36}\?forceDelete=(?:true|false)$/.test(path)
+        : method === "PATCH" ? /^\/v3\/Policies\/[0-9a-f-]{36}\/DiscardDraft$/.test(path) : method === "POST" && path === "/v3/Computers/Deactivate";
+      if ((!computer && !group && !policy && !identity && !jit && !deletion) || (options.csv !== undefined && !/^\/v3\/Groups\/[0-9a-f-]{36}\/AssignComputersByCsv$/.test(path)) || (policyUpload !== (options.policyFile !== undefined))) throw new AxiError("Invalid write path", "VALIDATION_ERROR");
       // Re-reads authenticate first. Never refresh or retry after entering the write path.
       if (!token || token.expires <= now()) throw new AxiError("Write requires a current authenticated re-read", "AUTH_EXPIRED");
       const boundary = `beyondtrust-axi-${randomUUID()}`;

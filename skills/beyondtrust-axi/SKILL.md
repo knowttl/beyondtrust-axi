@@ -1,20 +1,220 @@
 ---
 name: beyondtrust-axi
-description: Inspect BeyondTrust PM Cloud Endpoint Privilege Management profiles, API readiness, computers, groups, policies, versions and task status.
+description: Inspect and manage BeyondTrust PM Cloud Endpoint Privilege Management computers, groups, policies, applications, users, domains, SCIM, events, audits and JIT requests through bounded reads, downloads and explicitly confirmed writes and deletes.
 ---
 
 # BeyondTrust AXI
 
 Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands.
 
-B2 supports local discovery, doctor, about and task status.
-B3 supports 12 bounded computer, group and policy reads, including Windows and macOS application groups.
+Use a configured session hook for ambient local context or this skill for on-demand guidance.
+The full command set covers 47 reads (including four downloads), 40 write operations and six delete operations.
+Windows and macOS application removal share two Policy Editor POSTs with additions, with distinct permissions and no mixed requests.
+Certificate renewal is not built because the export documents only 410 Gone.
+Local discovery commands remain offline.
 Lists default to 50 rows; --all caps at 1000 rows within shared request, time and byte budgets.
 Resume a non-null cursor with the same profile, command, ID, filters and sort.
-Use a configured session hook for ambient local context or this skill for on-demand guidance.
-The 0.0.0 scaffold is unpublished; use a built checkout until release.
+Writes require a named file profile, writes.allowWrites and an exact operation allow-list entry; forced read-only takes precedence.
+Preview first, then repeat with --execute and the exact --confirm; deletes additionally require writes.allowDeletes and exact --confirm-delete.
+Policy delete --force also requires policy.delete.force.
+Computer filter selections have no maximum count; previews show the count and first 20 hosts, and execution confirmations bind that count.
+The server re-applies filters at execution, so membership can change after counting.
+Never replay OUTCOME_UNKNOWN; reconcile remote state using auditId.
+Downloads require downloads.allow and a new private destination file.
 Never put secrets in argv or contact a live tenant during automated verification.
-Token lifetime, rate limits and live compatibility remain unverified until commissioning through artium-axi.
+Live compatibility, token lifetime, rate limits, download formats and write-result task semantics remain unverified until commissioning through artium-axi.
+Publication is handled by release-please and trusted publishing; use a built checkout until the initial 0.1.0 release.
+
+## computer delete
+
+Preview computer delete; DELETE /v3/Computers; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation computer.delete. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+| --computer-id | Filter ComputerId (string) |
+| --host | Filter Host (string) |
+| --host-type | Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux) |
+| --agent-version | Filter AgentVersion (string) |
+| --adapter-version | Filter AdapterVersion (string) |
+| --package-manager-version | Filter PackageManagerVersion (string) |
+| --authorisation-state | Filter AuthorisationState (string) |
+| --last-connected-dates | Filter LastConnected Dates (array; comma-separated) |
+| --last-connected-selection-mode | Filter LastConnected SelectionMode (Single|Multiple|Range) |
+| --policy-revision-status | Filter PolicyRevisionStatus (string) |
+| --policy-id | Filter PolicyId (string) |
+| --policy-name | Filter PolicyName (string) |
+| --host-policy-name | Filter HostPolicyName (string) |
+| --group-id | Filter GroupId (string) |
+| --group-name | Filter GroupName (string) |
+| --os | Filter OS (Windows|Mac) |
+| --domain | Filter Domain (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --duplicate-count-min | Filter DuplicateCount Min (integer) |
+| --duplicate-count-max | Filter DuplicateCount Max (integer) |
+| --connection-status | Filter ConnectionStatus (array; comma-separated) |
+| --days-disconnected | Filter DaysDisconnected (integer) |
+| --days-since-archived | Filter DaysSinceArchived (integer) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer delete <uuid>
+npx -y @knowttl/beyondtrust-axi computer delete --help
+```
+
+## computer deactivate
+
+Preview computer deactivate; POST /v3/Computers/Deactivate; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation computer.deactivate. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries. Archives and deletes computers..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+| --computer-id | Filter ComputerId (string) |
+| --host | Filter Host (string) |
+| --host-type | Filter HostType (Undefined|MicrosoftWindows|AppleMacOS|Linux) |
+| --agent-version | Filter AgentVersion (string) |
+| --adapter-version | Filter AdapterVersion (string) |
+| --package-manager-version | Filter PackageManagerVersion (string) |
+| --authorisation-state | Filter AuthorisationState (string) |
+| --last-connected-dates | Filter LastConnected Dates (array; comma-separated) |
+| --last-connected-selection-mode | Filter LastConnected SelectionMode (Single|Multiple|Range) |
+| --policy-revision-status | Filter PolicyRevisionStatus (string) |
+| --policy-id | Filter PolicyId (string) |
+| --policy-name | Filter PolicyName (string) |
+| --host-policy-name | Filter HostPolicyName (string) |
+| --group-id | Filter GroupId (string) |
+| --group-name | Filter GroupName (string) |
+| --os | Filter OS (Windows|Mac) |
+| --domain | Filter Domain (string) |
+| --created-dates | Filter Created Dates (array; comma-separated) |
+| --created-selection-mode | Filter Created SelectionMode (Single|Multiple|Range) |
+| --duplicate-count-min | Filter DuplicateCount Min (integer) |
+| --duplicate-count-max | Filter DuplicateCount Max (integer) |
+| --connection-status | Filter ConnectionStatus (array; comma-separated) |
+| --days-disconnected | Filter DaysDisconnected (integer) |
+| --days-since-archived | Filter DaysSinceArchived (integer) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi computer deactivate <uuid>
+npx -y @knowttl/beyondtrust-axi computer deactivate --help
+```
+
+## group delete
+
+Preview group delete; DELETE /v3/Groups/{id}; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation group.delete. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+
+```sh
+npx -y @knowttl/beyondtrust-axi group delete <uuid>
+npx -y @knowttl/beyondtrust-axi group delete --help
+```
+
+## domain delete
+
+Preview domain delete; DELETE /v3/AcceptedDomains/{id}; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation domain.delete. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+
+```sh
+npx -y @knowttl/beyondtrust-axi domain delete <uuid>
+npx -y @knowttl/beyondtrust-axi domain delete --help
+```
+
+## policy delete
+
+Preview policy delete; DELETE /v3/Policies/{id}; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation policy.delete. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+| --force | Force deletion; additionally requires operation policy.delete.force (default: false) |
+
+```sh
+npx -y @knowttl/beyondtrust-axi policy delete <uuid>
+npx -y @knowttl/beyondtrust-axi policy delete --help
+```
+
+## policy discard-draft
+
+Preview policy discard-draft; PATCH /v3/Policies/{id}/DiscardDraft; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation policy.discard-draft. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries. Irreversibly discards draft changes..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+
+```sh
+npx -y @knowttl/beyondtrust-axi policy discard-draft <uuid>
+npx -y @knowttl/beyondtrust-axi policy discard-draft --help
+```
+
+## policy app remove
+
+Preview policy app remove; POST /PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups/Applications or POST /PolicyEditor/v3/Policy/{policyId}/MacOS/ApplicationGroups/Applications; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation policy.app.remove. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries. Removes applications only; never mixed with additions..
+
+| Flag | Meaning |
+|---|---|
+| --config | Configuration file path (default: platform config directory) |
+| --profile | Named file profile (default: selection precedence) |
+| --fields | Comma-separated output fields (default: all) |
+| --full | Show complete strings |
+| --help | Show command help |
+| --execute | Send once after re-read and both exact confirmations |
+| --confirm | Exact confirmation from preview |
+| --confirm-delete | Exact deleteConfirmation from preview: DELETE <operation> <count> <targets> |
+| --os | Required windows|macos |
+| --app-group | Required application group UUID; 1-20 application UUIDs follow as positional arguments |
+
+```sh
+npx -y @knowttl/beyondtrust-axi policy app remove <uuid> --os windows --app-group <uuid> <application-uuid>
+npx -y @knowttl/beyondtrust-axi policy app remove --help
+```
 
 ## admin-request create
 

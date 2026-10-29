@@ -5,6 +5,7 @@ import { groupWrites } from "./group-writes.js";
 import { policyWrites } from "./policy-writes.js";
 import { identityWrites } from "./identity-writes.js";
 import { jitWrites } from "./jit-writes.js";
+import { deletes } from "./deletes.js";
 export const DESCRIPTION = "Inspect BeyondTrust PM Cloud Endpoint Privilege Management through guarded AXI commands";
 const flags = { config: "Configuration file path (default: platform config directory)", profile: "Named file profile (default: selection precedence)", fields: "Comma-separated output fields (default: all)", full: "Show complete strings", help: "Show command help" };
 export const resourceReads = Object.fromEntries(Object.entries({
@@ -49,6 +50,15 @@ export const resourceReads = Object.fromEntries(Object.entries({
   "auth-request show": "/v3/AuthorizationRequest/{systemId}",
 }).map(([command, path]) => [command, resourceReadDefinition(command, path)]));
 export const catalogue = {
+  ...Object.fromEntries(Object.entries(deletes).map(([name, routes]) => [name, {
+    description: `Preview ${name}; ${routes.map(({ method, path }) => `${method} ${path}`).join(" or ")}; requires file-profile writes.allowWrites, writes.allowDeletes and exact operation ${name.replaceAll(" ", ".")}. Re-reads targets, binds state into confirmation, requires --execute, --confirm and --confirm-delete, persists redacted intent and sends once without retries.${name === "computer deactivate" ? " Archives and deletes computers." : name === "policy discard-draft" ? " Irreversibly discards draft changes." : name === "policy app remove" ? " Removes applications only; never mixed with additions." : ""}`,
+    flags: { ...flags, execute: "Send once after re-read and both exact confirmations", confirm: "Exact confirmation from preview", "confirm-delete": "Exact deleteConfirmation from preview: DELETE <operation> <count> <targets>",
+      ...(name.startsWith("computer ") ? computerWriteFilters : {}),
+      ...(name === "policy delete" ? { force: "Force deletion; additionally requires operation policy.delete.force (default: false)" } : {}),
+      ...(name === "policy app remove" ? { os: "Required windows|macos", "app-group": "Required application group UUID; 1-20 application UUIDs follow as positional arguments" } : {}),
+    },
+    examples: [`beyondtrust-axi ${name} <uuid>${name === "policy app remove" ? " --os windows --app-group <uuid> <application-uuid>" : ""}`, `beyondtrust-axi ${name} --help`],
+  }])),
   ...Object.fromEntries(Object.entries(jitWrites).map(([name, route]) => [name, {
     description: `Preview ${name}; POST ${route.path}; requires file-profile permission for ${name.replaceAll(" ", ".")}; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. ${name === "admin-request create" ? "A pre-approved request grants admin rights." : name === "app-switcher connect" ? "No connector read endpoint exists in the export; checks API access and previews the registration request." : ""}`,
     flags: { ...flags, execute: "Send once after re-read and exact confirmation", confirm: "Exact confirmation from preview; state and file digest must still match",
