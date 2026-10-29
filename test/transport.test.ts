@@ -15,11 +15,17 @@ test("form-encodes credentials only in the token body and reuses the in-memory t
   const [auth, first, second] = cloud.calls;
   expect(auth!.options.method).toBe("POST");
   expect(auth!.options.headers["content-type"]).toBe("application/x-www-form-urlencoded");
-  expect(Object.fromEntries(new URLSearchParams(auth!.options.body?.toString()))).toEqual({ grant_type: "client_credentials", client_id: credentials.clientId, client_secret: credentials.clientSecret });
+  expect(Object.fromEntries(new URLSearchParams(auth!.options.body?.toString()))).toEqual({ grant_type: "client_credentials", client_id: credentials.clientId, client_secret: credentials.clientSecret, scope: "urn:management:api" });
   expect(auth!.url.search).toBe("");
   expect(first!.options).toMatchObject({ method: "GET", headers: { authorization: `Bearer ${token.access_token}` } });
   expect(second!.options.headers).toEqual(first!.options.headers);
   expect(cloud.calls).toHaveLength(3);
+});
+
+test("requests exactly the Management API scope when authenticating", async () => {
+  const cloud = fakeCloud(response(token), response([]));
+  await client(cloud).get("/v3/About");
+  expect(new URLSearchParams(cloud.calls[0]!.options.body?.toString()).getAll("scope")).toEqual(["urn:management:api"]);
 });
 
 test("re-exchanges only once on read 401", async () => {

@@ -53,7 +53,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   let token: { value: string; expires: number } | undefined;
   let refreshed = false;
   redactor.add(credentials.clientSecret);
-  const form = new URLSearchParams({ grant_type: "client_credentials", client_id: credentials.clientId, client_secret: credentials.clientSecret }).toString();
+  const form = new URLSearchParams({ grant_type: "client_credentials", client_id: credentials.clientId, client_secret: credentials.clientSecret, scope: "urn:management:api" }).toString();
   redactor.add(form);
 
   function budget() {

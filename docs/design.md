@@ -9,7 +9,7 @@ See [the operation ledger](../inventory/capabilities.json) for implemented and p
 
 ## Safety contract
 
-Tokens use form-encoded client credentials and stay in memory.
+For the implemented authentication flow and Management API scope, see [Safety](../README.md#safety).
 The API base is HTTPS on the selected host with /management-api; redirects are errors.
 On token 404, doctor reports AUTH_ENDPOINT_NOT_FOUND and hints the documented -services host form without switching hosts.
 For the implemented read budgets, token renewal and retry behavior, see [Safety](../README.md#safety).
