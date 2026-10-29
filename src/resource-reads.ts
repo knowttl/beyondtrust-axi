@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
 import type { SecretRedactor } from "./redact.js";
+import { invalidApiResponse } from "./response-shape.js";
 
 // The committed export owns parameter types and response shapes, including nullable fields.
 export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
@@ -64,7 +65,7 @@ export function resourceReadDefinition(command: string, path: string) {
 }
 
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
-function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
+function badResponse(value: unknown): never { throw invalidApiResponse(value); }
 const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
 export function withoutCredentials(value: unknown, redactor: SecretRedactor): unknown {
   if (typeof value === "string") {
@@ -177,47 +178,47 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         catch (error) { if (data.length && error instanceof AxiError && error.code === "LIMIT_EXCEEDED") { more = true; break; } throw error; }
         const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
         const parsed = schema ? validator(schema).safeParse(raw) : undefined;
-        if (parsed && !parsed.success) badResponse();
+        if (parsed && !parsed.success) badResponse(raw);
         const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {
-          if (!value || typeof value !== "object" || Array.isArray(value)) badResponse();
+          if (!value || typeof value !== "object" || Array.isArray(value)) badResponse(raw);
           return { data: value };
         }
         let rows: unknown[];
         if (definition.events) {
           const p = z.object({ totalRecordsReturned: z.number().int().nonnegative(), events: z.array(z.unknown()).nullable() }).safeParse(value);
-          if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse();
+          if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse(raw);
           rows = p.data.events ?? [];
-          if (rows.length > (definition.paged ? size : 1000)) badResponse();
+          if (rows.length > (definition.paged ? size : 1000)) badResponse(raw);
           total = null;
           more = definition.paged && rows.length === size;
         } else if (definition.envelope && !definition.paged) {
           const p = z.object({ totalRecordCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
-          if (!p.success) badResponse();
+          if (!p.success) badResponse(raw);
           rows = p.data.data ?? []; total = p.data.totalRecordCount; more = false;
         } else if (definition.paged && !Array.isArray(value)) {
           const p = z.object({ pageNumber: z.literal(page), pageSize: z.literal(size), totalRecordCount: z.number().int().nonnegative(), pageCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
-          if (!p.success || (p.data.data?.length ?? 0) > size) badResponse();
+          if (!p.success || (p.data.data?.length ?? 0) > size) badResponse(raw);
           rows = p.data.data ?? [];
           total = p.data.totalRecordCount;
           more = page < p.data.pageCount;
-          if (more && !rows.length) badResponse();
+          if (more && !rows.length) badResponse(raw);
         } else if (definition.scimList) {
           const p = z.object({ totalResults: z.number().int().nonnegative(), startIndex: z.number().int().min(1), itemsPerPage: z.number().int().nonnegative(), Resources: z.array(z.unknown()).nullable() }).safeParse(value);
-          if (!p.success) badResponse();
+          if (!p.success) badResponse(raw);
           rows = p.data.Resources ?? [];
-          if (p.data.itemsPerPage !== rows.length || (rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse();
+          if (p.data.itemsPerPage !== rows.length || (rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse(raw);
           total = p.data.totalResults;
           more = definition.scimPaged && page + rows.length - 1 < total;
-          if (more && !rows.length) badResponse();
+          if (more && !rows.length) badResponse(raw);
         } else {
-          if (!Array.isArray(value)) badResponse();
+          if (!Array.isArray(value)) badResponse(raw);
           rows = value;
-          if (definition.paged && rows.length > size) badResponse();
+          if (definition.paged && rows.length > size) badResponse(raw);
           total = definition.paged ? null : rows.length;
           more = definition.paged && rows.length === size;
         }
-        if (offset > rows.length) badResponse();
+        if (offset > rows.length) badResponse(raw);
         const taken = rows.slice(offset, offset + limit - data.length);
         data.push(...taken.map((row) => {
           if (!definition.events || flags.has("--full")) return row;

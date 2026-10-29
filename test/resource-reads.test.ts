@@ -191,6 +191,16 @@ test.each([
   expect(result.data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
 });
 
+test("a paged read with an unexpected page size reports the response shape without values", async () => {
+  const f = fixture();
+  const result = await f.run(["group", "list"], {}, fakeCloud(response(token), response(page([{ id, Name: "synthetic-value-sentinel" }], 1, 10))));
+  expect((result.data as { help: string[] }).help).toEqual([
+    "Check API compatibility",
+    "Response shape (types only, no values; arrays show their first element): object{data:array[1]<object{id:string,Name:string}>,pageNumber:number,pageSize:number,totalRecordCount:number,pageCount:number}",
+  ]);
+  expect(result.output).not.toContain("synthetic-value-sentinel");
+});
+
 test("a request budget interruption returns the next unread page", async () => {
   const f = fixture();
   const pages = Array.from({ length: 9 }, (_, n) => response(page([{ id }], n + 1, 50, 20, 20)));

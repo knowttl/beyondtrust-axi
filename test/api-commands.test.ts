@@ -61,6 +61,25 @@ test.each([null, {}, [{ consoleVersion: 42 }]])("rejects malformed successful Ab
   expect(result.data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
 });
 
+test.each([
+  ["a single object", { consoleVersion: "synthetic-value-sentinel", versions: [{ id: 1 }] }, "object{consoleVersion:string,versions:array[1]<object{id:number}>}"],
+  ["a bare string", "synthetic-value-sentinel", "string"],
+  ["null", null, "null"],
+  ["tenant-controlled key names", { "synthetic-host.example.test": true, ok: false }, "object{<key>:boolean,ok:boolean}"],
+  ["more keys than the cap", Object.fromEntries(Array.from({ length: 25 }, (_, index) => [`k${index}`, index])), `object{${Array.from({ length: 20 }, (_, index) => `k${index}:number`).join(",")},+5 more}`],
+  ["nesting past the depth cap", { a: { b: { c: { d: 1 } } } }, "object{a:object{b:object{c:object{...}}}}"],
+])("About API_RESPONSE_INVALID reports the types of %s without values", async (_name, data, shape) => {
+  const f = fixture();
+  const result = await f.run(["about"], {}, fakeCloud(response(token), response(data)));
+  expect(result.data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
+  expect((result.data as { help: string[] }).help).toEqual([
+    "Check API compatibility",
+    `Response shape (types only, no values; arrays show their first element): ${shape}`,
+  ]);
+  expect(result.output).not.toContain("synthetic-value-sentinel");
+  expect(result.output).not.toContain("synthetic-host");
+});
+
 test("API help remains offline without configuration", async () => {
   const f = fixture();
   f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";

@@ -246,7 +246,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | RATE_LIMITED | Retry later; automatic read retries are bounded. |
 | LIMIT_EXCEEDED | Reduce the selection or run the command again. |
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
-| API_RESPONSE_INVALID | Check API compatibility with the committed export. |
+| API_RESPONSE_INVALID | Check API compatibility with the committed export; the help lists the response shape as JSON types only, never values, with at most 20 identifier-like keys per object and 3 levels of nesting. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
