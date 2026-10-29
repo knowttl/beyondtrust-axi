@@ -176,7 +176,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const responseSchema = policyApps ? appResult : unassignment ? z.array(uuid) : ((response.status === 201 && !path.startsWith("/scim/")) || assignment || autoAssign || path === "/v3/AppSwitcher/connector") ? uuid : undefined;
       const parsed = responseSchema?.safeParse(response.data);
       if (parsed && !parsed.success) {
-        diagnostics?.validationFailed(response.data, parsed.error.issues);
+        diagnostics?.validationFailed(parsed.error.issues);
         throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
       }
       return redactor.value(path.startsWith("/scim/") ? withoutCredentials(response.data ?? null, redactor) : response.data ?? null);

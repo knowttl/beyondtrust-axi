@@ -46,6 +46,7 @@ test.each(endpoints)("reports schema failure metadata for GET $path ($args)", as
   expect(result.data.error).toEqual({
     code: "API_RESPONSE_INVALID", message: "API response does not match the documented schema",
     status: 200, contentType: "application/json", shape: [{ path: "$", type: "string" }], shapeTruncated: false,
+    issuePaths: ["$"], issuePathsTruncated: false,
   });
   expect(cloud.calls[1]!.url.pathname).toBe(`/management-api${path}`);
   expect(result.output).not.toContain("synthetic-private-value");
@@ -58,8 +59,6 @@ test.each([
     { path: "$", type: "object" }, { path: '$["items"]', type: "array" }, { path: '$["items"][0]', type: "object" },
     ...Object.keys(values).map((key) => ({ path: `$["items"][0]["${key}"]`, type: key === "number" ? "number" : "string" })), { path: '$["total"]', type: "number" },
   ] },
-  { name: "missing fields", args: ["task", "status", "--id", id], body: {}, shape: [{ path: '$["id"]', type: "undefined" }] },
-  { name: "wrong field type", args: ["about"], body: [{ consoleVersion: 8675309 }], shape: [{ path: '$[0]["consoleVersion"]', type: "number" }] },
   { name: "nested arrays", args: ["group", "list"], body: [[Object.values(values), null, true]], shape: [
     { path: "$", type: "array" }, { path: "$[0]", type: "array" }, { path: "$[0][0]", type: "array" },
     ...Object.keys(values).map((key, index) => ({ path: `$[0][0][${index}]`, type: key === "number" ? "number" : "string" })),
@@ -70,6 +69,17 @@ test.each([
   expect(result.code).toBe(1);
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", status: 202, contentType: "application/problem+json", shape, shapeTruncated: false });
   for (const value of Object.values(values)) expect(result.output).not.toContain(String(value));
+});
+
+test.each([
+  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[0]["consoleVersion"]'], shape: [
+    { path: "$", type: "array" }, { path: "$[0]", type: "object" }, { path: '$[0]["consoleVersion"]', type: "number" },
+  ] },
+  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], shape: [{ path: "$", type: "object" }] },
+])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, shape }) => {
+  const result = await fixture().run(args, {}, fakeCloud(response(token), response(body)));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issuePaths, issuePathsTruncated: false });
 });
 
 test.each([
@@ -100,12 +110,13 @@ test.each(["tenant-01.example.com", "ops@example.com", "3f2504e0-4f89-11d3-9a0c-
   const diagnostics = new ResponseDiagnostics(new SecretRedactor());
   const body = { [key]: "synthetic-private-value", nested: { [key]: "synthetic-private-value" }, consoleVersion: 1 };
   diagnostics.record(200, new Headers({ "content-type": "application/json" }), body);
-  diagnostics.validationFailed(body, [{ path: [key] }, { path: ["nested", key] }, { path: ["consoleVersion"] }]);
+  diagnostics.validationFailed([{ path: [key] }, { path: ["nested", key] }, { path: ["consoleVersion"] }]);
   const details = diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"));
   expect(details).toMatchObject({ shape: [
-    { path: '$["<key>"]', type: "string" }, { path: '$["nested"]["<key>"]', type: "string" },
+    { path: "$", type: "object" }, { path: '$["<key>"]', type: "string" },
+    { path: '$["nested"]', type: "object" }, { path: '$["nested"]["<key>"]', type: "string" },
     { path: '$["consoleVersion"]', type: "number" },
-  ], shapeTruncated: false });
+  ], shapeTruncated: false, issuePaths: ['$["<key>"]', '$["nested"]["<key>"]', '$["consoleVersion"]'], issuePathsTruncated: false });
   expect(JSON.stringify(details)).not.toContain(key);
   expect(JSON.stringify(details)).not.toContain("synthetic-private-value");
 });
@@ -118,6 +129,25 @@ test.each([
 ])("filters identifier boundary $key", async ({ key, displayed }) => {
   const result = await fixture().run(["about"], {}, fakeCloud(response(token), response({ [key]: null })));
   expect(result.data.error).toMatchObject({ shape: [{ path: "$", type: "object" }, { path: `$["${displayed}"]`, type: "null" }] });
+  const diagnostics = new ResponseDiagnostics(new SecretRedactor());
+  diagnostics.record(200, new Headers(), { [key]: null });
+  diagnostics.validationFailed([{ path: [key] }]);
+  expect(diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"))).toMatchObject({ issuePaths: [`$["${displayed}"]`] });
+});
+
+test.each([
+  { name: "root and field", paths: [[], ["field"]], expected: ["$", '$["field"]'], truncated: false },
+  { name: "width", paths: Array.from({ length: 65 }, () => ["field"]), expected: Array(64).fill('$["field"]'), truncated: true },
+  { name: "depth", paths: [["a", "b", "c", "d", "e"]], expected: ['$["a"]["b"]["c"]["d"]'], truncated: true },
+  { name: "characters", paths: Array.from({ length: 64 }, () => ["a".repeat(40), "b".repeat(40)]), expected: Array(46).fill(`$["${"a".repeat(40)}"]["${"b".repeat(40)}"]`), truncated: true },
+])("bounds issue paths independently of shape: $name", ({ paths, expected, truncated }) => {
+  const diagnostics = new ResponseDiagnostics(new SecretRedactor());
+  diagnostics.record(200, new Headers(), { field: null });
+  diagnostics.validationFailed(paths.map((path) => ({ path })));
+  expect(diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"))).toMatchObject({
+    shape: [{ path: "$", type: "object" }, { path: '$["field"]', type: "null" }], shapeTruncated: false,
+    issuePaths: expected, issuePathsTruncated: truncated,
+  });
 });
 
 test.each<Record<string, string>>([

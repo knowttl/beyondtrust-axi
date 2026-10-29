@@ -120,7 +120,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     const task = z.object({ id: z.string(), name: text, state: z.number().int().optional(), stateName: text, initiated: text, completed: text, completedWithErrors: z.boolean().nullable().optional() });
     const parsed = (name === "task status" ? task : z.array(version)).safeParse(data);
     if (!parsed.success) {
-      transport?.diagnostics?.validationFailed(data, parsed.error.issues);
+      transport?.diagnostics?.validationFailed(parsed.error.issues);
       throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]);
     }
     result = name === "doctor" ? { profile: profile.name, host: profile.host, authentication: "verified for this run", api: "GET /v3/About succeeded",
