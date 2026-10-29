@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
 import { readPrivateBytes } from "./private-file.js";
-import { documentedSchema, withoutCredentials } from "./resource-reads.js";
+import { aboutResponse, documentedSchema, withoutCredentials } from "./resource-reads.js";
 import type { SecretRedactor } from "./redact.js";
 
 export const jitWrites: Record<string, { path: string; schema: string; file?: boolean; method: "POST" }> = {
@@ -68,7 +68,9 @@ export function prepareJitWrite(command: string, args: string[], flags: Map<stri
         if (!z.array(documentedSchema("AuthorizationRequestDetailsModel")).nonempty().safeParse(current).success) badRead();
       } else {
         current = await client.get("/v3/About");
-        if (!z.array(documentedSchema("AboutModel")).nonempty().safeParse(current).success) badRead();
+        const read = aboutResponse.safeParse(current);
+        if (!read.success || !read.data.length) badRead();
+        current = read.data;
         warning = "The export has no connector read endpoint; API access was checked, existing connector state cannot be re-read";
       }
       if ((command === "admin-request create" || decide) && body.decision === "Approved") warning = command === "admin-request create" ? "Creates a pre-approved request and grants admin rights" : "Approves the request and grants admin rights";

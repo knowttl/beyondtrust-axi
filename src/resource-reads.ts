@@ -8,20 +8,26 @@ import type { SecretRedactor } from "./redact.js";
 import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
 // The committed export owns parameter types and response shapes, including nullable fields.
-export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
+export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; required?: string[]; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
 const spec = JSON.parse(readFileSync(join(dirname(createRequire(import.meta.url).resolve("@knowttl/beyondtrust-axi/inventory")), "swagger.json"), "utf8")) as {
   paths: Record<string, { get?: { parameters?: { name: string; in: string; schema: Schema }[]; responses: Record<string, { content?: Record<string, { schema: Schema }> }> } }>;
   components: { schemas: Record<string, Schema> };
 };
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function resolved(schema: Schema): Schema { return schema.$ref ? spec.components.schemas[schema.$ref.split("/").at(-1)!]! : schema; }
+const validators = new WeakMap<Schema, z.ZodType>();
 function validator(input: Schema): z.ZodType {
   const s = resolved(input);
+  const cached = validators.get(s);
+  if (cached) return cached;
   let result: z.ZodType;
   if (!Object.keys(s).length) result = z.unknown();
   else if (s.enum) result = z.enum(s.enum as [string, ...string[]]);
   else if (s.type === "object") {
-    const shape = Object.fromEntries(Object.entries(s.properties ?? {}).map(([key, value]) => [key, validator(value).optional()]));
+    const shape = Object.fromEntries(Object.entries(s.properties ?? {}).map(([key, value]) => {
+      const property = validator(value);
+      return [key, (key === "errorInfo" || (value.$ref && resolved(value).type === "object" && !s.required?.includes(key)) ? property.nullable() : property).optional()];
+    }));
     result = s.additionalProperties === false ? z.strictObject(shape) : z.object(shape);
   }
   else if (s.type === "array") result = z.array(validator(s.items!));
@@ -29,9 +35,32 @@ function validator(input: Schema): z.ZodType {
   else if (s.type === "number") result = z.number().finite();
   else if (s.type === "boolean") result = z.boolean();
   else result = s.format === "uuid" ? z.string().regex(uuid) : z.string();
-  return s.nullable ? result.nullable() : result;
+  result = s.nullable ? result.nullable() : result;
+  // ECS models reuse nested references extensively; expanding each occurrence exhausts small heaps.
+  validators.set(s, result);
+  return result;
 }
 export function documentedSchema(name: string): z.ZodType { return validator({ $ref: `#/components/schemas/${name}` }); }
+const versionText = z.string().nullable().optional();
+const version = z.object({ consoleVersion: versionText, reportingDatabaseVersion: versionText, policyEditorVersion: versionText })
+  .refine((value) => Object.keys(value).length > 0);
+// Live About returns one object; older exports and servers return an array.
+export const aboutResponse = z.preprocess((value) => value && typeof value === "object" && !Array.isArray(value) ? [value] : value, z.array(version));
+const pagedResponseOverrides: Record<string, (schema: Schema) => Schema> = {
+  "/v3/AuthorizationRequest": (schema) => ({ type: "object", additionalProperties: false, properties: {
+    pageNumber: { type: "integer", format: "int32" }, pageSize: { type: "integer", format: "int32" },
+    totalRecordCount: { type: "integer", format: "int32" }, pageCount: { type: "integer", format: "int32" },
+    data: { ...schema, nullable: true },
+  } }),
+};
+function defaultResourceSort(path: string): string | undefined {
+  // Users exposes created in its model but the live endpoint rejects it as a sort key.
+  if (path === "/v3/Users") return undefined;
+  const schema = Object.values(spec.paths[path]!.get!.responses["200"]?.content ?? {})[0]?.schema;
+  const response = schema && resolved(schema);
+  const items = response?.items ?? response?.properties?.data?.items;
+  return items && resolved(items).properties?.created ? "created:asc" : undefined;
+}
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
 const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
 export function resourceReadDefinition(command: string, path: string) {
@@ -49,7 +78,7 @@ export function resourceReadDefinition(command: string, path: string) {
   const flags: Record<string, string> = {};
   if (pathParameter) flags.id = `Required resource ${pathParameter.schema.format === "uuid" ? "UUID" : pathParameter.schema.format ?? pathParameter.schema.type}`;
   if (list) Object.assign(flags, { limit: "Maximum rows, 1-1000 (default: 50)", all: "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB", cursor: "Resume an opaque cursor with the same profile, command and filters" });
-  if (paged && !events && command !== "computer list") flags.sort = "Sort property and order, e.g. name:asc (default: created:asc)";
+  if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. name:asc (default: ${defaultResourceSort(path) ?? "API order"})`;
   if (events) {
     flags.since = "UTC start time (default: 24 hours before end; maximum window: 31 days)";
     if (command === "event search") {
@@ -121,8 +150,8 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   }
   const min = query.get("Filter.DuplicateCount.Min"), max = query.get("Filter.DuplicateCount.Max");
   if (min !== null && max !== null && Number(min) > Number(max)) invalid("Duplicate count minimum exceeds maximum");
-  if (definition.paged && !definition.events) {
-    const sort = flags.get("--sort") ?? "created:asc";
+  const sort = flags.get("--sort") ?? defaultResourceSort(selectedPath);
+  if (definition.paged && !definition.events && sort) {
     if (!/^[A-Za-z][A-Za-z0-9]*:(asc|desc)$/.test(sort)) invalid("--sort must be property:asc or property:desc");
     const [by, order] = sort.split(":");
     query.append("Sorts[0].by", by!); query.append("Sorts[0].order", order!);
@@ -177,7 +206,8 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         try { raw = await client.get(`${path}${params.size ? `?${params}` : ""}`); }
         catch (error) { if (data.length && error instanceof AxiError && error.code === "LIMIT_EXCEEDED") { more = true; break; } throw error; }
         const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
-        const parsed = schema ? validator(schema).safeParse(raw) : undefined;
+        const override = schema && !Array.isArray(raw) ? pagedResponseOverrides[selectedPath]?.(schema) : undefined;
+        const parsed = schema ? validator(override ?? schema).safeParse(raw) : undefined;
         if (parsed && !parsed.success) { diagnostics?.validationFailed(parsed.error.issues); badResponse(); }
         const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {

@@ -82,6 +82,29 @@ test("installed resource commands expose their read filters without credentials 
   expect(decode(policy.stdout)).toMatchObject({ command: "policy macos-application-groups", flags: { "application-id": expect.any(String) } });
 });
 
+test("installed event reads finish within a 128 MiB heap instead of dying by signal", () => {
+  const config = join(directory, "event-profile.json");
+  writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
+  const source = `
+    import { main } from ${JSON.stringify(new URL(`file://${join(packageRoot, "dist/src/cli.js")}`).href)};
+    const values = [
+      { access_token: "synthetic-token", token_type: "Bearer", expires_in: 3600 },
+      { events: [{ event: { action: "allowed" } }], totalRecordsReturned: 1 }
+    ];
+    await main(["event", "list"], { transport: { request: async () => ({
+      status: 200, headers: new Headers(),
+      body: (async function* () { yield Buffer.from(JSON.stringify(values.shift())); })()
+    }) } });
+  `;
+  const result = spawnSync(process.execPath, ["--max-old-space-size=128", "--input-type=module", "-e", source], {
+    encoding: "utf8", timeout: 10_000, cwd: directory,
+    env: { ...process.env, BEYONDTRUST_AXI_CONFIG: config, SYNTHETIC_SECRET: "synthetic-event-secret" },
+  });
+  expect(result.signal, result.stderr).toBeNull();
+  expect(result.status, result.stderr).toBe(0);
+  expect(decode(result.stdout)).toMatchObject({ count: 1, data: [{ action: "allowed" }] });
+});
+
 test("all version aliases work without the compiled command graph", () => {
   const dist = join(packageRoot, "dist");
   renameSync(dist, `${dist}-hidden`);
