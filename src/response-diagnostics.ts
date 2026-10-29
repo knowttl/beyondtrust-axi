@@ -1,7 +1,10 @@
-import { AxiError } from "axi-sdk-js";
-import type { SecretRedactor } from "./redact.js";
+// Canonical copy contract: do not edit copies; change this file in beyondtrust-axi,
+// then re-copy it byte-for-byte with the shared vectors and recorded SHA-256 hashes.
+export type DiagnosticRedactor = { text(value: string): string };
+type ShapeEntry = { path: string; type: string; count?: number; expected?: string };
+const types = new Set(["string", "number", "boolean", "object", "array", "null", "undefined", "bigint", "symbol", "function", "date", "int", "unknown", "never", "void"]);
 
-function keySegment(key: string, redactor: SecretRedactor): string {
+function keySegment(key: string, redactor: DiagnosticRedactor): string {
   const identifier = /^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(key);
   const guid = /^(?:[0-9a-f]{32}|[0-9a-f]{8}(?:[-_][0-9a-f]{4}){3}[-_][0-9a-f]{12})$/i.test(key);
   return `[${JSON.stringify(identifier && !guid ? redactor.text(key) : "<key>")}]`;
@@ -11,17 +14,17 @@ function keySegment(key: string, redactor: SecretRedactor): string {
 export class ResponseDiagnostics {
   private details: Record<string, unknown> = {};
 
-  constructor(private readonly redactor: SecretRedactor) {}
+  constructor(private readonly redactor: DiagnosticRedactor, private readonly errorCodes: readonly string[] = ["API_RESPONSE_INVALID", "AUTH_RESPONSE_INVALID"]) {}
 
   record(status: number, headers: Headers, data: unknown): void {
     // Parameters can contain arbitrary server text; report only the bounded media type.
     const mediaType = headers.get("content-type")?.split(";", 1)[0]?.trim();
     const contentType = mediaType && mediaType.length <= 128 && /^[a-z0-9!#$&^_.+\-]+\/[a-z0-9!#$&^_.+\-]+$/i.test(mediaType)
       ? this.redactor.text(mediaType) : null;
-    this.details = { status, contentType, ...this.shape(data) };
+    this.details = { status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null, contentType, ...this.shape(data) };
   }
 
-  validationFailed(issues: readonly { path: readonly PropertyKey[] }[]): void {
+  validationFailed(issues: readonly { path: readonly PropertyKey[]; expected?: unknown }[]): void {
     const issuePaths: string[] = [];
     let truncated = false;
     let characters = 0;
@@ -29,30 +32,42 @@ export class ResponseDiagnostics {
       let path = "$";
       for (const [depth, key] of issue.path.entries()) {
         if (depth >= 4) { truncated = true; break; }
-        path += typeof key === "number" && Number.isSafeInteger(key) && key >= 0 ? `[${key}]` : keySegment(String(key), this.redactor);
+        path += typeof key === "number" && Number.isSafeInteger(key) && key >= 0 ? "[*]" : keySegment(String(key), this.redactor);
       }
       if (issuePaths.length >= 64 || path.length > 256 || characters + path.length > 4096) { truncated = true; break; }
       characters += path.length;
       issuePaths.push(path);
+      // Validator messages and arbitrary expected strings can contain response values.
+      // Annotate only types from the contract vocabulary, on the recorded received shape.
+      if (typeof issue.expected === "string" && types.has(issue.expected)) {
+        const entry = (this.details.shape as ShapeEntry[] | undefined)?.find((entry) => entry.path === path);
+        if (entry) entry.expected = issue.expected;
+      }
       if (truncated) break;
     }
     this.details = { ...this.details, issuePaths, issuePathsTruncated: truncated };
   }
 
   private shape(data: unknown): Record<string, unknown> {
-    const shape: { path: string; type: string }[] = [];
+    const shape: ShapeEntry[] = [];
     let truncated = false;
     let characters = 0;
     const visit = (value: unknown, path: string, depth: number): void => {
       if (shape.length >= 64 || path.length > 256 || characters + path.length > 4096) { truncated = true; return; }
       characters += path.length;
       const type = value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
-      shape.push({ path, type });
+      shape.push({ path, type, ...(Array.isArray(value) ? { count: value.length } : {}) });
       if (value === null || typeof value !== "object") return;
+      if (Array.isArray(value)) {
+        if (value.length === 0) return;
+        if (depth >= 4) { truncated = true; return; }
+        visit(value[0], path + "[*]", depth + 1);
+        return;
+      }
       for (const key in value) {
         if (!Object.hasOwn(value, key)) continue;
         if (depth >= 4 || shape.length >= 64) { truncated = true; break; }
-        const segment = Array.isArray(value) && /^(0|[1-9][0-9]*)$/.test(key) ? `[${key}]` : keySegment(key, this.redactor);
+        const segment = keySegment(key, this.redactor);
         visit((value as Record<string, unknown>)[key], path + segment, depth + 1);
         if (truncated) break;
       }
@@ -62,6 +77,6 @@ export class ResponseDiagnostics {
   }
 
   forError(error: unknown): Record<string, unknown> {
-    return error instanceof AxiError && error.code === "API_RESPONSE_INVALID" ? this.details : {};
+    return error !== null && typeof error === "object" && "code" in error && typeof error.code === "string" && this.errorCodes.includes(error.code) ? this.details : {};
   }
 }

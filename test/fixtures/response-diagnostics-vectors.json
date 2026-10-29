@@ -1,0 +1,64 @@
+[
+  {
+    "name": "HTML login page",
+    "status": 200,
+    "contentType": "text/html; charset=utf-8",
+    "data": "<html>synthetic login secret</html>",
+    "expected": { "status": 200, "contentType": "text/html", "shape": [{ "path": "$", "type": "string" }], "shapeTruncated": false }
+  },
+  {
+    "name": "tenant keys and values",
+    "status": 202,
+    "contentType": "application/json",
+    "data": { "tenant.example.test": "private", "user@example.test": 42, "af2504e04f8911d39a0c0305e82c3301": null, "a3f2504e_4f89_11d3_9a0c_0305e82c3301": false, "00000000-0000-4000-8000-000000000001": true },
+    "expected": { "status": 202, "contentType": "application/json", "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"<key>\"]", "type": "string" }, { "path": "$[\"<key>\"]", "type": "number" }, { "path": "$[\"<key>\"]", "type": "null" }, { "path": "$[\"<key>\"]", "type": "boolean" }, { "path": "$[\"<key>\"]", "type": "boolean" }], "shapeTruncated": false }
+  },
+  {
+    "name": "hostile key and validator message",
+    "status": 200,
+    "contentType": "invalid private header",
+    "data": { "\"\n[0]<script>private</script>": "private" },
+    "issues": [{ "path": ["\"\n[0]<script>private</script>"], "expected": "private", "message": "private validator message" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"<key>\"]", "type": "string" }], "shapeTruncated": false, "issuePaths": ["$[\"<key>\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "validator received and expected type",
+    "status": 200,
+    "data": [{ "field": 123 }, { "field": "private" }],
+    "issues": [{ "path": [0, "field"], "expected": "string", "message": "private" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 2 }, { "path": "$[*]", "type": "object" }, { "path": "$[*][\"field\"]", "type": "number", "expected": "string" }], "shapeTruncated": false, "issuePaths": ["$[*][\"field\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "empty arrays",
+    "status": 204,
+    "data": [],
+    "expected": { "status": 204, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 0 }], "shapeTruncated": false }
+  },
+  {
+    "name": "oversized array collapses to first element",
+    "status": 200,
+    "data": [null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 65 }, { "path": "$[*]", "type": "null" }], "shapeTruncated": false }
+  },
+  {
+    "name": "depth limit",
+    "status": 200,
+    "data": [[[[["private"]]]]],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "array", "count": 1 }, { "path": "$[*]", "type": "array", "count": 1 }, { "path": "$[*][*]", "type": "array", "count": 1 }, { "path": "$[*][*][*]", "type": "array", "count": 1 }, { "path": "$[*][*][*][*]", "type": "array", "count": 1 }], "shapeTruncated": true }
+  },
+  {
+    "name": "oversized media type and key",
+    "status": 600,
+    "contentType": "application/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "data": { "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "private" },
+    "expected": { "status": null, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"<key>\"]", "type": "string" }], "shapeTruncated": false }
+  },
+  {
+    "name": "known secret redactor injection",
+    "status": 200,
+    "contentType": "application/SYNTHETIC_SECRET; private=ignored",
+    "secrets": ["SYNTHETIC_SECRET"],
+    "data": { "SYNTHETIC_SECRET": "private" },
+    "expected": { "status": 200, "contentType": "application/***redacted***", "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"***redacted***\"]", "type": "string" }], "shapeTruncated": false }
+  }
+]
