@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import { withoutCredentials } from "./resource-reads.js";
 import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
-export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> };
+export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> & { destroy?: () => unknown } };
 export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
 export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void>; diagnostics?: ResponseDiagnostics };
 
@@ -67,6 +67,12 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     requests++;
     try {
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
+      if (response.status < 200 || response.status >= 300) {
+        // Status and headers own error handling; a stalled error body must not delay it.
+        response.body.destroy?.();
+        if (response.status >= 300 && response.status < 400) throw new AxiError("HTTPS redirects are refused", "REDIRECT_REFUSED", ["Check the configured host; hosts are never changed automatically"]);
+        return { ...response, data: undefined };
+      }
       if (consume && response.status >= 200 && response.status < 300) {
         async function* bounded() {
           let size = 0;
@@ -89,7 +95,6 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         chunks.push(Buffer.from(chunk));
       }
       budget();
-      if (response.status >= 300 && response.status < 400) throw new AxiError("HTTPS redirects are refused", "REDIRECT_REFUSED", ["Check the configured host; hosts are never changed automatically"]);
       let data: unknown;
       try { data = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { data = undefined; }
       return { ...response, data };

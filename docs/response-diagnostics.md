@@ -19,6 +19,7 @@ The report stops at 64 entries, depth 4, 256 characters per path or 4096 total p
 
 `validationFailed(issues)` adds bounded `issuePaths` using the same key policy and `[*]` for array indices.
 Each admitted issue also produces an `issues` entry with `path`, `received` and `expected` type names.
+Recognized Zod issue codes such as `invalid_type`, `too_big` and `too_small` appear as `code`; unknown codes are omitted.
 Received types are read from the latest recorded response using the complete original validator path, including the actual array index; absent own properties have type `undefined`.
 Recognized expected types use the contract vocabulary; absent or arbitrary expected strings become `unknown`.
 Values, messages and other validator fields are ignored.

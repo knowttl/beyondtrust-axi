@@ -52,6 +52,16 @@ test.each(cases)("previews and sends $command through the gated coordinator", as
   expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual(c.body);
 });
 
+test("app-switcher preview normalizes the live About object before confirmation", async () => {
+  const f = fixture("app-switcher.connect");
+  const args = argsFor(cases[3]!, f);
+  const cloud = fakeCloud(response(token), response({ consoleVersion: "26.3", reportingDatabaseVersion: "26.3", policyEditorVersion: "26.3" }));
+  const result = await f.run(args, {}, cloud);
+  expect(result.data).toMatchObject({ status: "preview", preview: { current: [{ consoleVersion: "26.3", reportingDatabaseVersion: "26.3", policyEditorVersion: "26.3" }] } });
+  expect(cloud.calls).toHaveLength(2);
+  expect(existsSync(f.journal)).toBe(false);
+});
+
 test.each([
   { decision: "approve", warning: "Approves the request and grants admin rights" },
   { decision: "deny", warning: undefined },

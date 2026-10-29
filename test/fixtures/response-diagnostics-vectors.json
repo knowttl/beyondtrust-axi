@@ -1,5 +1,19 @@
 [
   {
+    "name": "pagination bounds issue code",
+    "status": 200,
+    "data": { "pageSize": 2147483648 },
+    "issues": [{ "path": ["pageSize"], "code": "too_big", "message": "private bound" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"pageSize\"]", "type": "number" }], "shapeTruncated": false, "issues": [{ "path": "$[\"pageSize\"]", "received": "number", "expected": "unknown", "code": "too_big" }], "issuePaths": ["$[\"pageSize\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "untrusted validator code is omitted",
+    "status": 200,
+    "data": {},
+    "issues": [{ "path": ["pageSize"], "code": "private-response-value", "expected": "number" }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }], "shapeTruncated": false, "issues": [{ "path": "$[\"pageSize\"]", "received": "undefined", "expected": "number" }], "issuePaths": ["$[\"pageSize\"]"], "issuePathsTruncated": false }
+  },
+  {
     "name": "HTML login page",
     "status": 200,
     "contentType": "text/html; charset=utf-8",

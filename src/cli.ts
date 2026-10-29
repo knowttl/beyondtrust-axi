@@ -6,7 +6,7 @@ import { catalogue, DESCRIPTION, help, resourceReads } from "./catalogue.js";
 import { credentialStore, type CredentialContext } from "./profiles.js";
 import { readClient, type TransportOptions } from "./transport.js";
 import { z } from "zod";
-import { prepareResourceRead } from "./resource-reads.js";
+import { aboutResponse, prepareResourceRead } from "./resource-reads.js";
 import { downloads, prepareDownload } from "./downloads.js";
 import { computerWrites, prepareComputerWrite } from "./computer-writes.js";
 import { groupWrites, prepareGroupWrite } from "./group-writes.js";
@@ -116,11 +116,11 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     const client = readClient(profile, store.credentials(profile, true), store.redactor, transport);
     const data = await client.get(name === "task status" ? `/v3/Tasks/${flags.get("--id")}` : "/v3/About");
     const text = z.string().nullable().optional();
-    const version = z.object({ consoleVersion: text, reportingDatabaseVersion: text, policyEditorVersion: text });
     const task = z.object({ id: z.string(), name: text, state: z.number().int().optional(), stateName: text, initiated: text, completed: text, completedWithErrors: z.boolean().nullable().optional() });
-    const parsed = (name === "task status" ? task : z.array(version)).safeParse(data);
+    const parsed = (name === "task status" ? task : aboutResponse).safeParse(data);
     if (!parsed.success) {
-      transport?.diagnostics?.validationFailed(parsed.error.issues);
+      transport?.diagnostics?.validationFailed(name !== "task status" && data && typeof data === "object" && !Array.isArray(data)
+        ? parsed.error.issues.map((issue) => ({ ...issue, path: issue.path.slice(1) })) : parsed.error.issues);
       throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]);
     }
     result = name === "doctor" ? { profile: profile.name, host: profile.host, authentication: "verified for this run", api: "GET /v3/About succeeded",

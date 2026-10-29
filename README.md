@@ -106,12 +106,13 @@ node bin/beyondtrust-axi.js task status --id <uuid>
 ```
 
 Only use an actual task ID with task status; undocumented write result UUIDs are not assumed to be task IDs.
+About reads accept either a version object or the export's array shape; about returns versions as an array in either case.
 
 Resource lists default to 50 rows; use --limit 1-1000 or --all for up to 1000 rows.
 Paged API requests use at most 200 rows per page, with computers sorted by created date ascending to reduce duplicates.
 Filters map to the committed API parameters; run each command with --help for the available filter flags.
 Array filter values are comma-separated; date filters require matching dates and selection mode.
-Group, policy, user and global-role paged lists accept --sort property:asc or property:desc, defaulting to created:asc.
+For commands supporting --sort property:asc or property:desc, see the [command reference](docs/commands.md) for each default.
 SCIM user and role lists accept literal --filter expressions and translate bounded reads to startIndex/count pagination.
 Use scim resource-types user or scim resource-types role for resource-type detail; omit the type for the list.
 Use scim role list, scim user list and scim user show for SCIM roles and users.
@@ -130,6 +131,8 @@ Cursors encode positions, a context digest and, for events, frozen window timest
 Unpaged lists, including roles, domains, API accounts and SCIM discovery, apply row limits client-side and fetch the response again when resumed, so changes to the source may move rows.
 The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
 The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
+Response validation accepts null errorInfo fields and optional object references even when the export omits nullable.
+Auth-request list accepts both the export's array and a paged envelope containing pageNumber, pageSize, totalRecordCount, pageCount and data; envelopes retain totals and support page cursors.
 For modeled responses, schemas marked additionalProperties:false reject unexpected fields with API_RESPONSE_INVALID, including differently cased property names.
 The export's Policy Editor application-group examples use PascalCase keys that conflict with its camelCase schemas; responses matching those examples are rejected.
 
@@ -151,6 +154,7 @@ The three resource downloads take a positional UUID; api-definition download nee
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
 Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
+Non-success HTTP responses are handled from status and headers without waiting for or parsing their bodies.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.
@@ -258,7 +262,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
-API and token response failures include structured diagnostics beside the stable error message.
+API and token response validation failures include structured diagnostics beside the stable error message.
 See the [response diagnostics contract](docs/response-diagnostics.md) for HTTP metadata, sampled response shapes, issue-level received and expected types, key redaction and truncation limits.
 Use this evidence to investigate compatibility; it does not establish the cause of a live mismatch.
 
