@@ -132,7 +132,7 @@ Read responses omit password properties and documented audit integration credent
 Credential values discovered in those fields or URL passwords, including percent-encoded passwords, are redacted wherever repeated in the validated response before row selection, event projection and truncation.
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
 TLS certificate verification is always enabled and redirects are refused.
-Tokens stay in memory for one command, using form-encoded client credentials.
+Tokens stay in memory for one command, using OAuth2 client credentials with form-encoded `grant_type=client_credentials`, `client_id`, `client_secret` and the fixed Management API `scope=urn:management:api`.
 Reads share a budget of 10 requests including authentication and 60 seconds; JSON responses share an 8 MiB cap.
 Downloads require a named file profile with downloads.allow enabled and a new --out path.
 They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
