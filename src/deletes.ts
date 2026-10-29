@@ -47,14 +47,15 @@ export function prepareDelete(command: string, args: string[], flags: Map<string
         count = current.preview.count;
         targets = `${current.confirmation} hosts ${JSON.stringify(preview.hosts)}`;
         body = selection.query ? { filter: selection.filter, allComputers: true } : { computerIds: ids, allComputers: false };
-        if (command === "computer deactivate") preview.warning = "Archives and deletes the selected computers";
+        if (command === "computer deactivate") preview.warning = [preview.warning, "Archives and deletes the selected computers"].filter(Boolean).join(" ");
       } else {
         const readPath = command.startsWith("group ") ? `/v3/Groups/${id}` : command.startsWith("domain ") ? `/v3/AcceptedDomains/${id}` : `/v3/Policies/${id}`;
         const current = await client.get(readPath);
-        const parsed = z.object({ id: uuid, name: z.string().nullable().optional(), domainName: z.string().nullable().optional() }).passthrough().safeParse(current);
+        const nameField = command === "domain delete" ? "domain" : "name";
+        const parsed = z.object({ id: uuid, [nameField]: z.string().nullable().optional() }).passthrough().safeParse(current);
         if (!parsed.success || parsed.data.id.toLowerCase() !== id) badRead();
         preview = { current };
-        targets = `${id} ${JSON.stringify(parsed.data.name ?? parsed.data.domainName ?? id)}`;
+        targets = `${id} ${JSON.stringify(parsed.data[nameField] ?? id)}`;
         if (command === "policy delete") {
           const groups = await client.get(`/v3/Policies/${id}/AssignedGroups`);
           if (!z.array(documentedSchema("PolicyGroupsListItemModel").and(z.object({ id: uuid }))).safeParse(groups).success) badRead();

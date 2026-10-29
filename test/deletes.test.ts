@@ -21,7 +21,8 @@ afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
 // GET /v3/Policies/{id}/AssignedGroups, GET /v3/Computers,
 // GET /PolicyEditor/v3/Policy/{policyId}/Windows|MacOS/ApplicationGroups,
 // and the six delete method/path pairs plus two shared Policy Editor POSTs below.
-const current = (name = "example") => response({ id, name, domainName: name, endpointInformation: { systemDnsHostName: name } });
+const current = (name = "example") => response({ id, name, endpointInformation: { systemDnsHostName: name } });
+const domain = (name = "example.test") => response({ id, domain: name });
 const groups = () => response([]);
 const applications = (description = "example application") => response([{ id: groupId, name: "example", applications: [{ id: appId, description }] }]);
 const confirmed = (data: Record<string, unknown>) => ["--execute", "--confirm", data.confirmation as string, "--confirm-delete", data.deleteConfirmation as string];
@@ -36,7 +37,7 @@ test.each([
 ] as const)("previews and sends %s once through %s %s", async (command, method, path, status) => {
   const f = fixture(command);
   const args = [...command.split(" "), id];
-  const reads = () => command === "policy delete" ? [current(), groups()] : [current()];
+  const reads = () => command === "policy delete" ? [current(), groups()] : command === "domain delete" ? [domain()] : [current()];
   const previewCloud = fakeCloud(response(token), ...reads());
   const preview = await f.run(args, {}, previewCloud);
   expect(preview.data).toMatchObject({ status: "preview", deleteConfirmation: expect.stringContaining(`DELETE ${command.replaceAll(" ", ".")} 1`) });
@@ -55,6 +56,45 @@ test.each([
   if (command.startsWith("computer ")) expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual({ computerIds: [id], allComputers: false });
   else expect(cloud.calls.at(-1)!.options.body).toBeUndefined();
   expect(JSON.parse(readFileSync(join(f.journal, readdirSync(f.journal)[0]!), "utf8"))).toMatchObject({ operation: command.replaceAll(" ", "."), request: { method, path } });
+});
+
+test("domain delete confirms the domain read immediately before execution", async () => {
+  const f = fixture("domain delete");
+  const args = ["domain", "delete", id];
+  const preview = await f.run(args, {}, fakeCloud(response(token), domain()));
+  expect(preview.data.deleteConfirmation).toBe(`DELETE domain.delete 1 ${id} "example.test"`);
+  const cloud = fakeCloud(response(token), domain(), response(null, 204));
+  expect((await f.run([...args, ...confirmed(preview.data)], {}, cloud)).data.status).toBe("sent");
+  expect(cloud.calls.at(-1)!.options.method).toBe("DELETE");
+});
+
+test("domain delete refuses confirmation after the domain changes", async () => {
+  const f = fixture("domain delete");
+  const args = ["domain", "delete", id];
+  const preview = await f.run(args, {}, fakeCloud(response(token), domain()));
+  const cloud = fakeCloud(response(token), domain("changed.test"));
+  expect((await f.run([...args, ...confirmed(preview.data)], {}, cloud)).data).toMatchObject({ error: { code: "CONFIRMATION_REQUIRED" } });
+  expect(cloud.calls).toHaveLength(2);
+  expect(existsSync(f.journal)).toBe(false);
+});
+
+test("domain delete rejects a non-string domain in the target re-read", async () => {
+  const f = fixture("domain delete");
+  const cloud = fakeCloud(response(token), response({ id, domain: 42 }));
+  expect((await f.run(["domain", "delete", id], {}, cloud)).data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
+  expect(existsSync(f.journal)).toBe(false);
+});
+
+test.each([
+  ["computer delete", [id], [current()], undefined],
+  ["computer deactivate", [id], [current()], "Archives and deletes the selected computers"],
+  ["computer delete", ["--host", "example"], [response({ pageNumber: 1, pageSize: 20, totalRecordCount: 1, data: [{ id, host: "example" }] })], "The server re-applies this filter at execution; membership can change after this count. No maximum count is imposed."],
+  ["computer deactivate", ["--host", "example"], [response({ pageNumber: 1, pageSize: 20, totalRecordCount: 1, data: [{ id, host: "example" }] })], "The server re-applies this filter at execution; membership can change after this count. No maximum count is imposed. Archives and deletes the selected computers"],
+] as const)("preserves applicable warnings for %s %j", async (command, selection, reads, warning) => {
+  const f = fixture(command);
+  const result = await f.run([...command.split(" "), ...selection], {}, fakeCloud(response(token), ...reads));
+  expect(result.data.status).toBe("preview");
+  expect((result.data.preview as Record<string, unknown>).warning).toBe(warning);
 });
 
 test.each(["windows", "macos"])("removes only selected %s applications", async (os) => {
