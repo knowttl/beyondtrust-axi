@@ -173,7 +173,12 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
       const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
       const appResult = z.object({ revisionId: uuid, created: z.array(uuid).nullable().optional(), deleted: z.array(uuid).nullable().optional() });
-      if ((policyApps ? !appResult.safeParse(response.data).success : ((response.status === 201 && !path.startsWith("/scim/")) || assignment || autoAssign || path === "/v3/AppSwitcher/connector") && !uuid.safeParse(response.data).success) || (unassignment && !z.array(uuid).safeParse(response.data).success)) throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      const responseSchema = policyApps ? appResult : unassignment ? z.array(uuid) : ((response.status === 201 && !path.startsWith("/scim/")) || assignment || autoAssign || path === "/v3/AppSwitcher/connector") ? uuid : undefined;
+      const parsed = responseSchema?.safeParse(response.data);
+      if (parsed && !parsed.success) {
+        diagnostics?.validationFailed(parsed.error.issues);
+        throw new AxiError("Invalid write response", "API_RESPONSE_INVALID");
+      }
       return redactor.value(path.startsWith("/scim/") ? withoutCredentials(response.data ?? null, redactor) : response.data ?? null);
     },
     download: (path: string, consume: (body: AsyncIterable<Uint8Array>) => Promise<void>) => get(path, consume) as Promise<string>,

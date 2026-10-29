@@ -2,11 +2,27 @@ import { afterEach, expect, test } from "vitest";
 import { resourceReads } from "../src/catalogue.js";
 import { localFixture } from "./support/local-cli.js";
 import { fakeCloud, response, token } from "./support/fake-pm-cloud.js";
+import { ResponseDiagnostics } from "../src/response-diagnostics.js";
+import { SecretRedactor } from "../src/redact.js";
+import { AxiError } from "axi-sdk-js";
 
 const id = "00000000-0000-0000-0000-000000000001";
 const fixtures: ReturnType<typeof localFixture>[] = [];
 function fixture() { const f = localFixture(); fixtures.push(f); return f; }
 afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
+
+test.each(["tenant-01.example.com", "ops@example.com", "3f2504e0-4f89-11d3-9a0c-0305e82c3301"])("hides data-shaped keys at every level: %s", async (key) => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response(token), response({
+    [key]: "synthetic-private-value", nested: { [key]: "synthetic-private-value", consoleVersion: 1 },
+  })));
+  expect(result.data.error).toMatchObject({ shape: [
+    { path: "$", type: "object" }, { path: '$["<key>"]', type: "string" },
+    { path: '$["nested"]', type: "object" }, { path: '$["nested"]["<key>"]', type: "string" },
+    { path: '$["nested"]["consoleVersion"]', type: "number" },
+  ] });
+  expect(result.output).not.toContain(key);
+  expect(result.output).not.toContain("synthetic-private-value");
+});
 
 // GET routes and path-parameter types come from inventory/swagger.json through the catalogue.
 const endpoints = [
@@ -21,15 +37,21 @@ const endpoints = [
       ...Object.entries(definition.variants ?? {}).map(([type, path]) => ({ args: [...command.split(" "), type], path })),
     ];
   }),
-];
+].map((endpoint) => ({
+  ...endpoint,
+  // These export routes have no response schema; their structural checks provide no validator paths.
+  issueDetails: ["computer command-log", "group view", "policy view"].includes(endpoint.args.slice(0, 2).join(" "))
+    ? {} : { issuePaths: ["$"], issuePathsTruncated: false },
+}));
 
-test.each(endpoints)("reports schema failure metadata for GET $path ($args)", async ({ args, path }) => {
+test.each(endpoints)("reports schema failure metadata for GET $path ($args)", async ({ args, path, issueDetails }) => {
   const cloud = fakeCloud(response(token), response("synthetic-private-value", 200, { "content-type": "application/json; charset=utf-8" }));
   const result = await fixture().run(args, {}, cloud);
   expect(result.code).toBe(1);
   expect(result.data.error).toEqual({
     code: "API_RESPONSE_INVALID", message: "API response does not match the documented schema",
     status: 200, contentType: "application/json", shape: [{ path: "$", type: "string" }], shapeTruncated: false,
+    ...issueDetails,
   });
   expect(cloud.calls[1]!.url.pathname).toBe(`/management-api${path}`);
   expect(result.output).not.toContain("synthetic-private-value");
@@ -42,8 +64,6 @@ test.each([
     { path: "$", type: "object" }, { path: '$["items"]', type: "array" }, { path: '$["items"][0]', type: "object" },
     ...Object.keys(values).map((key) => ({ path: `$["items"][0]["${key}"]`, type: key === "number" ? "number" : "string" })), { path: '$["total"]', type: "number" },
   ] },
-  { name: "missing fields", args: ["task", "status", "--id", id], body: {}, shape: [{ path: "$", type: "object" }] },
-  { name: "wrong field type", args: ["about"], body: [{ consoleVersion: 8675309 }], shape: [{ path: "$", type: "array" }, { path: "$[0]", type: "object" }, { path: '$[0]["consoleVersion"]', type: "number" }] },
   { name: "nested arrays", args: ["group", "list"], body: [[Object.values(values), null, true]], shape: [
     { path: "$", type: "array" }, { path: "$[0]", type: "array" }, { path: "$[0][0]", type: "array" },
     ...Object.keys(values).map((key, index) => ({ path: `$[0][0][${index}]`, type: key === "number" ? "number" : "string" })),
@@ -57,12 +77,22 @@ test.each([
 });
 
 test.each([
+  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[0]["consoleVersion"]'], shape: [
+    { path: "$", type: "array" }, { path: "$[0]", type: "object" }, { path: '$[0]["consoleVersion"]', type: "number" },
+  ] },
+  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], shape: [{ path: "$", type: "object" }] },
+])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, shape }) => {
+  const result = await fixture().run(args, {}, fakeCloud(response(token), response(body)));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issuePaths, issuePathsTruncated: false });
+});
+
+test.each([
   { name: "width", body: Array(1000).fill("synthetic-private-value"), count: 64 },
-  { name: "depth", body: [[[[["synthetic-private-value"]]]]], count: 5 },
-  { name: "path length", body: { ["x".repeat(257)]: "synthetic-private-value" }, count: 1 },
-  { name: "total path characters", body: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`${"x".repeat(200)}${i}`, null])), count: 20 },
+  { name: "depth", body: { nested: [[[["synthetic-private-value"]]]] }, count: 5 },
+  { name: "total path characters", body: { ["x".repeat(40)]: { ["y".repeat(40)]: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`field${i}`, null])) } }, count: 42 },
 ])("bounds report $name", async ({ body, count }) => {
-  const result = await fixture().run(["task", "status", "--id", id], {}, fakeCloud(response(token), response(body)));
+  const result = await fixture().run(["about"], {}, fakeCloud(response(token), response(body)));
   const error = result.data.error as { shape: { path: string; type: string }[]; shapeTruncated: boolean };
   expect(error.shapeTruncated).toBe(true);
   expect(error.shape).toHaveLength(count);
@@ -71,14 +101,58 @@ test.each([
   expect(result.output).not.toContain("synthetic-private-value");
 });
 
-test("escapes path segments and redacts known secrets in response keys", async () => {
+test("hides keys containing escapes and known secrets", async () => {
   const f = fixture();
   const key = `quote"\n[0].${f.env.SYNTHETIC_SECRET}.${token.access_token}`;
   const result = await f.run(["about"], {}, fakeCloud(response(token), response({ [key]: "synthetic-private-value" })));
-  expect(result.data.error).toMatchObject({ shape: [{ path: "$", type: "object" }, { path: `$[${JSON.stringify('quote"\n[0].***redacted***.***redacted***')}]`, type: "string" }] });
+  expect(result.data.error).toMatchObject({ shape: [{ path: "$", type: "object" }, { path: '$["<key>"]', type: "string" }] });
   expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
   expect(result.output).not.toContain(token.access_token);
   expect(result.output).not.toContain("synthetic-private-value");
+});
+
+test.each(["tenant-01.example.com", "ops@example.com", "3f2504e0-4f89-11d3-9a0c-0305e82c3301"])("hides data-shaped validation issue paths: %s", (key) => {
+  const diagnostics = new ResponseDiagnostics(new SecretRedactor());
+  const body = { [key]: "synthetic-private-value", nested: { [key]: "synthetic-private-value" }, consoleVersion: 1 };
+  diagnostics.record(200, new Headers({ "content-type": "application/json" }), body);
+  diagnostics.validationFailed([{ path: [key] }, { path: ["nested", key] }, { path: ["consoleVersion"] }]);
+  const details = diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"));
+  expect(details).toMatchObject({ shape: [
+    { path: "$", type: "object" }, { path: '$["<key>"]', type: "string" },
+    { path: '$["nested"]', type: "object" }, { path: '$["nested"]["<key>"]', type: "string" },
+    { path: '$["consoleVersion"]', type: "number" },
+  ], shapeTruncated: false, issuePaths: ['$["<key>"]', '$["nested"]["<key>"]', '$["consoleVersion"]'], issuePathsTruncated: false });
+  expect(JSON.stringify(details)).not.toContain(key);
+  expect(JSON.stringify(details)).not.toContain("synthetic-private-value");
+});
+
+test.each([
+  { key: "a".repeat(40), displayed: "a".repeat(40) },
+  { key: "a".repeat(41), displayed: "<key>" },
+  { key: "af2504e04f8911d39a0c0305e82c3301", displayed: "<key>" },
+  { key: "a3f2504e_4f89_11d3_9a0c_0305e82c3301", displayed: "<key>" },
+])("filters identifier boundary $key", async ({ key, displayed }) => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response(token), response({ [key]: null })));
+  expect(result.data.error).toMatchObject({ shape: [{ path: "$", type: "object" }, { path: `$["${displayed}"]`, type: "null" }] });
+  const diagnostics = new ResponseDiagnostics(new SecretRedactor());
+  diagnostics.record(200, new Headers(), { [key]: null });
+  diagnostics.validationFailed([{ path: [key] }]);
+  expect(diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"))).toMatchObject({ issuePaths: [`$["${displayed}"]`] });
+});
+
+test.each([
+  { name: "root and field", paths: [[], ["field"]], expected: ["$", '$["field"]'], truncated: false },
+  { name: "width", paths: Array.from({ length: 65 }, () => ["field"]), expected: Array(64).fill('$["field"]'), truncated: true },
+  { name: "depth", paths: [["a", "b", "c", "d", "e"]], expected: ['$["a"]["b"]["c"]["d"]'], truncated: true },
+  { name: "characters", paths: Array.from({ length: 64 }, () => ["a".repeat(40), "b".repeat(40)]), expected: Array(46).fill(`$["${"a".repeat(40)}"]["${"b".repeat(40)}"]`), truncated: true },
+])("bounds issue paths independently of shape: $name", ({ paths, expected, truncated }) => {
+  const diagnostics = new ResponseDiagnostics(new SecretRedactor());
+  diagnostics.record(200, new Headers(), { field: null });
+  diagnostics.validationFailed(paths.map((path) => ({ path })));
+  expect(diagnostics.forError(new AxiError("Invalid response", "API_RESPONSE_INVALID"))).toMatchObject({
+    shape: [{ path: "$", type: "object" }, { path: '$["field"]', type: "null" }], shapeTruncated: false,
+    issuePaths: expected, issuePathsTruncated: truncated,
+  });
 });
 
 test.each<Record<string, string>>([
