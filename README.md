@@ -246,7 +246,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | RATE_LIMITED | Retry later; automatic read retries are bounded. |
 | LIMIT_EXCEEDED | Reduce the selection or run the command again. |
 | TRANSPORT_ERROR | Check HTTPS connectivity and the configured host. |
-| API_RESPONSE_INVALID | Check API compatibility with the committed export. |
+| API_RESPONSE_INVALID | Check API compatibility with the committed export using the bounded shape report, HTTP status and content type. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
 | WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
@@ -256,6 +256,12 @@ Bare --version, -v and -V print the package version without loading the command 
 | JOURNAL_ERROR | Repair private state directory permissions or storage; no write was sent. |
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
+
+For schema failures, the `shape` field of `error` contains JSON paths and value types only, never response values.
+Response keys appear only as escaped path segments, with known credentials redacted.
+The report stops at 64 entries, four levels below the root, 256 characters per path or 4096 total path characters; `shapeTruncated` indicates omitted structure.
+`status` is the HTTP status and `contentType` is the media type without parameters, capped at 128 characters, or null when missing or invalid.
+Use this evidence to investigate compatibility; it does not establish the cause of a live mismatch.
 
 ## Contributing
 

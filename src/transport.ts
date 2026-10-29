@@ -5,10 +5,11 @@ import { profileOrigin, type SelectedProfile } from "./profiles.js";
 import type { SecretRedactor } from "./redact.js";
 import { randomUUID } from "node:crypto";
 import { withoutCredentials } from "./resource-reads.js";
+import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
 export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> };
 export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
-export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void> };
+export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void>; diagnostics?: ResponseDiagnostics };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
   const headers = options.body === undefined ? options.headers : { ...options.headers, "content-length": String(Buffer.byteLength(options.body)) };
@@ -41,6 +42,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   const started = now();
   const deadline = AbortSignal.timeout(60_000);
   const send = options.request ?? httpsRequest;
+  const diagnostics = options.diagnostics;
   const wait = options.wait ?? ((ms, signal) => new Promise<void>((resolve, reject) => {
     const timer = setTimeout(done, ms);
     function done() { signal.removeEventListener("abort", aborted); resolve(); }
@@ -132,6 +134,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         }
         if (response.status < 200 || response.status >= 300) failure(response.status);
         if (consume) return redactor.text(response.headers.get("content-type") ?? "application/octet-stream");
+        diagnostics?.record(response.status, response.headers, response.data);
         if (response.data === undefined) throw new AxiError("Invalid JSON response", "API_RESPONSE_INVALID", ["Check API compatibility"]);
         return writePreparation ? response.data : redactor.value(response.data);
       }
@@ -166,6 +169,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
         : options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
       const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
       if (response.status < 200 || response.status >= 300) failure(response.status);
+      diagnostics?.record(response.status, response.headers, response.data);
       const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
       const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
       const appResult = z.object({ revisionId: uuid, created: z.array(uuid).nullable().optional(), deleted: z.array(uuid).nullable().optional() });

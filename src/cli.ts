@@ -15,19 +15,21 @@ import { identityWrites, prepareIdentityWrite } from "./identity-writes.js";
 import { jitWrites, prepareJitWrite } from "./jit-writes.js";
 import { deletes, prepareDelete } from "./deletes.js";
 import { coordinateWrite, requireDeletePermission, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
+import { ResponseDiagnostics } from "./response-diagnostics.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
+  const diagnostics = new ResponseDiagnostics(store.redactor);
   await runAxiCli({
     description: DESCRIPTION, argv: ["local"], topLevelHelp: "", home: help,
     stdout: { write: (chunk) => (options.stdout ?? process.stdout).write(store.redactor.text(chunk)) },
     formatError: (error) => ({
       output: `${encode(store.redactor.value(error instanceof AxiError
-        ? { error: { code: error.code, message: error.message, ...(error instanceof UnknownWriteOutcome ? { auditId: error.auditId } : {}) }, help: error.suggestions }
+        ? { error: { code: error.code, message: error.message, ...diagnostics.forError(error), ...(error instanceof UnknownWriteOutcome ? { auditId: error.auditId } : {}) }, help: error.suggestions }
         : { error: { code: "CONFIG_INVALID", message: "Command could not complete" }, help: ["Check local configuration; run beyondtrust-axi config path"] }))}\n`,
       exitCode: error instanceof AxiError && error.code === "VALIDATION_ERROR" ? 2 : 1,
     }),
-    commands: { local: () => localCommand(argv, store, options.transport) },
+    commands: { local: () => localCommand(argv, store, { ...options.transport, diagnostics }) },
   });
 }
 
