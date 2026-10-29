@@ -12,7 +12,8 @@ Only integer HTTP statuses from 100 through 599 and media types of at most 128 c
 Content-type parameters are discarded before redaction.
 Values and validator messages are never emitted.
 Keys use the existing identifier-only rule: an ASCII letter followed by up to 39 ASCII letters, digits or underscores, excluding GUID-like keys.
-Other keys become `<key>` before redaction.
+Accepted keys pass through the injected redactor and appear as escaped path segments.
+Other keys become `<key>`, including hostnames, email addresses and GUIDs used as map keys.
 Arrays carry a `count` and only their first element is visited at `[*]`.
 The report stops at 64 entries, depth 4, 256 characters per path or 4096 total path characters.
 
