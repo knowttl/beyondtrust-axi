@@ -12,7 +12,7 @@ The default SecretRef alone does not select an environment profile.
   "defaultProfile": "example",
   "profiles": {
     "example": {
-      "host": "example.pm.beyondtrustcloud.com",
+      "host": "example-services.pm.beyondtrustcloud.com",
       "clientId": "synthetic-client",
       "clientSecret": { "env": "BEYONDTRUST_AXI_CLIENT_SECRET" },
       "downloads": { "allow": false },
@@ -22,7 +22,8 @@ The default SecretRef alone does not select an environment profile.
 }
 ```
 
-The host is a lowercase DNS name ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP.
+The PM Cloud API host is a lowercase DNS name in the documented organization-specific services form, such as `example-services.pm.beyondtrustcloud.com`, ending in `.beyondtrustcloud.com`, with no scheme, port or path.
+Userinfo and IP addresses are also refused.
 For HTTPS transport protections, see [Safety](../README.md#safety).
 clientSecret accepts only an env or absolute file SecretRef, never an inline value.
 Omitting clientSecret uses BEYONDTRUST_AXI_CLIENT_SECRET.
