@@ -71,7 +71,7 @@ export function prepareJitWrite(command: string, args: string[], flags: Map<stri
         if (!z.array(documentedSchema("AboutModel")).nonempty().safeParse(current).success) badRead();
         warning = "The export has no connector read endpoint; API access was checked, existing connector state cannot be re-read";
       }
-      if (body.decision === "Approved") warning = command === "admin-request create" ? "Creates a pre-approved request and grants admin rights" : "Approves the request and grants admin rights";
+      if ((command === "admin-request create" || decide) && body.decision === "Approved") warning = command === "admin-request create" ? "Creates a pre-approved request and grants admin rights" : "Approves the request and grants admin rights";
       withoutCredentials(current, redactor);
       const preview = { current, request: body, ...(file ? { file } : {}), ...(warning ? { warning } : {}) };
       const digest = createHash("sha256").update(JSON.stringify(preview)).digest("hex");

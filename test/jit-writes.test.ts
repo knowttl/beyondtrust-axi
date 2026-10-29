@@ -39,6 +39,7 @@ test.each(cases)("previews and sends $command through the gated coordinator", as
   expect(previewCloud.calls).toHaveLength(2);
   expect(existsSync(f.journal)).toBe(false);
   if (c.command === "admin-request create") expect(preview.data.preview).toMatchObject({ warning: "Creates a pre-approved request and grants admin rights" });
+  if (c.command === "auth-request notify") expect(preview.data.preview).not.toHaveProperty("warning");
   const cloud = fakeCloud(response(token), response(c.read), response(c.command === "app-switcher connect" ? id : null));
   const request: typeof cloud.request = async (url, options) => {
     if (url.pathname === `/management-api${c.path}` && options.method === "POST") expect(readdirSync(f.journal)).toHaveLength(1);
@@ -49,6 +50,17 @@ test.each(cases)("previews and sends $command through the gated coordinator", as
   expect(cloud.calls.at(-1)!.options.method).toBe("POST");
   expect(cloud.calls.at(-1)!.url.pathname).toBe(`/management-api${c.path}`);
   expect(JSON.parse(cloud.calls.at(-1)!.options.body!.toString())).toEqual(c.body);
+});
+
+test.each([
+  { decision: "approve", warning: "Approves the request and grants admin rights" },
+  { decision: "deny", warning: undefined },
+])("previews admin decision $decision with the appropriate warning", async ({ decision, warning }) => {
+  const f = fixture("admin-request.decide");
+  const cloud = fakeCloud(response(token), response([{ requestInfo: { requestId: id } }]));
+  const result = await f.run(["admin-request", "decide", id, "--decision", decision, "--by", "example"], {}, cloud);
+  expect(result.data.status).toBe("preview");
+  expect((result.data.preview as Record<string, unknown>).warning).toBe(warning);
 });
 
 test.each(["forced", "operation", "disabled", "env"])("denies %s JIT writes before authentication", async (gate) => {
