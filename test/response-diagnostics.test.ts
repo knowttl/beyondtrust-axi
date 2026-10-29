@@ -37,16 +37,21 @@ const endpoints = [
       ...Object.entries(definition.variants ?? {}).map(([type, path]) => ({ args: [...command.split(" "), type], path })),
     ];
   }),
-];
+].map((endpoint) => ({
+  ...endpoint,
+  // These export routes have no response schema; their structural checks provide no validator paths.
+  issueDetails: ["computer command-log", "group view", "policy view"].includes(endpoint.args.slice(0, 2).join(" "))
+    ? {} : { issuePaths: ["$"], issuePathsTruncated: false },
+}));
 
-test.each(endpoints)("reports schema failure metadata for GET $path ($args)", async ({ args, path }) => {
+test.each(endpoints)("reports schema failure metadata for GET $path ($args)", async ({ args, path, issueDetails }) => {
   const cloud = fakeCloud(response(token), response("synthetic-private-value", 200, { "content-type": "application/json; charset=utf-8" }));
   const result = await fixture().run(args, {}, cloud);
   expect(result.code).toBe(1);
   expect(result.data.error).toEqual({
     code: "API_RESPONSE_INVALID", message: "API response does not match the documented schema",
     status: 200, contentType: "application/json", shape: [{ path: "$", type: "string" }], shapeTruncated: false,
-    issuePaths: ["$"], issuePathsTruncated: false,
+    ...issueDetails,
   });
   expect(cloud.calls[1]!.url.pathname).toBe(`/management-api${path}`);
   expect(result.output).not.toContain("synthetic-private-value");
