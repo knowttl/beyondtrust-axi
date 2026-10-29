@@ -10,7 +10,7 @@
       "method": "POST",
       "path": "/v3/AcceptedDomains",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -160,7 +160,7 @@
       "method": "POST",
       "path": "/v3/Users",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -172,7 +172,7 @@
       "method": "PUT",
       "path": "/v3/AcceptedDomains/{id}",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "DELETE",
@@ -288,7 +288,7 @@
       "method": "PUT",
       "path": "/v3/Users/{id}",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -373,7 +373,7 @@
       "method": "POST",
       "path": "/v3/Users/{id}/AssignRoles",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -391,7 +391,7 @@
       "method": "PATCH",
       "path": "/v3/Users/{id}/Disable",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -415,7 +415,7 @@
       "method": "PATCH",
       "path": "/v3/Users/{id}/Enable",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -433,7 +433,7 @@
       "method": "PUT",
       "path": "/v3/Users/{id}/ModifyUserPreferences",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -445,7 +445,7 @@
       "method": "PATCH",
       "path": "/v3/Users/{id}/ResendInvite",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "POST",
@@ -547,7 +547,7 @@
       "method": "POST",
       "path": "/scim/v3/users",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "GET",
@@ -559,13 +559,13 @@
       "method": "PUT",
       "path": "/scim/v3/users/{userID}",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     },
     {
       "method": "PATCH",
       "path": "/scim/v3/users/{userID}",
       "classification": "write",
-      "status": "planned"
+      "status": "implemented"
     }
   ]
 }

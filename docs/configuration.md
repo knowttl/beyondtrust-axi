@@ -26,7 +26,7 @@ The host is a lowercase DNS name ending .beyondtrustcloud.com, without scheme, p
 For HTTPS transport protections, see [Safety](../README.md#safety).
 clientSecret accepts only an env or absolute file SecretRef, never an inline value.
 Omitting clientSecret uses BEYONDTRUST_AXI_CLIENT_SECRET.
-Config, secret and write input files (group import CSV, policy files and application-addition JSON) must be regular, owned by the current user and not symlinks.
+Config, secret and all write input files must be regular, owned by the current user and not symlinks.
 POSIX config and write input files cannot be group/other writable; secret files must have no group/other permissions (use 0600).
 On Windows, auth status and write input reads require a protected DACL granting FullControl only to the current user, SYSTEM and Administrators.
 Discovery does not resolve secret files; auth status validates them locally and never exchanges a token.
