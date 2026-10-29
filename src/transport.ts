@@ -11,7 +11,8 @@ export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" |
 export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void> };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
-  const req = request(url, { method: options.method, headers: options.headers, signal: options.signal, rejectUnauthorized: true }, (response) => {
+  const headers = options.body === undefined ? options.headers : { ...options.headers, "content-length": String(Buffer.byteLength(options.body)) };
+  const req = request(url, { method: options.method, headers, signal: options.signal, rejectUnauthorized: true }, (response) => {
     const headers = new Headers();
     for (const [name, value] of Object.entries(response.headers)) if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(", ") : value);
     resolve({ status: response.statusCode ?? 0, headers, body: response });
