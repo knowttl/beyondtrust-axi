@@ -30,4 +30,3 @@ Use conventional commits and describe the problem, consequence, fix, scope and c
 The repository has no hosted pull-request test CI; no-mistakes declares no_ci: true.
 Release-please is the only workflow, and publication requires the owner's npm reservation and trusted publisher setup.
 Publication builds and verifies a tarball, then uses npm OIDC with provenance and no publishing token.
-The scaffold starts at 0.0.0; do not publish it.

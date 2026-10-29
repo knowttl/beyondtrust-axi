@@ -26,7 +26,14 @@ The [94-operation ledger](inventory/capabilities.json) describes planned coverag
 ## Quickstart
 
 Requires Node.js 22.12 or later and Corepack.
-This 0.0.0 scaffold is not published; run it from a checkout:
+Run the published package:
+
+```sh
+npx -y @knowttl/beyondtrust-axi
+npx -y @knowttl/beyondtrust-axi config path
+```
+
+To run from a checkout:
 
 ```sh
 corepack pnpm install --frozen-lockfile --ignore-scripts
@@ -54,7 +61,7 @@ Configure an agent session-start hook explicitly to run node with the absolute b
 No command installs integrations automatically; remove the hook entry to uninstall it.
 The generated [skill](skills/beyondtrust-axi/SKILL.md) provides on-demand discovery and grants no credentials or permissions.
 Use the hook, the skill or both; neither is required for normal CLI use.
-Skill commands use npx for the future published package; until release, use the built checkout command above.
+Skill commands use npx as shown in [Quickstart](#quickstart).
 
 ## What it covers
 
