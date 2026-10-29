@@ -37,6 +37,16 @@ test("leaves a healthy API response unchanged", async () => {
   expect(result.data).toEqual({ versions: [{ consoleVersion: "1.2.3" }] });
 });
 
+test("reports received and expected types for every absent token field", async () => {
+  const result = await fixture().run(["about"], {}, fakeCloud(response({})));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "AUTH_RESPONSE_INVALID", issues: [
+    { path: '$["access_token"]', received: "undefined", expected: "string" },
+    { path: '$["token_type"]', received: "undefined", expected: "string" },
+    { path: '$["expires_in"]', received: "undefined", expected: "number" },
+  ] });
+});
+
 test.each(["tenant-01.example.com", "ops@example.com", "3f2504e0-4f89-11d3-9a0c-0305e82c3301"])("hides data-shaped keys at every level: %s", async (key) => {
   const result = await fixture().run(["about"], {}, fakeCloud(response(token), response({
     [key]: "synthetic-private-value", nested: { [key]: "synthetic-private-value", consoleVersion: 1 },
@@ -102,14 +112,14 @@ test.each([
 });
 
 test.each([
-  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[*]["consoleVersion"]'], shape: [
+  { args: ["about"], body: [{ consoleVersion: 1 }], issuePaths: ['$[*]["consoleVersion"]'], issues: [{ path: '$[*]["consoleVersion"]', received: "number", expected: "string" }], shape: [
     { path: "$", type: "array", count: 1 }, { path: "$[*]", type: "object" }, { path: '$[*]["consoleVersion"]', type: "number", expected: "string" },
   ] },
-  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], shape: [{ path: "$", type: "object" }] },
-])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, shape }) => {
+  { args: ["task", "status", "--id", id], body: {}, issuePaths: ['$["id"]'], issues: [{ path: '$["id"]', received: "undefined", expected: "string" }], shape: [{ path: "$", type: "object" }] },
+])("adds validator paths alongside the response shape for $args", async ({ args, body, issuePaths, issues, shape }) => {
   const result = await fixture().run(args, {}, fakeCloud(response(token), response(body)));
   expect(result.code).toBe(1);
-  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issuePaths, issuePathsTruncated: false });
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", shape, shapeTruncated: false, issues, issuePaths, issuePathsTruncated: false });
 });
 
 test.each([

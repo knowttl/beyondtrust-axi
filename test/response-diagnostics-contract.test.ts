@@ -24,7 +24,21 @@ test("matches expected types against the newly recorded response", () => {
   expect(diagnostics.forError({ code: "API_RESPONSE_INVALID" })).toEqual({
     status: 202, contentType: null,
     shape: [{ path: "$", type: "object" }, { path: '$["field"]', type: "boolean", expected: "number" }],
-    shapeTruncated: false, issuePaths: ['$["field"]'], issuePathsTruncated: false,
+    shapeTruncated: false, issues: [{ path: '$["field"]', received: "boolean", expected: "number" }],
+    issuePaths: ['$["field"]'], issuePathsTruncated: false,
+  });
+});
+
+test.each([
+  { name: "entry count", path: ["field"], displayed: '$["field"]', count: 64 },
+  { name: "path characters", path: ["a".repeat(40), "b".repeat(40)], displayed: `$["${"a".repeat(40)}"]["${"b".repeat(40)}"]`, count: 46 },
+])("bounds issue annotations by $name", ({ path, displayed, count }) => {
+  const diagnostics = new ResponseDiagnostics({ text: (text) => text });
+  diagnostics.record(200, new Headers(), {});
+  diagnostics.validationFailed(Array.from({ length: 65 }, () => ({ path, expected: "string" })));
+  expect(diagnostics.forError({ code: "API_RESPONSE_INVALID" })).toMatchObject({
+    issues: Array(count).fill({ path: displayed, received: "undefined", expected: "string" }),
+    issuePathsTruncated: true,
   });
 });
 

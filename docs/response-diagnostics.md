@@ -17,9 +17,15 @@ Arrays carry a `count` and only their first element is visited at `[*]`.
 The report stops at 64 entries, depth 4, 256 characters per path or 4096 total path characters.
 
 `validationFailed(issues)` adds bounded `issuePaths` using the same key policy and `[*]` for array indices.
-Recognized validator `expected` types annotate matching received `shape` entries, whose `type` describes the received value.
-Arbitrary expected strings, messages and other validator fields are ignored.
-Array paths describe the first element only, even when later elements differ.
+Each admitted issue also produces an `issues` entry with `path`, `received` and `expected` type names.
+Received types are read from the latest recorded response using the complete original validator path, including the actual array index; absent own properties have type `undefined`.
+Recognized expected types use the contract vocabulary; absent or arbitrary expected strings become `unknown`.
+Values, messages and other validator fields are ignored.
+The issue entries share the path list's 64-entry, 256-character per-path and 4096-character total path limits.
+Paths deeper than four segments display only the first four and carry `pathTruncated: true`; their types still describe the original leaf.
+Recognized validator `expected` types also annotate exactly matching received `shape` entries, whose `type` describes the received value.
+Truncated paths, later array elements and keys with colliding display paths never annotate a different sampled node.
+Shape array paths describe the first element only; issue types describe the element that failed validation.
 `shapeTruncated` and `issuePathsTruncated` report budget exhaustion separately.
 Successful command output and response validation remain owned by the consumer.
 
