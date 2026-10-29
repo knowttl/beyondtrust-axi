@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.2...v0.1.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* clarify credential form labels and host guidance ([#23](https://github.com/knowttl/beyondtrust-axi/issues/23)) ([3f4b418](https://github.com/knowttl/beyondtrust-axi/commit/3f4b418d33ea948138b05d971bba3825f2d06e23))
+* redact data-shaped keys in response diagnostics ([#21](https://github.com/knowttl/beyondtrust-axi/issues/21)) ([8e76bc5](https://github.com/knowttl/beyondtrust-axi/commit/8e76bc54f5dca0ed1ee736c75cf58b9a4752d311))
+
 ## [0.1.2](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.1...v0.1.2) (2026-10-29)
 
 
