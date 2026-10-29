@@ -52,6 +52,7 @@ node bin/beyondtrust-axi.js auth status
 ```
 
 Replace the synthetic host and client ID with your API account metadata.
+The PM Cloud API host is a lowercase DNS name in the documented organization-specific services form, such as `example-services.pm.beyondtrustcloud.com`, ending in `.beyondtrustcloud.com`, with no scheme, port or path.
 auth status validates local credentials and makes no token exchange or API request.
 
 ## Use with your agent
