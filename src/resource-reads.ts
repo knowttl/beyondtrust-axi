@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { SecretRedactor } from "./redact.js";
 import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
-// The committed export owns parameter types and response shapes, including nullable fields.
+// The committed export supplies schemas; README.md documents response compatibility exceptions.
 export type Schema = { $ref?: string; type?: string; format?: string; enum?: string[]; nullable?: boolean; required?: string[]; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; minimum?: number; maximum?: number };
 const spec = JSON.parse(readFileSync(join(dirname(createRequire(import.meta.url).resolve("@knowttl/beyondtrust-axi/inventory")), "swagger.json"), "utf8")) as {
   paths: Record<string, { get?: { parameters?: { name: string; in: string; schema: Schema }[]; responses: Record<string, { content?: Record<string, { schema: Schema }> }> } }>;
