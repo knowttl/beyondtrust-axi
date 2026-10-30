@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.3...v0.1.4) (2026-10-29)
+
+
+### Bug Fixes
+
+* handle PM Cloud response differences and event read failures ([#27](https://github.com/knowttl/beyondtrust-axi/issues/27)) ([e472ca9](https://github.com/knowttl/beyondtrust-axi/commit/e472ca98d44959e889c48d11c23759a3bf0fc381))
+* improve API and token response diagnostics ([#24](https://github.com/knowttl/beyondtrust-axi/issues/24)) ([b257773](https://github.com/knowttl/beyondtrust-axi/commit/b2577731963b1185b08303dae3d5a32e5f64186c))
+
 ## [0.1.3](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.2...v0.1.3) (2026-10-29)
 
 
