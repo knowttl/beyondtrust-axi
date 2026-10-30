@@ -1,7 +1,7 @@
 # Contributing
 
 Use strict ESM TypeScript, Node.js 22.12 or later and pnpm through Corepack.
-Keep changes focused and exercise outcomes through the CLI or public module interfaces.
+Keep changes focused.
 Read [AGENTS.md](AGENTS.md) and [the design](docs/design.md) for boundaries.
 
 ## Checks
@@ -18,7 +18,8 @@ corepack pnpm run identifiers:check
 
 The full B1 suite runs under scripts/isolated.mjs with isolated HOME, XDG and agent configuration.
 It always exercises the packaged CLI and profile, network and identifier safety baselines.
-Mock only true external boundaries; use synthetic tenant example and never a live tenant.
+Follow the Test quality rules in [AGENTS.md](AGENTS.md) when writing or reviewing tests.
+Use synthetic tenant example and never a live tenant.
 The export is committed byte-for-byte from the approved sanitized artifact, with both hashes and the one organization-label substitution in inventory/specs.json.
 Do not fetch the specification during tests.
 After catalogue changes, build and run docs:generate followed by docs:check.
