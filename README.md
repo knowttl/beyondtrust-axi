@@ -132,7 +132,9 @@ Unpaged lists, including roles, domains, API accounts and SCIM discovery, apply 
 The shared request, time or byte budget can return a partial list with a cursor after at least one completed page; other failures remain errors.
 The export omits success schemas for group detail, policy detail and computer command logs; these commands validate the JSON container and preserve its fields.
 Response validation accepts null errorInfo fields and optional object references even when the export omits nullable.
+Read responses accept unknown string enum members; filters, request bodies and every write path retain strict enum validation.
 Auth-request list accepts both the export's array and a paged envelope containing pageNumber, pageSize, totalRecordCount, pageCount and data; envelopes retain totals and support page cursors.
+Paged reads accept non-negative integer pageNumber and pageSize values without requiring them to echo the request; continuation uses the requested position and returned pageCount.
 For modeled responses, schemas marked additionalProperties:false reject unexpected fields with API_RESPONSE_INVALID, including differently cased property names.
 The export's Policy Editor application-group examples use PascalCase keys that conflict with its camelCase schemas; responses matching those examples are rejected.
 
