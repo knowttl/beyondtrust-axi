@@ -10,7 +10,8 @@ Never put diagnostics inside the message.
 `record(status, headers, data)` replaces the previous response's diagnostics.
 Only integer HTTP statuses from 100 through 599 and media types of at most 128 characters are accepted; other metadata becomes null.
 Content-type parameters are discarded before redaction.
-Values and validator messages are never emitted.
+Validator messages are never emitted.
+Response values are omitted except for the bounded allowlist described below.
 Keys use the existing identifier-only rule: an ASCII letter followed by up to 39 ASCII letters, digits or underscores, excluding GUID-like keys.
 Accepted keys pass through the injected redactor and appear as escaped path segments.
 Other keys become `<key>`, including hostnames, email addresses and GUIDs used as map keys.
@@ -22,7 +23,11 @@ Each admitted issue also produces an `issues` entry with `path`, `received` and 
 Recognized Zod issue codes such as `invalid_type`, `too_big` and `too_small` appear as `code`; unknown codes are omitted.
 Received types are read from the latest recorded response using the complete original validator path, including the actual array index; absent own properties have type `undefined`.
 Recognized expected types use the contract vocabulary; absent or arbitrary expected strings become `unknown`.
-Values, messages and other validator fields are ignored.
+An optional receivedValue includes finite numeric values only for root paging fields: pageNumber, pageSize, pageCount, totalRecordCount, totalRecordsReturned, totalResults, startIndex and itemsPerPage.
+Numeric values matching a registered secret are omitted.
+For invalid_value issues carrying a non-empty values array of string enum members, received strings matching `^[A-Za-z0-9_.-]{1,40}$` are included as receivedValue after redaction.
+Lenient read enums accept unknown strings without generating an issue.
+Other values, messages and validator fields are ignored.
 The issue entries share the path list's 64-entry, 256-character per-path and 4096-character total path limits.
 Paths deeper than four segments display only the first four and carry `pathTruncated: true`; their types still describe the original leaf.
 Recognized validator `expected` types also annotate exactly matching received `shape` entries, whose `type` describes the received value.

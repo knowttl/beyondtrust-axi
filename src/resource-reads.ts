@@ -16,28 +16,30 @@ const spec = JSON.parse(readFileSync(join(dirname(createRequire(import.meta.url)
 const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 function resolved(schema: Schema): Schema { return schema.$ref ? spec.components.schemas[schema.$ref.split("/").at(-1)!]! : schema; }
 const validators = new WeakMap<Schema, z.ZodType>();
-function validator(input: Schema): z.ZodType {
+const readValidators = new WeakMap<Schema, z.ZodType>();
+function validator(input: Schema, readResponse = false): z.ZodType {
   const s = resolved(input);
-  const cached = validators.get(s);
+  const cache = readResponse ? readValidators : validators;
+  const cached = cache.get(s);
   if (cached) return cached;
   let result: z.ZodType;
   if (!Object.keys(s).length) result = z.unknown();
-  else if (s.enum) result = z.enum(s.enum as [string, ...string[]]);
+  else if (s.enum) result = readResponse ? z.string() : z.enum(s.enum as [string, ...string[]]);
   else if (s.type === "object") {
     const shape = Object.fromEntries(Object.entries(s.properties ?? {}).map(([key, value]) => {
-      const property = validator(value);
+      const property = validator(value, readResponse);
       return [key, (key === "errorInfo" || (value.$ref && resolved(value).type === "object" && !s.required?.includes(key)) ? property.nullable() : property).optional()];
     }));
     result = s.additionalProperties === false ? z.strictObject(shape) : z.object(shape);
   }
-  else if (s.type === "array") result = z.array(validator(s.items!));
+  else if (s.type === "array") result = z.array(validator(s.items!, readResponse));
   else if (s.type === "integer") result = z.number().int().min(s.minimum ?? (s.format === "int64" ? Number.MIN_SAFE_INTEGER : -2147483648)).max(s.maximum ?? (s.format === "int64" ? Number.MAX_SAFE_INTEGER : 2147483647));
   else if (s.type === "number") result = z.number().finite();
   else if (s.type === "boolean") result = z.boolean();
   else result = s.format === "uuid" ? z.string().regex(uuid) : z.string();
   result = s.nullable ? result.nullable() : result;
   // ECS models reuse nested references extensively; expanding each occurrence exhausts small heaps.
-  validators.set(s, result);
+  cache.set(s, result);
   return result;
 }
 export function documentedSchema(name: string): z.ZodType { return validator({ $ref: `#/components/schemas/${name}` }); }
@@ -207,7 +209,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         catch (error) { if (data.length && error instanceof AxiError && error.code === "LIMIT_EXCEEDED") { more = true; break; } throw error; }
         const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
         const override = schema && !Array.isArray(raw) ? pagedResponseOverrides[selectedPath]?.(schema) : undefined;
-        const parsed = schema ? validator(override ?? schema).safeParse(raw) : undefined;
+        const parsed = schema ? validator(override ?? schema, true).safeParse(raw) : undefined;
         if (parsed && !parsed.success) { diagnostics?.validationFailed(parsed.error.issues); badResponse(); }
         const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {
@@ -229,7 +231,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           if (!p.success) badResponse();
           rows = p.data.data ?? []; total = p.data.totalRecordCount; more = false;
         } else if (definition.paged && !Array.isArray(value)) {
-          const p = z.object({ pageNumber: z.literal(page), pageSize: z.literal(size), totalRecordCount: z.number().int().nonnegative(), pageCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
+          const p = z.object({ pageNumber: z.number().int().nonnegative(), pageSize: z.number().int().nonnegative(), totalRecordCount: z.number().int().nonnegative(), pageCount: z.number().int().nonnegative(), data: z.array(z.unknown()).nullable() }).safeParse(value);
           if (!p.success) diagnostics?.validationFailed(p.error.issues);
           if (!p.success || (p.data.data?.length ?? 0) > size) badResponse();
           rows = p.data.data ?? [];

@@ -29,6 +29,33 @@ test("matches expected types against the newly recorded response", () => {
   });
 });
 
+test.each(["", "a".repeat(41), "user@example.test", "two words", "path/value", "line\nbreak"])("omits unsafe enum value %j", (value) => {
+  const diagnostics = new ResponseDiagnostics({ text: (text) => text });
+  diagnostics.record(200, new Headers(), { type: value });
+  diagnostics.validationFailed([{ path: ["type"], code: "invalid_value", values: ["exe"] }]);
+  expect(diagnostics.forError({ code: "API_RESPONSE_INVALID" })).toMatchObject({ issues: [
+    { path: '$["type"]', received: "string", expected: "unknown", code: "invalid_value" },
+  ] });
+  expect((diagnostics.forError({ code: "API_RESPONSE_INVALID" }).issues as unknown[])[0]).not.toHaveProperty("receivedValue");
+});
+
+test("omits ordinary strings, non-paging numbers and secret numeric paging values", () => {
+  const diagnostics = new ResponseDiagnostics({ text: (text) => text.replaceAll("123", "***redacted***") });
+  diagnostics.record(200, new Headers(), { type: "private", id: 42, pageSize: 123, nested: { pageNumber: 2 } });
+  diagnostics.validationFailed([
+    { path: ["type"], code: "invalid_type", expected: "number" },
+    { path: ["id"], code: "too_big" },
+    { path: ["pageSize"], code: "too_big" },
+    { path: ["nested", "pageNumber"], code: "too_big" },
+  ]);
+  expect(diagnostics.forError({ code: "API_RESPONSE_INVALID" }).issues).toEqual([
+    { path: '$["type"]', received: "string", expected: "number", code: "invalid_type" },
+    { path: '$["id"]', received: "number", expected: "unknown", code: "too_big" },
+    { path: '$["pageSize"]', received: "number", expected: "unknown", code: "too_big" },
+    { path: '$["nested"]["pageNumber"]', received: "number", expected: "unknown", code: "too_big" },
+  ]);
+});
+
 test.each([
   { name: "entry count", path: ["field"], displayed: '$["field"]', count: 64 },
   { name: "path characters", path: ["a".repeat(40), "b".repeat(40)], displayed: `$["${"a".repeat(40)}"]["${"b".repeat(40)}"]`, count: 46 },

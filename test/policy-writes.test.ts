@@ -103,7 +103,7 @@ test.each(["windows", "macos"])("adds only %s applications with the documented e
 });
 
 test.each([
-  ["windows", [{ type: "dll" }]], ["macos", [{ type: "exe" }]], ["windows", [{}]],
+  ["windows", [{ type: "dll" }]], ["windows", [{ type: "future-type" }]], ["macos", [{ type: "exe" }]], ["windows", [{}]],
   ["windows", [{ type: "exe", activeXCodebase: { value: "example" } }]],
   ["windows", [{ type: "exe", fileName: { matchType: "anything" } }]],
   ["windows", [{ type: "exe", delete: [id] }]],
@@ -115,6 +115,16 @@ test.each([
   const cloud = fakeCloud();
   expect((await f.run(["policy", "app", "add", id, "--os", os, "--app-group", groupId, "--file", f.file], {}, cloud)).data).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
   expect(cloud.calls).toHaveLength(0);
+});
+
+test("application additions reject unknown types in the prerequisite read", async () => {
+  const f = fixture("app add");
+  writeFileSync(f.file, '[{"type":"exe"}]');
+  const cloud = fakeCloud(response(token), policy(), response([{ id: groupId, applications: [{ id, type: "future-type" }] }]));
+  const result = await f.run(["policy", "app", "add", id, "--os", "windows", "--app-group", groupId, "--file", f.file], {}, cloud);
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID" });
+  expect(existsSync(f.journal)).toBe(false);
 });
 
 test.each(["file", "policy", "groups", "revision", "app-group"])("refuses execution when %s changes after preview", async (change) => {

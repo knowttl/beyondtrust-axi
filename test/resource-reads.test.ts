@@ -169,7 +169,7 @@ test.each([
 });
 
 test.each([
-  ["computer list", page([{ host: 42 }])], ["group list", page([], 2)],
+  ["computer list", page([{ host: 42 }])], ["group list", page([], -1)],
   ["policy list", page([], 1, 50, 100, 2)], ["computer view", []],
   ["policy revisions", [{ revision: "bad" }]], ["computer command-log", {}],
   ["computer list", { ...page([]), unexpected: true }],

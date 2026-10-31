@@ -4,7 +4,22 @@
     "status": 200,
     "data": { "pageSize": 2147483648 },
     "issues": [{ "path": ["pageSize"], "code": "too_big", "message": "private bound" }],
-    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"pageSize\"]", "type": "number" }], "shapeTruncated": false, "issues": [{ "path": "$[\"pageSize\"]", "received": "number", "expected": "unknown", "code": "too_big" }], "issuePaths": ["$[\"pageSize\"]"], "issuePathsTruncated": false }
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"pageSize\"]", "type": "number" }], "shapeTruncated": false, "issues": [{ "path": "$[\"pageSize\"]", "received": "number", "receivedValue": 2147483648, "expected": "unknown", "code": "too_big" }], "issuePaths": ["$[\"pageSize\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "short enum value is included",
+    "status": 200,
+    "data": { "type": "future-type_2.0" },
+    "issues": [{ "path": ["type"], "code": "invalid_value", "values": ["exe", "msi"] }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"type\"]", "type": "string" }], "shapeTruncated": false, "issues": [{ "path": "$[\"type\"]", "received": "string", "receivedValue": "future-type_2.0", "expected": "unknown", "code": "invalid_value" }], "issuePaths": ["$[\"type\"]"], "issuePathsTruncated": false }
+  },
+  {
+    "name": "registered secret in safe enum is redacted",
+    "status": 200,
+    "secrets": ["private"],
+    "data": { "type": "private-type" },
+    "issues": [{ "path": ["type"], "code": "invalid_value", "values": ["exe"] }],
+    "expected": { "status": 200, "contentType": null, "shape": [{ "path": "$", "type": "object" }, { "path": "$[\"type\"]", "type": "string" }], "shapeTruncated": false, "issues": [{ "path": "$[\"type\"]", "received": "string", "receivedValue": "***redacted***-type", "expected": "unknown", "code": "invalid_value" }], "issuePaths": ["$[\"type\"]"], "issuePathsTruncated": false }
   },
   {
     "name": "untrusted validator code is omitted",

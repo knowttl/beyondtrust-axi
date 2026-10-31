@@ -49,9 +49,37 @@ test.each(["about", "doctor"])("%s accepts the live About object", async (comman
   expect(result.code).toBe(0);
 });
 
+// Issue #28: GET /v3/AuthorizationRequestAudits and GET /v3/AuthorizationRequest
+// return zero paging metadata for an empty result, regardless of the request.
+test.each(["audit auth-request list", "auth-request list"])("%s accepts empty zero-based paging metadata", async (command) => {
+  const f = localFixture(); fixtures.push(f);
+  const cloud = fakeCloud(response(token), response({ pageNumber: 0, pageSize: 0, totalRecordCount: 0, pageCount: 0, data: [] }));
+  const result = await f.run([...command.split(" "), "--limit", "1"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ data: [], count: 0, total: 0, cursor: null });
+  expect(cloud.calls).toHaveLength(2);
+});
+
+// Issue #28: GET /PolicyEditor/v3/Policy/{policyId}/Windows/ApplicationGroups
+// includes application types absent from the committed export.
+test("Windows application groups retain unknown application types", async () => {
+  const f = localFixture(); fixtures.push(f);
+  const groups = [{ id, applications: Array.from({ length: 200 }, (_, index) => ({ id, type: index < 10 ? "future-type" : "exe", disabled: false })) }];
+  const result = await f.run(["policy", "windows-application-groups", "--id", id, "--limit", "1"], {}, fakeCloud(response(token), response(groups)));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ data: groups, count: 1, cursor: null });
+});
+
+test.each([123, false, {}])("Windows application groups reject non-string type %j", async (type) => {
+  const f = localFixture(); fixtures.push(f);
+  const result = await f.run(["policy", "windows-application-groups", "--id", id], {}, fakeCloud(response(token), response([{ id, applications: [{ type }] }])));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ code: "invalid_type" }] });
+});
+
 test("authorization request envelopes preserve totals and resume at the next page", async () => {
   const f = localFixture(); fixtures.push(f);
-  const first = await f.run(["auth-request", "list", "--limit", "1"], {}, fakeCloud(response(token), response({ ...page([{ requestInfo: null }]), pageSize: 1, totalRecordCount: 2, pageCount: 2 })));
+  const first = await f.run(["auth-request", "list", "--limit", "1"], {}, fakeCloud(response(token), response({ ...page([{ requestInfo: null }]), pageNumber: 0, pageSize: 0, totalRecordCount: 2, pageCount: 2 })));
   expect(first.data).toMatchObject({ data: [{ requestInfo: null }], total: 2, cursor: expect.any(String) });
   const cloud = fakeCloud(response(token), response({ ...page([{ accessDecision: null }]), pageNumber: 2, pageSize: 1, totalRecordCount: 2, pageCount: 2 }));
   const next = await f.run(["auth-request", "list", "--cursor", String(first.data.cursor)], {}, cloud);
@@ -72,16 +100,15 @@ test("invalid live About fields retain their original object path in diagnostics
 });
 
 test.each([
-  { value: "50", code: "invalid_type", received: "string" },
-  { value: 2147483648, code: "too_big", received: "number" },
-  { value: 1.5, code: "invalid_type", received: "number" },
-])("audit pagination reports $code for $received without response values", async ({ value, code, received }) => {
+  { value: "50", issue: { code: "invalid_type", received: "string" } },
+  { value: 2147483648, issue: { code: "too_big", received: "number", receivedValue: 2147483648 } },
+  { value: 1.5, issue: { code: "invalid_type", received: "number", receivedValue: 1.5 } },
+])("audit pagination reports invalid value $value with only numeric values", async ({ value, issue }) => {
   const f = localFixture(); fixtures.push(f);
   const result = await f.run(["audit", "auth-request", "list"], {}, fakeCloud(response(token), response({ ...page([]), pageNumber: value, pageSize: value })));
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [
-    { path: '$["pageNumber"]', code, received }, { path: '$["pageSize"]', code, received },
+    { path: '$["pageNumber"]', ...issue }, { path: '$["pageSize"]', ...issue },
   ] });
-  expect(result.output).not.toContain(String(value));
 });
 
 test("event permission denial completes without waiting for its stalled body", async () => {

@@ -2,9 +2,10 @@
 // then re-copy it byte-for-byte with the shared vectors and recorded SHA-256 hashes.
 export type DiagnosticRedactor = { text(value: string): string };
 type ShapeEntry = { path: string; type: string; count?: number; expected?: string };
-type IssueEntry = { path: string; received: string; expected: string; code?: string; pathTruncated?: boolean };
+type IssueEntry = { path: string; received: string; expected: string; receivedValue?: string | number; code?: string; pathTruncated?: boolean };
 const issueCodes = new Set(["invalid_type", "too_big", "too_small", "invalid_format", "not_multiple_of", "unrecognized_keys", "invalid_union", "invalid_key", "invalid_element", "invalid_value", "custom"]);
 const types = new Set(["string", "number", "boolean", "object", "array", "null", "undefined", "bigint", "symbol", "function", "date", "int", "unknown", "never", "void"]);
+const pagingFields = new Set(["pageNumber", "pageSize", "pageCount", "totalRecordCount", "totalRecordsReturned", "totalResults", "startIndex", "itemsPerPage"]);
 
 function valueType(value: unknown): string {
   return value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
@@ -16,7 +17,7 @@ function keySegment(key: string, redactor: DiagnosticRedactor): string {
   return `[${JSON.stringify(identifier && !guid ? redactor.text(key) : "<key>")}]`;
 }
 
-// Emit structure only, never the response body or validation-library errors.
+// Emit bounded structure and allowlisted diagnostic values, never bodies or validator messages.
 export class ResponseDiagnostics {
   private details: Record<string, unknown> = {};
   private readonly shapeByPath = new Map<string, ShapeEntry>();
@@ -33,7 +34,7 @@ export class ResponseDiagnostics {
     this.details = { status: Number.isInteger(status) && status >= 100 && status <= 599 ? status : null, contentType, ...this.shape(data) };
   }
 
-  validationFailed(issues: readonly { path: readonly PropertyKey[]; expected?: unknown; code?: unknown }[]): void {
+  validationFailed(issues: readonly { path: readonly PropertyKey[]; expected?: unknown; code?: unknown; values?: readonly unknown[] }[]): void {
     const issuePaths: string[] = [];
     const annotations: IssueEntry[] = [];
     let truncated = false;
@@ -53,7 +54,9 @@ export class ResponseDiagnostics {
           ? (received as Record<PropertyKey, unknown>)[key] : undefined;
       }
       const expected = typeof issue.expected === "string" && types.has(issue.expected) ? issue.expected : "unknown";
-      annotations.push({ path, received: valueType(received), expected, ...(typeof issue.code === "string" && issueCodes.has(issue.code) ? { code: issue.code } : {}), ...(truncated ? { pathTruncated: true } : {}) });
+      const numericPaging = issue.path.length === 1 && pagingFields.has(String(issue.path[0])) && typeof received === "number" && Number.isFinite(received) && this.redactor.text(String(received)) === String(received);
+      const stringEnum = issue.code === "invalid_value" && issue.values?.length && issue.values.every((value) => typeof value === "string") && typeof received === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(received);
+      annotations.push({ path, received: valueType(received), expected, ...(numericPaging || stringEnum ? { receivedValue: typeof received === "string" ? this.redactor.text(received) : received as number } : {}), ...(typeof issue.code === "string" && issueCodes.has(issue.code) ? { code: issue.code } : {}), ...(truncated ? { pathTruncated: true } : {}) });
       // Validator messages and arbitrary expected strings can contain response values.
       // Annotate only types from the contract vocabulary, on the recorded received shape.
       if (!truncated && typeof issue.expected === "string" && types.has(issue.expected)) {
