@@ -72,7 +72,7 @@ beyondtrust-axi setup hooks --agent codex
 
 Setup installs or repairs Claude Code SessionStart settings, Codex SessionStart hooks with the hooks feature enabled, and an OpenCode system-context plugin.
 It preserves unrelated settings, reports failures with exit code 1, and reports unchanged integrations on repeat setup.
-Codex setup refuses ambiguous TOML edits before writing either Codex file if it cannot verify that only features.hooks changes.
+Codex setup refuses ambiguous TOML edits before writing either Codex file if it cannot verify that only the `hooks` key in the `[features]` table changes.
 Restart your agent after setup; Codex may require its own hook trust approval.
 The hook always reports offline local readiness, never live API verification, and has a three-second host timeout.
 Setup uses a PATH-verified hook executable when it resolves to this installation, otherwise an absolute Node and script path; repeat setup after relocating the installation.
