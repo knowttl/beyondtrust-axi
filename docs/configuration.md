@@ -1,6 +1,7 @@
 # Configuration
 
-No command writes configuration or discovers it from the current directory.
+No command writes beyondtrust-axi profile configuration or discovers it from the current directory.
+For agent configuration installed by setup hooks, see [Use with your agent](../README.md#use-with-your-agent).
 Config precedence is --config, BEYONDTRUST_AXI_CONFIG, then the platform path.
 Profile precedence is --profile, BEYONDTRUST_AXI_PROFILE, complete environment profile, config defaultProfile, then sole file profile.
 File metadata never mixes with environment profile fields; SecretRefs may explicitly name environment variables.

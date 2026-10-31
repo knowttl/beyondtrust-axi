@@ -72,6 +72,7 @@ beyondtrust-axi setup hooks --agent codex
 
 Setup installs or repairs Claude Code SessionStart settings, Codex SessionStart hooks with the hooks feature enabled, and an OpenCode system-context plugin.
 It preserves unrelated settings, reports failures with exit code 1, and reports unchanged integrations on repeat setup.
+Codex setup refuses ambiguous TOML edits before writing either Codex file if it cannot verify that only features.hooks changes.
 Restart your agent after setup; Codex may require its own hook trust approval.
 The hook always reports offline local readiness, never live API verification, and has a three-second host timeout.
 Setup uses a PATH-verified hook executable when it resolves to this installation, otherwise an absolute Node and script path; repeat setup after relocating the installation.
@@ -168,7 +169,8 @@ Credential values discovered in those fields or URL passwords, including percent
 Hosts must be lowercase DNS names ending .beyondtrustcloud.com, without scheme, port, path, userinfo or IP; origins are HTTPS only.
 TLS certificate verification is always enabled and redirects are refused.
 Tokens stay in memory for one command, using OAuth2 client credentials with form-encoded `grant_type=client_credentials`, `client_id`, `client_secret` and the fixed Management API `scope=urn:management:api`.
-Reads share a budget of 10 requests including authentication and 60 seconds; JSON responses share an 8 MiB cap.
+Resource reads share a budget of 10 requests including authentication and 60 seconds; JSON responses share an 8 MiB cap.
+For home's smaller startup budget, see [Quickstart](#quickstart).
 Downloads require a named file profile with downloads.allow enabled and a new --out path.
 They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
 The destination is created exclusively with mode 0600 on POSIX; existing files and symlinks are refused.
@@ -176,7 +178,7 @@ For failure cleanup, Windows file protections and platform verification limits, 
 Success reports path, size in bytes, sha256 and contentType.
 The three resource downloads take a positional UUID; api-definition download needs only --out.
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
-Read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
+Resource read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
 Non-success HTTP responses are handled from status and headers without waiting for or parsing their bodies.
 Environment profiles cannot enable writes, deletes or downloads.
@@ -234,7 +236,7 @@ The owner commissions the complete build through artium-axi afterwards.
 
 ## Configuration
 
-No command writes configuration or discovers it from the current directory.
+See the [configuration guide](docs/configuration.md) for profile configuration discovery and the [agent setup instructions](#use-with-your-agent) for agent configuration writes.
 Run beyondtrust-axi config path to locate the effective paths.
 
 | Platform | Config | State |
