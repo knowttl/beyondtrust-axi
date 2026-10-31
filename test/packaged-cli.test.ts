@@ -202,6 +202,24 @@ test("installed setup preserves settings, repeats without changes and repairs mo
   expect(decode(system[1])).toMatchObject({ status: "not configured" });
 });
 
+test.each([
+  ["existing hooks key", 'developer_instructions = """\n[features]\nhooks = false\n"""\n[features]\nhooks = false\nother = true\n'],
+  ["missing hooks key", 'developer_instructions = """\n[features]\nhooks = false\n"""\n[features]\nother = true\n'],
+  ["missing features table", "developer_instructions = '''\n[features]\nhooks = false\n'''\n"],
+])("installed Codex setup rejects ambiguous TOML edits with %s before writing either file", (_name, source) => {
+  const home = mkdtempSync(join(directory, "ambiguous-codex-"));
+  mkdirSync(join(home, ".codex"));
+  const config = join(home, ".codex/config.toml"), hooks = join(home, ".codex/hooks.json");
+  const originalHooks = JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: "command", command: "echo preserved" }] }] } });
+  writeFileSync(config, source);
+  writeFileSync(hooks, originalHooks);
+  const result = cli(["setup", "hooks", "--agent", "codex", "--directory", home]);
+  expect(result.status, result.stdout + result.stderr).toBe(1);
+  expect(decode(result.stdout)).toMatchObject({ integrations: [{ agent: "codex", status: "failed" }] });
+  expect(readFileSync(config, "utf8")).toBe(source);
+  expect(readFileSync(hooks, "utf8")).toBe(originalHooks);
+});
+
 test.each(["claude", "codex", "opencode"])("installed setup reports real %s failures without replacing unrelated files", (agent) => {
   const home = mkdtempSync(join(directory, "failure-"));
   const path = agent === "opencode" ? join(home, ".config/opencode/plugins/beyondtrust-axi.js") : join(home, `.${agent}`, agent === "codex" ? "hooks.json" : "settings.json");

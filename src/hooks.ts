@@ -2,6 +2,7 @@ import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSyn
 import { homedir } from "node:os";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
 import { parse } from "smol-toml";
 import { z } from "zod";
@@ -96,7 +97,7 @@ export function setupHooks(agent = "all", directory?: string): Record<string, un
               if (key !== -1) lines[key] = "hooks = true"; else lines.splice(start + 1, 0, "hooks = true");
               toml = { path: config, content: lines.join("\n") };
             }
-            parse(toml.content);
+            if (!isDeepStrictEqual(parse(toml.content), { ...parsed, features: { ...features, hooks: true } })) throw new Error("Cannot enable hooks without changing unrelated configuration");
           }
         }
         changed = save(path, content);
