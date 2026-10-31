@@ -1,6 +1,6 @@
 # Contributing agents
 
-Use Node.js 22.12 or later and pnpm through Corepack.
+Use Node.js 24 or later for development and pnpm through Corepack.
 Run build, lint, test, spec:check, docs:check and identifiers:check from package.json before review.
 The repository declares no hosted test CI; release-please is the only hosted workflow.
 
@@ -19,7 +19,7 @@ Never replay ambiguous writes or mix application additions and removals.
 ## Verification and hygiene
 
 Tests must remain offline with the network-deny guard and synthetic tenant example.
-scripts/isolated.mjs isolates user configuration; the full B1 suite includes packaged CLI, profiles and identifier/network guard baselines.
+scripts/isolated.ts isolates user configuration; the full B1 suite includes packaged CLI, profiles and identifier/network guard baselines.
 Later API fixtures cite method and path from the committed export.
 
 Canonical source: knowttl/bstack revision feeccb1e6f1ae119bf4c74277c8bad328b05afe8, skills/verification/references/testing.md.
@@ -41,6 +41,6 @@ Exempt: validation-boundary tests, contract tests against an agreed schema or re
 
 Never contact a real tenant; commissioning follows the complete build through artium-axi.
 Keep secrets, customer identifiers, internal hosts and process notes outside git.
-Generate docs/commands.md and skills/beyondtrust-axi/SKILL.md through scripts/generate-docs.mjs.
+Generate docs/commands.md and skills/beyondtrust-axi/SKILL.md through scripts/generate-docs.ts.
 Never hand-edit generated artifacts or CHANGELOG.md.
 Use plain dashes and one full sentence per line in long Markdown files.

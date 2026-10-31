@@ -82,7 +82,7 @@ test.each([
   const config = join(directory, `home-${mode}.json`);
   const log = join(directory, `home-${mode}.log`);
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
-  const fake = fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url));
+  const fake = fileURLToPath(new URL("./support/fake-home-api.ts", import.meta.url));
   const result = cli([], { BEYONDTRUST_AXI_CONFIG: config, SYNTHETIC_SECRET: "synthetic-home-secret", SYNTHETIC_HOME_MODE: mode,
     SYNTHETIC_REQUEST_LOG: log, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fake}` });
   expect(result.status, result.stdout + result.stderr).toBe(code);
@@ -99,7 +99,7 @@ test("installed home enforces its deadline when the service never responds", () 
   const config = join(directory, "timeout.json");
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
   const result = cli([], { BEYONDTRUST_AXI_CONFIG: config, SYNTHETIC_SECRET: "synthetic-secret", SYNTHETIC_HOME_MODE: "timeout", SYNTHETIC_REQUEST_LOG: join(directory, "timeout.log"),
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url))}` });
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.ts", import.meta.url))}` });
   expect(result.signal).toBeNull();
   expect(result.status, result.stdout + result.stderr).toBe(1);
   expect(decode(result.stdout)).toMatchObject({ summary: [{ error: "LIMIT_EXCEEDED" }, { error: "LIMIT_EXCEEDED" }, { error: "LIMIT_EXCEEDED" }] });
@@ -109,7 +109,7 @@ test("installed list command recovers the rows omitted from the home sample", ()
   const config = join(directory, "continuation.json");
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
   const result = cli(["computer", "list", "--profile", "example", "--config", config, "--all"], { SYNTHETIC_SECRET: "synthetic-secret", SYNTHETIC_HOME_MODE: "partial", SYNTHETIC_REQUEST_LOG: join(directory, "continuation.log"),
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url))}` });
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.ts", import.meta.url))}` });
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(decode(result.stdout)).toMatchObject({ count: 8, total: 8, cursor: null, data: expect.arrayContaining([{ id: "00000000-0000-4000-8000-000000000008", host: "example-8" }]) });
 });
@@ -122,7 +122,7 @@ test.each([false, true])("installed env home recovery commands retain environmen
     BEYONDTRUST_AXI_HOST: "example.pm.beyondtrustcloud.com", BEYONDTRUST_AXI_CLIENT_ID: "synthetic-client",
     BEYONDTRUST_AXI_CLIENT_SECRET: "synthetic-secret", SYNTHETIC_HOME_MODE: "partial",
     SYNTHETIC_REQUEST_LOG: join(directory, `env-home-${fileConfig}.log`),
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url))}`,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.ts", import.meta.url))}`,
   };
   const home = cli([], env);
   expect(home.status, home.stdout + home.stderr).toBe(0);
@@ -140,7 +140,7 @@ test("installed home retains successful reads when another resource is denied", 
   const config = join(directory, "mixed.json");
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
   const result = cli([], { BEYONDTRUST_AXI_CONFIG: config, SYNTHETIC_SECRET: "synthetic-secret", SYNTHETIC_HOME_MODE: "mixed", SYNTHETIC_REQUEST_LOG: join(directory, "mixed.log"),
-    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url))}` });
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.ts", import.meta.url))}` });
   expect(result.status, result.stdout + result.stderr).toBe(1);
   expect(decode(result.stdout)).toMatchObject({ status: "live: incomplete; see resource errors", summary: [
     { resource: "computer", count: 1, total: 1 }, { resource: "group", status: "failed", error: "API_FORBIDDEN" }, { resource: "policy", count: 1, total: 1 },

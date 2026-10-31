@@ -7,9 +7,9 @@ agent_args_override:
     - model_reasoning_effort="medium"
 no_ci: true
 commands:
-  prepare: 'node scripts/isolated.mjs corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
+  prepare: 'node scripts/isolated.ts corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
   test: 'corepack pnpm test && corepack pnpm run spec:check && corepack pnpm run docs:check && corepack pnpm run identifiers:check'
-  lint: 'node scripts/isolated.mjs corepack pnpm run lint'
+  lint: 'node scripts/isolated.ts corepack pnpm run lint'
 document:
   instructions: |
     README.md owns the quickstart, safety and current command overview.
