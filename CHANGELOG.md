@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.4...v0.1.5) (2026-10-31)
+
+
+### Features
+
+* add bounded live home summaries and agent hook setup ([#33](https://github.com/knowttl/beyondtrust-axi/issues/33)) ([633b1e5](https://github.com/knowttl/beyondtrust-axi/commit/633b1e56eddde4650c7b8a79c4eb1409e983877f))
+
+
+### Bug Fixes
+
+* accept live paging metadata and unknown read enum values ([#31](https://github.com/knowttl/beyondtrust-axi/issues/31)) ([6dc7da3](https://github.com/knowttl/beyondtrust-axi/commit/6dc7da3277ef301f34f6dab28a8685347ec2f1e8))
+
 ## [0.1.4](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.3...v0.1.4) (2026-10-29)
 
 
