@@ -640,7 +640,7 @@ beyondtrust-axi policy app add <policy-uuid> --os windows --app-group <uuid> --f
 
 ## home
 
-Show local context without resolving secrets or making API calls.
+Show a read-only live computer, group and policy summary (3 rows each, 8 seconds, 5 requests, 256 KiB); denied and incomplete reads are explicit.
 
 | Flag | Meaning |
 |---|---|
@@ -649,10 +649,28 @@ Show local context without resolving secrets or making API calls.
 | --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
+| --offline | Local profile context only; no secrets or API calls (default: false) |
 
 ```sh
 beyondtrust-axi
+beyondtrust-axi home --offline
 beyondtrust-axi home --profile <name>
+```
+
+## setup hooks
+
+Explicitly install or repair offline session context for Claude Code, Codex and OpenCode; preserves unrelated settings.
+
+| Flag | Meaning |
+|---|---|
+| --agent | claude|codex|opencode|all (default: all) |
+| --directory | Agent configuration home (default: user home; respects agent config environment overrides) |
+| --help | Show command help |
+
+```sh
+beyondtrust-axi setup hooks
+beyondtrust-axi setup hooks --agent codex
+beyondtrust-axi setup hooks --directory <home>
 ```
 
 ## auth status

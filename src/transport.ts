@@ -9,7 +9,7 @@ import type { ResponseDiagnostics } from "./response-diagnostics.js";
 
 export type HttpResponse = { status: number; headers: Headers; body: AsyncIterable<Uint8Array> & { destroy?: () => unknown } };
 export type HttpRequest = (url: URL, options: { method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; headers: Record<string, string>; body?: string | Buffer; signal: AbortSignal }) => Promise<HttpResponse>;
-export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void>; diagnostics?: ResponseDiagnostics };
+export type TransportOptions = { request?: HttpRequest; now?: () => number; wait?: (ms: number, signal: AbortSignal) => Promise<void>; diagnostics?: ResponseDiagnostics; startup?: boolean };
 
 const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject) => {
   const headers = options.body === undefined ? options.headers : { ...options.headers, "content-length": String(Buffer.byteLength(options.body)) };
@@ -40,7 +40,8 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   const origin = profileOrigin(profile.host);
   const now = options.now ?? Date.now;
   const started = now();
-  const deadline = AbortSignal.timeout(60_000);
+  const milliseconds = options.startup ? 8_000 : 60_000;
+  const deadline = AbortSignal.timeout(milliseconds);
   const send = options.request ?? httpsRequest;
   const diagnostics = options.diagnostics;
   const wait = options.wait ?? ((ms, signal) => new Promise<void>((resolve, reject) => {
@@ -59,11 +60,11 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   redactor.add(form);
 
   function budget() {
-    if (deadline.aborted || now() - started >= 60_000) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
+    if (deadline.aborted || now() - started >= milliseconds) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
   async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", headers: Record<string, string>, body?: string | Buffer, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
-    if (requests >= (writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
+    if (requests >= (options.startup ? 5 : writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
     requests++;
     try {
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
@@ -91,7 +92,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       for await (const chunk of response.body) {
         budget();
         bytes += chunk.byteLength;
-        if (bytes > 8 * 1024 * 1024) throw new AxiError("Read response byte limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
+        if (bytes > (options.startup ? 256 * 1024 : 8 * 1024 * 1024)) { response.body.destroy?.(); throw new AxiError("Read response byte limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]); }
         chunks.push(Buffer.from(chunk));
       }
       budget();
@@ -133,7 +134,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       for (;;) {
         const response = await exchange(`/management-api${path}`, "GET", { authorization: `Bearer ${token!.value}`, accept: consume ? "*/*" : path.startsWith("/scim/v3/") ? "application/scim+json" : "application/json" }, undefined, consume);
         if (response.status === 401 && !refreshed) { refreshed = true; await authenticate(); continue; }
-        if (response.status === 429 && retries < 2) {
+        if (response.status === 429 && retries < (options.startup ? 0 : 2)) {
           const retry = response.headers.get("retry-after");
           const delay = retry === null ? 1000 : /^-?\d+$/.test(retry) ? Number(retry) * 1000 : Math.max(0, Date.parse(retry) - now());
           if (!Number.isFinite(delay) || delay < 0 || delay > 10_000) failure(429);

@@ -16,6 +16,7 @@ import { jitWrites, prepareJitWrite } from "./jit-writes.js";
 import { deletes, prepareDelete } from "./deletes.js";
 import { coordinateWrite, requireDeletePermission, requireWritePermission, UnknownWriteOutcome } from "./writes.js";
 import { ResponseDiagnostics } from "./response-diagnostics.js";
+import { setupHooks } from "./hooks.js";
 
 export async function main(argv = process.argv.slice(2), options: { credentials?: CredentialContext; transport?: TransportOptions; stdout?: { write: (chunk: string) => unknown } } = {}): Promise<void> {
   const store = credentialStore(options.credentials);
@@ -65,7 +66,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
       const label = flag.split("=")[0]!;
       usage(/^--[A-Za-z][A-Za-z0-9-]*$/.test(label) ? `Unknown or duplicate flag ${label}` : undefined);
     }
-    if (["--help", "--full", "--all", "--execute", "--auto-assign", "--force", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
+    if (["--help", "--offline", "--full", "--all", "--execute", "--auto-assign", "--force", ...(name === "group create" ? ["--default"] : [])].includes(flag)) flags.set(flag, "true");
     else {
       const value = argv[++index];
       if (!value || value.startsWith("--")) usage();
@@ -76,16 +77,17 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
   const resourceRead = prepareResourceRead(name, flags, definition, type);
   const write = prepareDelete(name, writeIds, flags) ?? prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags) ?? preparePolicyWrite(name, writeIds, flags) ?? prepareIdentityWrite(name, writeIds, flags, store.redactor) ?? prepareJitWrite(name, writeIds, flags, store.redactor);
-  const available = name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
+  const available = name === "setup hooks" ? ["integrations", "help"] : name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
-      : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", ...(deletes[name] ? ["deleteConfirmation"] : []), "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "help"];
+      : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", ...(deletes[name] ? ["deleteConfirmation"] : []), "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "summary", "help"];
   const fields = flags.get("--fields")?.split(",") ?? available;
   if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
   const config = flags.get("--config");
   let result: Record<string, unknown>;
-  if (name === "auth status") result = store.status(config, flags.get("--profile"));
+  if (name === "setup hooks") result = setupHooks(flags.get("--agent"), flags.get("--directory"));
+  else if (name === "auth status") result = store.status(config, flags.get("--profile"));
   else if (name === "profile list") result = store.list(config);
   else if (name === "config path") result = { config: store.configPath(config), state: store.statePath() };
   else if (write) {
@@ -130,15 +132,34 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   else {
     const listed = store.list(config);
     let status = "not configured";
+    let selected: ReturnType<typeof store.select> | undefined;
     try {
-      const selected = store.select(store.load(config).config, flags.get("--profile"));
-      status = `configured: ${selected.name} (${selected.host}); not verified with the API`;
+      selected = store.select(store.load(config, !flags.has("--offline")).config, flags.get("--profile"));
+      status = `configured: ${selected.name} (${selected.host}); offline, API not checked`;
     } catch (error) { if (!(error instanceof AxiError) || error.code !== "PROFILE_REQUIRED") throw error; }
+    const summary: Record<string, unknown>[] = [];
+    if (selected && !flags.has("--offline")) {
+      const client = readClient(selected, store.credentials(selected, true), store.redactor, { ...transport, startup: true });
+      for (const command of ["computer list", "group list", "policy list"]) {
+        try {
+          const read = prepareResourceRead(command, new Map([["--limit", "3"]]), resourceReads[command])!;
+          const value = await read.run(client, JSON.stringify([store.configPath(config), selected.name, selected.host, selected.clientId]), store.redactor, transport?.diagnostics);
+          summary.push({ resource: command.split(" ")[0], status: value.cursor ? "partial" : "complete", count: value.count, total: value.total,
+            data: (value.data as Record<string, unknown>[]).map((row) => Object.fromEntries(["id", "name", "host"].filter((key) => row[key] !== undefined).map((key) => [key, row[key]]))),
+            help: `Run beyondtrust-axi ${command} --profile ${selected.name} --config '${store.configPath(config).replaceAll("'", "'\\''")}' --all` });
+        } catch (error) {
+          if (!(error instanceof AxiError)) throw error;
+          summary.push({ resource: command.split(" ")[0], status: "failed", error: error.code, help: error.suggestions });
+          process.exitCode = 1;
+        }
+      }
+      status = summary.some((row) => row.status === "failed") ? "live: incomplete; see resource errors" : "live: read-only summary";
+    }
     const executable = resolve(process.argv[1] ?? "bin/beyondtrust-axi.js");
     const home = homedir();
     result = { bin: executable.startsWith(`${home}/`) ? `~${executable.slice(home.length)}` : executable,
-      description: DESCRIPTION, status, profiles: listed.profiles, count: listed.count,
-      help: ["Run beyondtrust-axi config path to locate configuration", "Run beyondtrust-axi auth status to validate local credentials", "Run beyondtrust-axi profile list to inspect configured profiles"] };
+      description: DESCRIPTION, status, profiles: listed.profiles, count: listed.count, summary,
+      help: ["Run beyondtrust-axi home --offline for local context without API access", "Run beyondtrust-axi auth status to validate local credentials", "Run beyondtrust-axi setup hooks to opt in to offline session context"] };
   }
   let truncated = false;
   const preview = (value: unknown): unknown => {

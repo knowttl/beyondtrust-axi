@@ -43,6 +43,10 @@ node bin/beyondtrust-axi.js config path
 ```
 
 A fresh home prints status: not configured and count: 0 without network access.
+Configured home reads computers, groups and policies using existing API permissions, showing at most three rows per resource with returned counts and service totals when available.
+It shares an eight-second, five-request and 256 KiB budget, makes no management writes and does not retry rate limits.
+Partial samples include a command to read more; failed or denied resources carry errors instead of zero counts and return exit code 1 while preserving successful reads.
+Use `beyondtrust-axi home --offline` for local profile context without secrets or API calls.
 For local readiness, supply BEYONDTRUST_AXI_CLIENT_SECRET through a secret manager or private environment, then run:
 
 ```sh
@@ -58,17 +62,35 @@ auth status validates local credentials and makes no token exchange or API reque
 ## Use with your agent
 
 beyondtrust-axi-hook is the session entry point and emits the local home view without resolving secrets or contacting the API.
-Configure an agent session-start hook explicitly to run node with the absolute bin/beyondtrust-axi-hook.js path from your built checkout.
-No command installs integrations automatically; remove the hook entry to uninstall it.
+Opt in explicitly after installing the CLI in a stable location:
+
+```sh
+npm install -g @knowttl/beyondtrust-axi
+beyondtrust-axi setup hooks
+beyondtrust-axi setup hooks --agent codex
+```
+
+Setup installs or repairs Claude Code SessionStart settings, Codex SessionStart hooks with the hooks feature enabled, and an OpenCode system-context plugin.
+It preserves unrelated settings, reports failures with exit code 1, and reports unchanged integrations on repeat setup.
+Restart your agent after setup; Codex may require its own hook trust approval.
+The hook always reports offline local readiness, never live API verification, and has a three-second host timeout.
+Setup uses a PATH-verified hook executable when it resolves to this installation, otherwise an absolute Node and script path; repeat setup after relocating the installation.
+Defaults are ~/.claude/settings.json, ~/.codex/hooks.json and the Codex TOML configuration, and ~/.config/opencode/plugins/beyondtrust-axi.js.
+CLAUDE_CONFIG_DIR, CODEX_HOME, OPENCODE_CONFIG_DIR and XDG_CONFIG_HOME override the corresponding defaults; `--directory <home>` instead targets agent directories under that explicit home.
+Remove the beyondtrust-axi-hook SessionStart handler or managed OpenCode plugin to uninstall; leave unrelated settings in place.
 The generated [skill](skills/beyondtrust-axi/SKILL.md) provides on-demand discovery and grants no credentials or permissions.
 Use the hook, the skill or both; neither is required for normal CLI use.
 Skill commands use npx as shown in [Quickstart](#quickstart).
+Install the skill separately with `npx -y skills add knowttl/beyondtrust-axi --skill beyondtrust-axi`.
+Live commissioning remains pending: link the real-tenant verification for [issue #28](https://github.com/knowttl/beyondtrust-axi/issues/28) before claiming readiness.
+Offline fixtures and hook checks do not prove live tenant compatibility.
 
 ## What it covers
 
 | Group | Purpose | Access | Reference |
 |---|---|---|---|
-| home | Local profile context | Local read | [Commands](docs/commands.md) |
+| home | Bounded live summary; --offline for local profile context | API read or explicit local read | [Commands](docs/commands.md) |
+| setup hooks | Opt-in session integration install and repair | Local configuration write | [Commands](docs/commands.md) |
 | auth | Local credential readiness | Local read | [Configuration](docs/configuration.md) |
 | profile | Named profile list | Local read | [Configuration](docs/configuration.md) |
 | config | Effective config and state paths | Local read | [Configuration](docs/configuration.md) |
