@@ -26,7 +26,7 @@ Recognized expected types use the contract vocabulary; absent or arbitrary expec
 An optional receivedValue includes finite numeric values only for root paging fields: pageNumber, pageSize, pageCount, totalRecordCount, totalRecordsReturned, totalResults, startIndex and itemsPerPage.
 Numeric values matching a registered secret are omitted.
 For invalid_value issues carrying a non-empty values array of string enum members, received strings matching `^[A-Za-z0-9_.-]{1,40}$` are included as receivedValue after redaction.
-Lenient read enums accept unknown strings without generating an issue.
+See the [README response compatibility guidance](../README.md#what-it-covers) for the CLI's read-enum policy.
 Other values, messages and validator fields are ignored.
 The issue entries share the path list's 64-entry, 256-character per-path and 4096-character total path limits.
 Paths deeper than four segments display only the first four and carry `pathTruncated: true`; their types still describe the original leaf.
