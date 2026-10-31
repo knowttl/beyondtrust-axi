@@ -10,11 +10,11 @@ import { jitWrites } from "../dist/src/jit-writes.js";
 import { deletes } from "../dist/src/deletes.js";
 
 const root = new URL("../", import.meta.url);
-const read = (path) => readFileSync(new URL(path, root));
-const pin = JSON.parse(read("inventory/specs.json"));
+const read = (path: string) => readFileSync(new URL(path, root));
+const pin: typeof import("../inventory/specs.json") = JSON.parse(read("inventory/specs.json").toString("utf8"));
 const bytes = read(pin.file);
-const spec = JSON.parse(bytes);
-const { coverage } = JSON.parse(read("inventory/capabilities.json"));
+const spec: { paths: Record<string, Record<string, unknown>>; components: { securitySchemes: { oauth2: { flows: { clientCredentials: { tokenUrl: string } } } } } } = JSON.parse(bytes.toString("utf8"));
+const { coverage }: { coverage: { method: string; path: string; classification: string; status: string; sharedDelete?: boolean }[] } = JSON.parse(read("inventory/capabilities.json").toString("utf8"));
 const operations = Object.entries(spec.paths).flatMap(([path, methods]) => Object.keys(methods)
   .filter((method) => ["get", "post", "put", "patch", "delete"].includes(method))
   .map((method) => `${method.toUpperCase()} ${path}`)).sort();

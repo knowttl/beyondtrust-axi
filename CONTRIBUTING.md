@@ -1,6 +1,6 @@
 # Contributing
 
-Use strict ESM TypeScript, Node.js 22.12 or later and pnpm through Corepack.
+Use strict ESM TypeScript, Node.js 24 or later for development and pnpm through Corepack.
 Keep changes focused.
 Read [AGENTS.md](AGENTS.md) and [the design](docs/design.md) for boundaries.
 
@@ -16,7 +16,7 @@ corepack pnpm run docs:check
 corepack pnpm run identifiers:check
 ```
 
-The full B1 suite runs under scripts/isolated.mjs with isolated HOME, XDG and agent configuration.
+The full B1 suite runs under scripts/isolated.ts with isolated HOME, XDG and agent configuration.
 It always exercises the packaged CLI and profile, network and identifier safety baselines.
 Follow the Test quality rules in [AGENTS.md](AGENTS.md) when writing or reviewing tests.
 Use synthetic tenant example and never a live tenant.

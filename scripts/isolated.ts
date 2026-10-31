@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 const home = mkdtempSync(join(tmpdir(), "beyondtrust-axi-validation-"));
 try {
-  const [command, ...args] = process.argv.slice(2);
+  const [command, ...args] = process.argv.slice(2) as [string, ...string[]];
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("BEYONDTRUST_AXI_")));
   const result = spawnSync(command, args, {
     stdio: "inherit",

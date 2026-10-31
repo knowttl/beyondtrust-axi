@@ -1,15 +1,16 @@
 // Controlled HTTPS boundary for packaged startup tests; no sockets or real tenant.
 // Fixtures follow GET /v3/Computers, /v3/Groups and /v3/Policies in inventory/swagger.json.
 import https from "node:https";
+import type { IncomingMessage, RequestOptions } from "node:http";
 import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
 import { appendFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { MessageChannel } from "node:worker_threads";
 
-https.request = (url, options, callback) => {
-  appendFileSync(process.env.SYNTHETIC_REQUEST_LOG, `${options.method} ${url.pathname}${url.search}\n`);
-  const request = new EventEmitter();
+https.request = ((url: URL, options: RequestOptions & { signal: AbortSignal }, callback: (response: IncomingMessage) => void) => {
+  appendFileSync(process.env.SYNTHETIC_REQUEST_LOG!, `${options.method} ${url.pathname}${url.search}\n`);
+  const request = new EventEmitter() as EventEmitter & { end: () => void };
   request.end = () => queueMicrotask(() => {
     const mode = process.env.SYNTHETIC_HOME_MODE;
     if (mode === "timeout") {
@@ -22,7 +23,7 @@ https.request = (url, options, callback) => {
       return;
     }
     let status = 200;
-    let value;
+    let value: unknown;
     if (mode === "unavailable") status = 503;
     else if (url.pathname === "/oauth/connect/token") {
       if (mode === "authentication") status = 401;
@@ -36,11 +37,11 @@ https.request = (url, options, callback) => {
       value = { pageNumber: 1, pageSize: size, totalRecordCount: count, pageCount: Math.ceil(count / size), data };
       if (mode === "oversized") value = { padding: "x".repeat(256 * 1024) };
     }
-    const response = Readable.from([Buffer.from(JSON.stringify(value ?? {}))]);
+    const response = Readable.from([Buffer.from(JSON.stringify(value ?? {}))]) as IncomingMessage;
     response.statusCode = status;
     response.headers = {};
     callback(response);
   });
   return request;
-};
+}) as typeof https.request;
 syncBuiltinESMExports();

@@ -34,13 +34,13 @@
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.tooling.json",
     "lint": "corepack pnpm run typecheck",
-    "test": "node scripts/isolated.mjs node scripts/test.mjs",
-    "docs:generate": "node scripts/generate-docs.mjs",
-    "docs:check": "node scripts/generate-docs.mjs --check",
-    "spec:check": "node scripts/specs.mjs --check",
-    "identifiers:check": "node scripts/check-identifiers.mjs"
+    "test": "node scripts/isolated.ts node scripts/test.ts",
+    "docs:generate": "node scripts/generate-docs.ts",
+    "docs:check": "node scripts/generate-docs.ts --check",
+    "spec:check": "node scripts/specs.ts --check",
+    "identifiers:check": "node scripts/check-identifiers.ts"
   },
   "dependencies": {
     "@toon-format/toon": "2.3.1",
