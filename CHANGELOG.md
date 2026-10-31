@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.5...v0.1.6) (2026-10-31)
+
+
+### Bug Fixes
+
+* describe Codex hooks setting without a hostname token ([#34](https://github.com/knowttl/beyondtrust-axi/issues/34)) ([438efc6](https://github.com/knowttl/beyondtrust-axi/commit/438efc62e0f4230ea02d920e842e13c2fa6668a6))
+
 ## [0.1.5](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.4...v0.1.5) (2026-10-31)
 
 
