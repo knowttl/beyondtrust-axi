@@ -146,7 +146,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
           const value = await read.run(client, JSON.stringify([store.configPath(config), selected.name, selected.host, selected.clientId]), store.redactor, transport?.diagnostics);
           summary.push({ resource: command.split(" ")[0], status: value.cursor ? "partial" : "complete", count: value.count, total: value.total,
             data: (value.data as Record<string, unknown>[]).map((row) => Object.fromEntries(["id", "name", "host"].filter((key) => row[key] !== undefined).map((key) => [key, row[key]]))),
-            help: `Run beyondtrust-axi ${command} --profile ${selected.name} --config '${store.configPath(config).replaceAll("'", "'\\''")}' --all` });
+            help: `Run beyondtrust-axi ${command}${selected.source === "env-profile" ? "" : ` --profile ${selected.name} --config '${store.configPath(config).replaceAll("'", "'\\''")}'`} --all` });
         } catch (error) {
           if (!(error instanceof AxiError)) throw error;
           summary.push({ resource: command.split(" ")[0], status: "failed", error: error.code, help: error.suggestions });

@@ -114,6 +114,28 @@ test("installed list command recovers the rows omitted from the home sample", ()
   expect(decode(result.stdout)).toMatchObject({ count: 8, total: 8, cursor: null, data: expect.arrayContaining([{ id: "00000000-0000-4000-8000-000000000008", host: "example-8" }]) });
 });
 
+test.each([false, true])("installed env home recovery commands retain environment selection with a file config: %s", (fileConfig) => {
+  const config = join(directory, "env-home.json");
+  if (fileConfig) writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
+  const env = {
+    BEYONDTRUST_AXI_CONFIG: fileConfig ? config : undefined,
+    BEYONDTRUST_AXI_HOST: "example.pm.beyondtrustcloud.com", BEYONDTRUST_AXI_CLIENT_ID: "synthetic-client",
+    BEYONDTRUST_AXI_CLIENT_SECRET: "synthetic-secret", SYNTHETIC_HOME_MODE: "partial",
+    SYNTHETIC_REQUEST_LOG: join(directory, `env-home-${fileConfig}.log`),
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --import=${fileURLToPath(new URL("./support/fake-home-api.mjs", import.meta.url))}`,
+  };
+  const home = cli([], env);
+  expect(home.status, home.stdout + home.stderr).toBe(0);
+  const value = decode(home.stdout) as { summary: { resource: string; help: string }[] };
+  expect(value.summary.map((row) => row.resource)).toEqual(["computer", "group", "policy"]);
+  for (const row of value.summary) {
+    expect(row.help).toBe(`Run beyondtrust-axi ${row.resource} list --all`);
+    const recovered = cli(row.help.slice("Run beyondtrust-axi ".length).split(" "), env);
+    expect(recovered.status, recovered.stdout + recovered.stderr).toBe(0);
+    expect(decode(recovered.stdout)).toMatchObject({ count: 8, total: 8, cursor: null });
+  }
+});
+
 test("installed home retains successful reads when another resource is denied", () => {
   const config = join(directory, "mixed.json");
   writeFileSync(config, readFileSync(new URL("./fixtures/profile.json", import.meta.url)), { mode: 0o600 });
@@ -206,6 +228,21 @@ test("installed setup uses agent config overrides and a PATH-verified hook binar
     PATH: `${resolve(packageRoot, "../../.bin")}${delimiter}${process.env.PATH}` });
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(JSON.parse(readFileSync(join(config, "settings.json"), "utf8"))).toMatchObject({ hooks: { SessionStart: [{ hooks: [{ command: "beyondtrust-axi-hook" }] }] } });
+});
+
+test.each(["claude", "codex"])("installed %s hook bypasses an earlier installation on PATH", (agent) => {
+  const home = join(directory, `shadowed-${agent}`);
+  const oldBin = join(home, "old-bin");
+  mkdirSync(oldBin, { recursive: true });
+  writeFileSync(join(oldBin, "beyondtrust-axi-hook"), "#!/bin/sh\nprintf 'old installation\\n'\n", { mode: 0o755 });
+  const env = { ...process.env, PATH: `${oldBin}${delimiter}${resolve(packageRoot, "../../.bin")}${delimiter}${process.env.PATH}` };
+  const result = cli(["setup", "hooks", "--agent", agent, "--directory", home], env);
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const path = join(home, `.${agent}`, agent === "claude" ? "settings.json" : "hooks.json");
+  const command = JSON.parse(readFileSync(path, "utf8")).hooks.SessionStart[0].hooks[0].command;
+  const launched = spawnSync(command, { shell: true, encoding: "utf8", timeout: 5000, env });
+  expect(launched.status, launched.stdout + launched.stderr).toBe(0);
+  expect(decode(launched.stdout)).toMatchObject({ status: "not configured" });
 });
 
 test("published metadata includes credential schema, inventory and generated discovery", () => {

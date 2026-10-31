@@ -48,10 +48,10 @@ export function setupHooks(agent = "all", directory?: string): Record<string, un
   const home = resolve(directory ?? homedir());
   const hook = fileURLToPath(new URL("../../bin/beyondtrust-axi-hook.js", import.meta.url));
   const executable = (process.env.PATH ?? "").split(delimiter).map((path) => join(path, "beyondtrust-axi-hook")).find((path) => {
-    try { accessSync(path, constants.X_OK); return realpathSync(path) === realpathSync(hook); } catch { return false; }
+    try { accessSync(path, constants.X_OK); return true; } catch { return false; }
   });
   const quote = (value: string) => process.platform === "win32" ? `"${value.replaceAll('"', '""')}"` : `'${value.replaceAll("'", "'\\''")}'`;
-  const command = executable ? "beyondtrust-axi-hook" : `${quote(process.execPath)} ${quote(hook)}`;
+  const command = executable && realpathSync(executable) === realpathSync(hook) ? "beyondtrust-axi-hook" : `${quote(process.execPath)} ${quote(hook)}`;
   const integrations = [];
   for (const target of agent === "all" ? ["claude", "codex", "opencode"] : [agent]) {
     try {
