@@ -14,7 +14,7 @@ const events = (rows: unknown[]) => ({ events: rows, totalRecordsReturned: rows.
 // Each fixture cites GET and its exact route in inventory/swagger.json.
 test.each([
   ["audit activity list", "/v3/ActivityAudits", [], page([{ id: 1, user: "example" }]), [{ id: 1, user: "example" }]],
-  ["audit activity show", "/v3/ActivityAudits/9223372036854775807", ["--id", "9223372036854775807"], page([{ id: 1, details: "example" }]), [{ id: 1, details: "example" }]],
+  ["audit activity show", "/v3/ActivityAudits/9223372036854775807", ["--id", "9223372036854775807"], { id: 1, details: "example" }, { id: 1, details: "example" }],
   ["audit activity details", "/v3/ActivityAudits/Details", [], page([{ id: 1, details: "example" }]), [{ id: 1, details: "example" }]],
   ["audit auth-request list", "/v3/AuthorizationRequestAudits", [], page([{ id: 1, user: "example" }]), [{ id: 1, user: "example" }]],
   ["audit auth-request show", "/v3/AuthorizationRequestAudits/1", ["--id", "1"], page([{}]), [{}]],
@@ -229,14 +229,15 @@ test.each([
   };
   const copies = { id: 2, details: Object.values(row.azureADIntegrationDataAuditing).concat(Object.values(row.authorizationRequestDataAuditing), Object.values(row.reputationSettingsDataAuditing)).join(" ") };
   const args = action === "show" ? ["--id", "1"] : [];
-  const result = await fixture().run(["audit", "activity", action as string, ...args, ...flags as string[]], {}, fakeCloud(response(token), response(page([copies, row]))));
+  const result = await fixture().run(["audit", "activity", action as string, ...args, ...flags as string[]], {}, fakeCloud(response(token), response(action === "show" ? row : page([copies, row]))));
   expect(result.code).toBe(0);
-  expect(result.data.data).toEqual([{ id: 2, details: "***redacted*** ***redacted*** true ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** true ***redacted*** ***redacted*** true" }, {
+  const redactedRow = {
     id: 1,
     azureADIntegrationDataAuditing: { azureAdIntegrationEnabled: true },
     authorizationRequestDataAuditing: { authRequestIntegrationEnabled: true },
     reputationSettingsDataAuditing: { reputationIntegrationEnabled: true },
-  }]);
+  };
+  expect(result.data.data).toEqual(action === "show" ? redactedRow : [{ id: 2, details: "***redacted*** ***redacted*** true ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** ***redacted*** true ***redacted*** ***redacted*** true" }, redactedRow]);
   expect(result.output).not.toContain("synthetic-");
 });
 
@@ -268,4 +269,47 @@ test.each([
   const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(body)));
   expect(result.code).toBe(1);
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID" });
+});
+
+// Issue #40: GET /v3/ActivityAudits/{id} returns one ActivityAuditDetailModel, not the documented paged envelope.
+const liveAudit = { id: 8, details: "User user@example.com was created.", user: "admin@example.com", entity: "User", auditType: "Create", created: "2025-03-03T18:46:19.4242789+00:00", changedBy: "Portal", computerDataAuditing: null, userDataAuditing: { newEmailAddress: "user@example.com", oldEmailAddress: "", newDisabled: false, roles: [] } };
+
+test("audit activity show reads the live single-object shape", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8"], {}, fakeCloud(response(token), response(liveAudit)));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toMatchObject({ id: 8, userDataAuditing: { newEmailAddress: "user@example.com" } });
+});
+
+test("audit activity show rejects the documented paged shape", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8"], {}, fakeCloud(response(token), response(page([liveAudit]))));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID" });
+});
+
+test.each([["list", "/v3/ActivityAudits"], ["details", "/v3/ActivityAudits/Details"]])("audit activity %s defaults to newest first", async (action, path) => {
+  const cloud = fakeCloud(response(token), response(page([])));
+  const result = await fixture().run(["audit", "activity", action as string], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(cloud.calls[1]!.url.pathname).toBe(`/management-api${path}`);
+  expect(cloud.calls[1]!.url.searchParams.get("Sorts[0].by")).toBe("created");
+  expect(cloud.calls[1]!.url.searchParams.get("Sorts[0].order")).toBe("desc");
+});
+
+test("a read 400 surfaces the API message", async () => {
+  const cloud = fakeCloud(response(token), response({ message: "id is not correct sorting field", exceptionType: null, stackTrace: null }, 400));
+  const result = await fixture().run(["audit", "activity", "list", "--sort", "id:desc"], {}, cloud);
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_BAD_REQUEST", message: expect.stringContaining("id is not correct sorting field") });
+});
+
+test.each([
+  [["--created-dates", "2026-10-01T00:00:00Z"], "--created-selection-mode"],
+  [["--created-dates", "2026-11-01T00:00:00Z,2026-10-01T00:00:00Z", "--created-selection-mode", "Range"], "reversed"],
+  [["--changed-by", "portal"], "API, Portal, ManagementRule, Pathfinder"],
+])("audit activity list %j explains the invalid filter", async (args, message) => {
+  const cloud = fakeCloud();
+  const result = await fixture().run(["audit", "activity", "list", ...args], {}, cloud);
+  expect(result.code).toBe(2);
+  expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining(message) });
+  expect(cloud.calls).toHaveLength(0);
 });
