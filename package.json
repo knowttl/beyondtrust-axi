@@ -35,7 +35,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.tooling.json",
-    "lint": "corepack pnpm run typecheck",
+    "lint": "corepack pnpm run build && corepack pnpm run typecheck",
     "test": "node scripts/isolated.ts node scripts/test.ts",
     "docs:generate": "node scripts/generate-docs.ts",
     "docs:check": "node scripts/generate-docs.ts --check",
