@@ -306,7 +306,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | DELETE_CONFIRM_REQUIRED | Preview again and copy deleteConfirmation exactly into --confirm-delete. |
 | JOURNAL_ERROR | Repair private state directory permissions or storage; no write was sent. |
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
-| VALIDATION_ERROR | Follow the returned valid command/flag list. |
+| VALIDATION_ERROR | Follow the returned help; unknown row fields include valid fields, the command's valid flags and its exact `beyondtrust-axi <command> --help` invocation, without the full command list. |
 
 Resource 400 errors use the first nonblank message, detail or title from the API, redacted before whitespace normalization and a 300-character cap; without a usable reason, they retain the generic rejection message and command-option guidance.
 Recognized resource-ID 404 errors name the requested resource kind and redacted ID.
