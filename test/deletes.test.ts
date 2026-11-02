@@ -64,7 +64,9 @@ test("domain delete confirms the domain read immediately before execution", asyn
   const preview = await f.run(args, {}, fakeCloud(response(token), domain()));
   expect(preview.data.deleteConfirmation).toBe(`DELETE domain.delete 1 ${id} "example.test"`);
   const cloud = fakeCloud(response(token), domain(), response(null, 204));
-  expect((await f.run([...args, ...confirmed(preview.data)], {}, cloud)).data.status).toBe("sent");
+  const sent = await f.run([...args, ...confirmed(preview.data)], {}, cloud);
+  expect(sent.data.status).toBe("sent");
+  expect(Object.keys(sent.data)).toEqual(["status", "operation", "auditId", "result", "help"]);
   expect(cloud.calls.at(-1)!.options.method).toBe("DELETE");
 });
 
