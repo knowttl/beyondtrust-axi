@@ -1,10 +1,11 @@
-agent: codex
+agent: pi
 agent_args_override:
-  codex:
-    - -m
-    - gpt-6.1-sol
-    - -c
-    - model_reasoning_effort="medium"
+  pi:
+    - --no-extensions
+    - --model
+    - github-copilot/gpt-6.1-sol
+    - --thinking
+    - medium
 no_ci: true
 commands:
   prepare: 'node scripts/isolated.ts corepack pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false'
