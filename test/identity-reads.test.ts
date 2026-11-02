@@ -82,6 +82,81 @@ test("SCIM pagination advances by returned rows and preserves filter across curs
   expect(mismatch.calls).toHaveLength(0);
 });
 
+// Live SCIM servers echo the requested count in itemsPerPage even when the page is partial.
+test("scim schemas accepts itemsPerPage above the returned count", async () => {
+  const f = fixture();
+  const body = { schemas: ["urn:ietf:params:scim:api:messages:2.0:ListResponse"], totalResults: 2, startIndex: 1, itemsPerPage: 5, Resources: [{ id: "a" }, { id: "b" }] };
+  const result = await f.run(["scim", "schemas"], {}, fakeCloud(response(token), response(body)));
+  expect(result.data).toMatchObject({ count: 2 });
+});
+
+test("scim user list accepts a partial single page", async () => {
+  const f = fixture();
+  const body = { totalResults: 9, startIndex: 1, itemsPerPage: 10, Resources: Array.from({ length: 9 }, () => ({ id })) };
+  const result = await f.run(["scim", "user", "list", "--limit", "10"], {}, fakeCloud(response(token), response(body)));
+  expect(result.data).toMatchObject({ count: 9, total: 9, cursor: null });
+});
+
+test("scim user list resumes into a partial last page", async () => {
+  const f = fixture();
+  const first = await f.run(["scim", "user", "list", "--limit", "5"], {}, fakeCloud(response(token), response({ totalResults: 9, startIndex: 1, itemsPerPage: 5, Resources: Array.from({ length: 5 }, () => ({ id })) })));
+  const cloud = fakeCloud(response(token), response({ totalResults: 9, startIndex: 6, itemsPerPage: 5, Resources: Array.from({ length: 4 }, () => ({ id })) }));
+  const last = await f.run(["scim", "user", "list", "--limit", "5", "--cursor", String(first.data.cursor)], {}, cloud);
+  expect(cloud.calls[1]!.url.searchParams.get("startIndex")).toBe("6");
+  expect(cloud.calls[1]!.url.searchParams.get("count")).toBe("5");
+  expect(last.data).toMatchObject({ count: 4, cursor: null });
+});
+
+test("scim list rejects itemsPerPage below the returned count and reports the field", async () => {
+  const f = fixture();
+  const body = { totalResults: 2, startIndex: 1, itemsPerPage: 1, Resources: [{ id }, { id }] };
+  const result = await f.run(["scim", "user", "list"], {}, fakeCloud(response(token), response(body)));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
+});
+
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+])("%s reports a mismatched startIndex", async (command, resource) => {
+  const f = fixture();
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([resource], 2, 2))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["startIndex"]', received: "number", code: "custom" }] });
+});
+
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+  ["scim schemas", { id: "example" }], ["scim resource-types", { name: "example" }],
+])("%s reports a returned range beyond totalResults", async (command, resource) => {
+  const f = fixture();
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([resource], 1, 0))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["totalResults"]', received: "number", code: "custom" }] });
+});
+
+test.each([
+  ["scim user list", []], ["scim role list", []],
+  ["scim user list", null], ["scim role list", null],
+])("%s reports an empty Resources page (%j) before the end", async (command, Resources) => {
+  const f = fixture();
+  const body = { totalResults: 2, startIndex: 1, itemsPerPage: 50, Resources };
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', code: "custom" }] });
+});
+
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+])("%s reports itemsPerPage above the requested count", async (command, resource) => {
+  const f = fixture();
+  const body = { ...scim([resource]), itemsPerPage: 51 };
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
+});
+
+test.each(["scim schemas", "scim resource-types"])("%s reports Resources shrinking below a cursor offset", async (command) => {
+  const f = fixture();
+  const first = await f.run([...command.split(" "), "--limit", "1"], {}, fakeCloud(response(token), response(scim([{ name: "first" }, { name: "second" }]))));
+  const result = await f.run([...command.split(" "), "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(scim([]))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', received: "array", code: "custom" }] });
+});
+
 test("SCIM discovery lists resume client-side offsets", async () => {
   const f = fixture();
   const body = scim([{ name: "User" }, { name: "Role" }]);
@@ -129,7 +204,7 @@ test.each([
 test.each([
   ["user list", page([{ disabled: "false" }])], ["role list", [{ Name: "example" }]],
   ["scim user list", scim([{ active: "true" }])], ["scim user list", scim([], 1, 2)],
-  ["scim user list", scim([{ id }], 2, 2)], ["scim user list", { ...scim([{ id }]), itemsPerPage: 2 }],
+  ["scim user list", scim([{ id }], 2, 2)], ["scim user list", { ...scim([{ id }]), itemsPerPage: 51 }],
   ["scim schemas", { ...scim([]), resources: [] }], ["auth-provider show", []],
 ])("rejects malformed %s responses", async (command, body) => {
   const f = fixture();
