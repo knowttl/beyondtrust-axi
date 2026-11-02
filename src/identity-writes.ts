@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { AxiError } from "axi-sdk-js";
 import { z } from "zod";
 import { readPrivateBytes } from "./private-file.js";
@@ -73,10 +74,11 @@ export function prepareIdentityWrite(command: string, args: string[], flags: Map
       }
       withoutCredentials(current, redactor);
       const deactivates = scim && (body?.active === false || (Array.isArray(body?.operations) && body.operations.some((op) => Array.isArray(op.value) && op.value.some((value: Record<string, unknown>) => value.active === false || (typeof op.path === "string" && op.path.toLowerCase() === "active" && (value.valueBoolean === false || value.value === "false"))))));
-      const preview = { current, ...(body ? { request: body } : {}), ...(file ? { file } : {}), ...(command === "user create" ? { roles: { roleResource: body?.roleResource ?? [], globalRolesIds: body?.globalRolesIds ?? [], groupRoles: body?.groupRoles ?? [], policyRoles: body?.policyRoles ?? [] }, admin: body?.admin ?? false } : {}), ...(deactivates ? { warning: "deactivates user" } : command === "user resend-invite" ? { warning: "sends an invitation email" } : {}) };
+      const noChange = command === "user update" && !!body && !!current && typeof current === "object" && Object.entries(body).every(([key, value]) => isDeepStrictEqual((current as Record<string, unknown>)[key], value));
+      const preview = { current, ...(body ? { request: body } : {}), ...(file ? { file } : {}), ...(command === "user create" ? { roles: { roleResource: body?.roleResource ?? [], globalRolesIds: body?.globalRolesIds ?? [], groupRoles: body?.groupRoles ?? [], policyRoles: body?.policyRoles ?? [] }, admin: body?.admin ?? false } : {}), ...(deactivates ? { warning: create ? "creates an inactive user" : "deactivates user" } : noChange ? { warning: "no change: the request matches the current user" } : command === "user resend-invite" ? { warning: "sends an invitation email" } : {}) };
       // Digest the unredacted state so secret changes still invalidate confirmation.
       const digest = createHash("sha256").update(JSON.stringify(preview)).digest("hex");
-      return { path, method: route.method, body, preview, confirmation: `${operation} ${id ?? ""}${file ? ` sha256 ${file.sha256}` : ""} state ${digest}` };
+      return { path, method: route.method, body, preview, confirmation: `${[operation, id, file && `sha256 ${file.sha256}`, `state ${digest}`].filter(Boolean).join(" ")}` };
     },
   };
 }

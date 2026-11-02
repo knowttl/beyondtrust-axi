@@ -100,7 +100,9 @@ export function preparePolicyWrite(command: string, ids: string[], flags: Map<st
               : { applicationData: { applicationGroups: { edit: [{ id: appGroup, applications: { add: additions } }] } } };
       const preview = { ...(policy ? { policy } : {}), request: body, ...(upload ? { file: upload } : {}), ...(groups ? { groups } : {}), ...(revisions ? { revisions } : {}), ...(applicationGroups ? { applicationGroups } : {}), ...(command === "policy update" ? { diff: { before: { name: policy!.name, description: policy!.description }, after: body } } : {}) };
       const digest = createHash("sha256").update(JSON.stringify(preview)).digest("hex");
-      return { path, method: route.method, body, policyFile, preview, confirmation: `${operation} ${id ?? ""}${upload ? ` sha256 ${upload.sha256}` : ""} state ${digest}` };
+      // The full re-reads stay bound into the digest; app add shows only the target and the additions.
+      const shown = apps ? { policy: Object.fromEntries(["id", "name", "revision", "hasOpenDraft", "openDraftId"].filter((key) => policy && key in policy).map((key) => [key, (policy as Record<string, unknown>)[key]])), applicationGroup: { id: appGroup, name: (applicationGroups as { name?: unknown }[])[0]!.name }, request: body, file: upload } : preview;
+      return { path, method: route.method, body, policyFile, preview: shown, confirmation: `${[operation, id, upload && `sha256 ${upload.sha256}`, `state ${digest}`].filter(Boolean).join(" ")}` };
     },
   };
 }
