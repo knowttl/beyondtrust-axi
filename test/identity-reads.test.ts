@@ -114,15 +114,20 @@ test("scim list rejects itemsPerPage below the returned count and reports the fi
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
 });
 
-test.each(["scim user list", "scim role list"])("%s reports a mismatched startIndex", async (command) => {
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+])("%s reports a mismatched startIndex", async (command, resource) => {
   const f = fixture();
-  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([{ id }], 2, 2))));
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([resource], 2, 2))));
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["startIndex"]', received: "number", code: "custom" }] });
 });
 
-test.each(["scim user list", "scim role list", "scim schemas", "scim resource-types"])("%s reports a returned range beyond totalResults", async (command) => {
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+  ["scim schemas", { id: "example" }], ["scim resource-types", { name: "example" }],
+])("%s reports a returned range beyond totalResults", async (command, resource) => {
   const f = fixture();
-  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([{ id }], 1, 0))));
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([resource], 1, 0))));
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["totalResults"]', received: "number", code: "custom" }] });
 });
 
@@ -136,16 +141,18 @@ test.each([
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', code: "custom" }] });
 });
 
-test.each(["scim user list", "scim role list"])("%s reports itemsPerPage above the requested count", async (command) => {
+test.each([
+  ["scim user list", { id }], ["scim role list", { value: "example", enabled: true }],
+])("%s reports itemsPerPage above the requested count", async (command, resource) => {
   const f = fixture();
-  const body = { ...scim([{ id }]), itemsPerPage: 51 };
+  const body = { ...scim([resource]), itemsPerPage: 51 };
   const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
 });
 
 test.each(["scim schemas", "scim resource-types"])("%s reports Resources shrinking below a cursor offset", async (command) => {
   const f = fixture();
-  const first = await f.run([...command.split(" "), "--limit", "1"], {}, fakeCloud(response(token), response(scim([{ id: "first", name: "first" }, { id: "second", name: "second" }]))));
+  const first = await f.run([...command.split(" "), "--limit", "1"], {}, fakeCloud(response(token), response(scim([{ name: "first" }, { name: "second" }]))));
   const result = await f.run([...command.split(" "), "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(scim([]))));
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', received: "array", code: "custom" }] });
 });
