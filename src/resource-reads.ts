@@ -83,7 +83,7 @@ const eventColumns = ["time", "host", "user", "action", "code", "application", "
 // Row columns mirror what the runtime keeps from the documented response; undefined means the export documents none.
 function rowColumns(path: string, list: boolean, events: boolean, full: boolean): string[] | undefined {
   if (events && !full) return eventColumns;
-  const schema = Object.values(spec.paths[path]!.get!.responses["200"]?.content ?? {})[0]?.schema;
+  const schema = responseSchemaOf(path);
   const response = schema && resolved(schema);
   const row = !list ? response : response?.type === "array" ? response.items : response?.properties?.[events ? "events" : response?.properties?.Resources ? "Resources" : "data"]?.items;
   const properties = row && resolved(row).properties;

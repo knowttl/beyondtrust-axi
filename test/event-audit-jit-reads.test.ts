@@ -350,6 +350,27 @@ test("audit activity show reads the live single-object shape", async () => {
   expect(result.data.data).toMatchObject({ id: 8, userDataAuditing: { newEmailAddress: "user@example.com" } });
 });
 
+test("audit activity show --fields selects live single-object columns", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8", "--fields", "id,details"], {}, fakeCloud(response(token), response(liveAudit)));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual({ id: 8, details: "User user@example.com was created." });
+});
+
+test.each(["pageNumber", "pageSize", "totalRecordCount", "pageCount", "data"])("audit activity show --fields rejects envelope column %s", async (field) => {
+  const cloud = fakeCloud();
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8", "--fields", field], {}, cloud);
+  expect(result.code).toBe(2);
+  expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining(`Unknown field "${field}"; valid fields: id, details,`) });
+  expect(cloud.calls).toHaveLength(0);
+});
+
+test("audit activity show help advertises live row columns instead of envelope columns", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--help"]);
+  expect(result.code).toBe(0);
+  expect(result.data.fields).toEqual(expect.arrayContaining(["id", "details", "user", "userDataAuditing"]));
+  expect(result.data.fields).not.toEqual(expect.arrayContaining(["data"]));
+});
+
 test("audit activity show rejects the documented paged shape", async () => {
   const result = await fixture().run(["audit", "activity", "show", "--id", "8"], {}, fakeCloud(response(token), response(page([liveAudit]))));
   expect(result.code).toBe(1);
