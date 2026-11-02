@@ -138,12 +138,10 @@ test.each(["file", "symlink"])("never overwrites an existing %s", async (kind) =
   writeFileSync(target, "original");
   if (kind === "symlink") symlinkSync(target, f.out);
   else writeFileSync(f.out, "original");
-  const cloud = fakeCloud();
-  const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), raw(Buffer.from("new"))));
   expect(result.data).toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
   expect(readFileSync(target, "utf8")).toBe("original");
   expect(readFileSync(f.out, "utf8")).toBe("original");
-  expect(cloud.calls).toHaveLength(0);
 });
 
 test.each([50, 51])("enforces the 50 MiB streaming boundary at %i MiB", async (mib) => {
@@ -161,15 +159,36 @@ test.each([50, 51])("enforces the 50 MiB streaming boundary at %i MiB", async (m
   }
 });
 
-test.each([302, 403, 404, 409, 500])("leaves empty output on HTTP %i without leaking response text", async (status) => {
+test.each([302, 403, 404, 409, 500])("creates no output on HTTP %i and allows the same retry without leaking response text", async (status) => {
   const f = fixture();
-  const cloud = fakeCloud(response(token), response({ title: f.env.SYNTHETIC_SECRET }, status, { location: "https://example.pm.beyondtrustcloud.com/redirect" }));
-  const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
-  expect(result.code).toBe(1);
+  const failed = () => response({ title: f.env.SYNTHETIC_SECRET }, status, { location: "https://example.pm.beyondtrustcloud.com/redirect" });
+  const cloud = fakeCloud(response(token), failed(), failed());
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
+    expect(result.code).toBe(1);
+    expect(result.data).not.toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
+    expect(existsSync(f.out)).toBe(false);
+    expect(result.output).not.toContain("Partial download");
+    expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
+  }
+  expect(cloud.calls).toHaveLength(3);
+});
+
+test("creates no output when the stream fails before any byte arrives", async () => {
+  const f = fixture();
+  const stream: HttpResponse = { status: 200, headers: new Headers(), body: (async function* () { throw new Error(f.env.SYNTHETIC_SECRET); })() };
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), stream));
+  expect(result.data).toMatchObject({ error: { code: "TRANSPORT_ERROR" } });
+  expect(existsSync(f.out)).toBe(false);
+  expect(result.output).not.toContain("Partial download");
+});
+
+test("creates an empty output for an empty successful body", async () => {
+  const f = fixture();
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), raw()));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ path: f.out, size: 0 });
   expect(statSync(f.out).size).toBe(0);
-  expect(result.output).toContain(f.out);
-  expect(cloud.calls).toHaveLength(2);
-  expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
 test("truncates partially streamed output after transport failure", async () => {
