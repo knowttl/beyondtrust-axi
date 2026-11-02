@@ -10,6 +10,9 @@ afterEach(() => { vi.useRealTimers(); for (const f of fixtures.splice(0)) f.clea
 const page = (data: unknown[]) => ({ data, pageNumber: 1, pageSize: 50, totalRecordCount: data.length, pageCount: 1 });
 const event = { "@timestamp": since, host: { name: "example" }, user: { name: "example" }, event: { action: "allowed", code: "1" }, process: { name: "example", command_line: "synthetic-secret-sentinel" }, rule: { name: "example" } };
 const events = (rows: unknown[]) => ({ events: rows, totalRecordsReturned: rows.length });
+// Live GET /v3/Events/search returns a paged envelope, unlike GET /v3/Events/FromStartDate.
+const searchPage = (rows: unknown[], paging: Record<string, number> = {}) => ({ pageNumber: 1, pageSize: 50, pageCount: rows.length ? 1 : 0, totalRecordCount: rows.length, ...paging, events: rows });
+const eventBody = (action: string, rows: unknown[]) => action === "search" ? searchPage(rows) : events(rows);
 
 // Each fixture cites GET and its exact route in inventory/swagger.json.
 test.each([
@@ -23,7 +26,7 @@ test.each([
   ["auth-request list", "/v3/AuthorizationRequest", [], [{}], [{}]],
   ["auth-request show", "/v3/AuthorizationRequest/example%20%26%20system", ["--id", "example & system"], [{ notes: [] }], [{ notes: [] }]],
   ["event list", "/v3/Events/FromStartDate", ["--since", since, "--full"], events([event]), [{ ...event, process: { name: "example", command_line: "***redacted***" } }]],
-  ["event search", "/v3/Events/search", ["--since", since, "--until", until, "--os", "Windows"], events([event]), [{ time: since, host: "example", user: "example", action: "allowed", code: "1", application: "example", rule: "example" }]],
+  ["event search", "/v3/Events/search", ["--since", since, "--until", until, "--os", "Windows"], searchPage([event]), [{ time: since, host: "example", user: "example", action: "allowed", code: "1", application: "example", rule: "example" }]],
 ])("reads %s at %s", async (command, path, args, body, expected) => {
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
   const cloud = fakeCloud(response(token), response(body));
@@ -36,19 +39,55 @@ test.each([
 
 test("event search freezes the default 24 hour window across paged cursors", async () => {
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
-  const f = fixture(), cloud = fakeCloud(response(token), response(events([event])));
+  const f = fixture(), cloud = fakeCloud(response(token), response(searchPage([event], { pageSize: 1, pageCount: 2, totalRecordCount: 2 })));
   const first = await f.run(["event", "search", "--os", "Windows", "--limit", "1"], {}, cloud);
   expect(first.code).toBe(0);
   expect(cloud.calls[1]!.url.searchParams.get("TimePeriod.StartDate")).toBe(since);
   expect(cloud.calls[1]!.url.searchParams.get("TimePeriod.EndDate")).toBe(until);
-  expect(first.data).toMatchObject({ count: 1, total: null, cursor: expect.any(String) });
+  expect(first.data).toMatchObject({ count: 1, total: 2, cursor: expect.any(String) });
   vi.setSystemTime(new Date("2026-01-03T00:00:00Z"));
-  const next = fakeCloud(response(token), response(events([])));
+  const next = fakeCloud(response(token), response(searchPage([], { pageNumber: 2, pageSize: 1, pageCount: 2, totalRecordCount: 2 })));
   const result = await f.run(["event", "search", "--os", "Windows", "--cursor", String(first.data.cursor)], {}, next);
   expect(result.code).toBe(0);
   expect(next.calls[1]!.url.searchParams.get("Pagination.PageNumber")).toBe("2");
   expect(next.calls[1]!.url.searchParams.get("TimePeriod.EndDate")).toBe(until);
   expect(result.data).toMatchObject({ count: 0, cursor: null });
+});
+
+test("event search maps the live paged envelope and marks the 10000 cap as a lower bound", async () => {
+  const live = { "@timestamp": "2026-11-01T23:56:29+00:00", host: { name: "HOST-0001" }, user: { name: "jdoe" }, event: { code: "106", action: "process-start-no-change" } };
+  const result = await fixture().run(["event", "search", "--os", "Windows", "--limit", "1"], {}, fakeCloud(response(token), response(searchPage([live], { pageSize: 3, pageCount: 3334, totalRecordCount: 10000 }))));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ count: 1, total: 10000, cursor: expect.any(String) });
+  expect(result.data.data).toEqual([{ time: "2026-11-01T23:56:29+00:00", host: "HOST-0001", user: "jdoe", action: "process-start-no-change", code: "106", application: null, rule: null }]);
+  expect(result.data.help).toContain("total is capped at 10000 by the API and is a lower bound");
+});
+
+test("event search follows pageCount until the last page", async () => {
+  const cloud = fakeCloud(response(token), response(searchPage([event], { pageSize: 1, pageCount: 2, totalRecordCount: 2 })), response(searchPage([event], { pageNumber: 2, pageSize: 1, pageCount: 2, totalRecordCount: 2 })));
+  const result = await fixture().run(["event", "search", "--os", "Windows", "--limit", "2"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(cloud.calls[2]!.url.searchParams.get("Pagination.PageNumber")).toBe("2");
+  expect(result.data).toMatchObject({ count: 2, total: 2, cursor: null });
+});
+
+test("event search with no matches returns an empty page without a cursor", async () => {
+  const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(searchPage([]))));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ count: 0, total: 0, cursor: null });
+});
+
+test("event search rejects the FromStartDate response shape", async () => {
+  const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(events([event]))));
+  expect(result.code).toBe(1);
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID" });
+});
+
+test("event search sends --user-domain as Users.UserDomain", async () => {
+  const cloud = fakeCloud(response(token), response(searchPage([])));
+  const result = await fixture().run(["event", "search", "--os", "Windows", "--user-domain", "EXAMPLE"], {}, cloud);
+  expect(result.code).toBe(0);
+  expect(cloud.calls[1]!.url.searchParams.get("Users.UserDomain")).toBe("EXAMPLE");
 });
 
 test("auth-request list reads subsequent array pages without claiming an overall total", async () => {
@@ -126,7 +165,7 @@ test("event list resumes within the endpoint's bounded 1000 row response", async
 });
 
 test("event search sends literal filters and accepts an exact 31 day window", async () => {
-  const cloud = fakeCloud(response(token), response(events([])));
+  const cloud = fakeCloud(response(token), response(searchPage([])));
   const result = await fixture().run(["event", "search", "--since", since, "--until", "2026-02-01T00:00:00.000Z", "--os", "Windows", "--group", id, "--action", "allowed,blocked", "--host", "example & *", "--on-demand", "false"], {}, cloud);
   expect(result.code).toBe(0);
   expect(cloud.calls[1]!.url.searchParams.getAll("Events.EventAction")).toEqual(["allowed", "blocked"]);
@@ -141,7 +180,7 @@ test.each([
 ])("event %s redacts duplicate credentials in full URL representations", async (action, args) => {
   const url = { password: "synthetic-url+/password", full: "https://user:synthetic-url%2B%2Fpassword@example.test/", original: "https://user:synthetic-url+/password@example.test/" };
   const indicatorUrl = { password: "synthetic-indicator-password", full: "https://user:synthetic-indicator-password@example.test/", original: "https://user:synthetic-indicator-password@example.test/" };
-  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(events([
+  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(eventBody(action as string, [
     { url: { full: url.full } },
     { url, threat: { indicator: { url: indicatorUrl } } },
   ]))));
@@ -159,7 +198,7 @@ test.each([
   ["list", []],
   ["search", ["--os", "Windows"]],
 ])("event %s redacts compact copies before truncation using omitted credential fields", async (action, args) => {
-  const result = await fixture().run(["event", action as string, ...args as string[], "--limit", "2"], {}, fakeCloud(response(token), response(events([
+  const result = await fixture().run(["event", action as string, ...args as string[], "--limit", "2"], {}, fakeCloud(response(token), response(eventBody(action as string, [
     { process: { name: `${"x".repeat(490)}synthetic-compact-password` } },
     { threat: { indicator: { url: { password: "synthetic-compact-password" } } } },
   ]))));
@@ -174,7 +213,7 @@ test.each([
   ["list", []],
   ["search", ["--os", "Windows"]],
 ])("event %s discovers URL passwords without separate credential fields", async (action, args) => {
-  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(events([
+  const result = await fixture().run(["event", action as string, ...args as string[], "--full"], {}, fakeCloud(response(token), response(eventBody(action as string, [
     { process: { name: "synthetic-full-password synthetic-original+/password synthetic-threat-full-password synthetic-threat-original-password" } },
     { url: { full: "https://user:synthetic-full-password@example.test/" } },
     { url: { original: "https://user:synthetic-original%2b%2fpassword@example.test/" } },
@@ -203,7 +242,7 @@ test("event list discovers URL credentials beyond the selected rows before compa
 });
 
 test("event search redacts URL credential copies before compact truncation", async () => {
-  const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(events([
+  const result = await fixture().run(["event", "search", "--os", "Windows"], {}, fakeCloud(response(token), response(searchPage([
     { process: { name: `${"x".repeat(490)}synthetic-search-password` }, threat: { indicator: { url: { full: "https://user:synthetic-search-password@example.test/" } } } },
   ]))));
   expect(result.code).toBe(0);
@@ -249,7 +288,6 @@ test.each([
   ["event", "search"],
   ["event", "search", "--os", "Windows", "--group", "invalid"],
   ["event", "search", "--os", "Windows", "--on-demand", "yes"],
-  ["event", "search", "--os", "Windows", "--user-domain", "example"],
   ["audit", "activity", "show", "--id", id],
   ["audit", "activity", "show", "--id", "9223372036854775808"],
   ["admin-request", "show", "--id", "invalid"],

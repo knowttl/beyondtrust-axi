@@ -1855,13 +1855,14 @@ Read event search (GET /v3/Events/search).
 | --until | UTC end time (default: now) |
 | --group | ComputerGroups; arrays use comma-separated values |
 | --os | OperatingSystem (required); arrays use comma-separated values |
-| --action | Events EventAction; arrays use comma-separated values |
+| --action | Events EventAction; arrays use comma-separated values; the live API may return no rows for valid actions, so verify results |
 | --code | Events EventCode; arrays use comma-separated values |
 | --type | Events EventType; arrays use comma-separated values |
 | --app-type | Application ApplicationType; arrays use comma-separated values |
 | --host | Computers HostName; arrays use comma-separated values |
 | --domain | Computers HostDomain; arrays use comma-separated values |
 | --user | Users UserName; arrays use comma-separated values |
+| --user-domain | Users UserDomain; arrays use comma-separated values |
 | --workstyle | Policies WorkstyleName; arrays use comma-separated values |
 | --app-group | Policies ApplicationGroupName; arrays use comma-separated values |
 | --on-demand | Policies OnDemandRule; arrays use comma-separated values |
