@@ -177,6 +177,25 @@ test("event list resumes within the endpoint's bounded 1000 row response", async
   expect(next.calls[1]!.url.searchParams.get("StartDate")).toBe(since);
 });
 
+test.each([
+  ["list", [], "@timestamp", { "@timestamp": since }],
+  ["list", [], "host", { host: { name: "example" } }],
+  ["search", ["--os", "Windows"], "@timestamp", { "@timestamp": since }],
+  ["search", ["--os", "Windows"], "host", { host: { name: "example" } }],
+] as const)("event %s continuation preserves full %s columns", async (action, filters, field, expected) => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const f = fixture();
+  const args = ["event", action, ...filters, "--full", "--fields", field];
+  const rows = action === "list" ? [event, event] : [event];
+  const first = await f.run([...args, "--limit", "1"], {}, fakeCloud(response(token), response(events(rows))));
+  expect(first.code).toBe(0);
+  expect(first.data.data).toEqual([expected]);
+  expect((first.data.help as string[])[0]).toBe(`Run beyondtrust-axi event ${action}${action === "search" ? " --os 'Windows'" : ""} --full --fields '${field}' --cursor <cursor> to continue with the same profile`);
+  const next = await f.run([...args, "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(events(rows)), response(events([]))));
+  expect(next.code).toBe(0);
+  expect(next.data.data).toEqual([expected]);
+});
+
 test("event search sends literal filters and accepts an exact 31 day window", async () => {
   const cloud = fakeCloud(response(token), response(searchPage([])));
   const result = await fixture().run(["event", "search", "--since", since, "--until", "2026-02-01T00:00:00.000Z", "--os", "Windows", "--group", id, "--action", "allowed,blocked", "--host", "example & *", "--on-demand", "false"], {}, cloud);

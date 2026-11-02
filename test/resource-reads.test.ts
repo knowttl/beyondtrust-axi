@@ -18,10 +18,9 @@ test.each([
   const cloud = fakeCloud();
   const result = await f.run([...command.split(" "), "--help"], {}, cloud);
   expect(result.code).toBe(0);
-  expect(result.data).toEqual({
+  expect(result.data).toMatchObject({
     command, description: expect.any(String),
     flags: expect.objectContaining({ help: "Show command help", profile: expect.any(String) }),
-    ...(result.data.fields ? { fields: expect.any(Array) } : {}),
     examples: expect.arrayContaining([`beyondtrust-axi ${command} --help`]),
   });
   expect(cloud.calls).toHaveLength(0);

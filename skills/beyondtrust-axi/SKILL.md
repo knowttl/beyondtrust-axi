@@ -36,7 +36,7 @@ Preview computer delete; DELETE /v3/Computers; requires file-profile writes.allo
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send once after re-read and both exact confirmations |
@@ -80,7 +80,7 @@ Preview computer deactivate; POST /v3/Computers/Deactivate; requires file-profil
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send once after re-read and both exact confirmations |
@@ -792,7 +792,7 @@ Preview computer authorise; provide 1-20 explicit computer UUIDs or a non-empty 
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |
@@ -1105,7 +1105,7 @@ Preview group add-computers; POST /v3/Groups/{id}/AssignComputers; requires file
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |
@@ -1168,7 +1168,7 @@ Preview group remove-computers; POST /v3/Groups/UnassignComputers; requires file
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated output fields (default: all) |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |

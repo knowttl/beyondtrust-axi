@@ -329,8 +329,8 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (!more || data.length >= limit) break;
       }
       const next = more ? Buffer.from(JSON.stringify({ version: 1, binding, page, size, offset, ...(definition.events ? { since: cursor?.since, until: cursor?.until } : {}) })).toString("base64url") : null;
-      const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--full"].includes(flag))
-        .map(([flag, value]) => `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
+      const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit"].includes(flag))
+        .map(([flag, value]) => flag === "--full" ? flag : `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
       return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events", ...(command === "event search" ? ["Results are newest first by @timestamp", ...(total !== null && total >= 10000 ? ["total is capped at 10000 by the API and is a lower bound"] : [])] : ["The API reports returned counts, not a total"]), ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
     },
   };
