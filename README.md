@@ -146,6 +146,7 @@ Events default to time, host, user, action, code, application and rule columns; 
 Event total is null because totalRecordsReturned counts only the returned page; a full search page offers a cursor until an incomplete or empty page is read.
 Event list fetches at most 1000 records with RecordSize and applies row limits and cursor offsets locally; the endpoint has no server pagination or end-time parameter.
 Event list requires --since within the last 31 days; use event search for historical windows, explicit end times and server pagination.
+Event list --since is an ingestion time, so rows can have earlier event times; the returned set is sorted newest first by event time.
 Audit show IDs are decimal int64 identifiers; admin-request show takes a UUID and auth-request show takes an opaque system identifier via --id.
 Audit show endpoints return documented paged envelopes without request paging parameters, so their returned rows are bounded locally.
 Every list returns data, count, total and cursor, including audit show and auth-request show; object detail reads return data.
