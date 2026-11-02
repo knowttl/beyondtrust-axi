@@ -141,9 +141,13 @@ Use scim resource-types user or scim resource-types role for resource-type detai
 Use scim role list, scim user list and scim user show for SCIM roles and users.
 For server-supplied credential handling, see [Safety](#safety).
 Event search windows default to the last 24 hours and accept at most 31 days, using full UTC --since and --until timestamps.
-Event search requires --os as documented by the export, and supports group, action, code, type, application, host, domain, user and policy filters.
+Event search requires --os as documented by the export, and supports group, action, code, type, application, host, domain, user, user-domain and policy filters.
+Event search --action is not reliable on live tenants: valid actions can return no rows, so verify results.
+The live search route returns a paged envelope with pageNumber, pageSize, pageCount, totalRecordCount and events instead of the documented totalRecordsReturned model, so event search accepts only that envelope and rejects the documented shape.
+Search results are newest first by @timestamp, and --since and --until filter on ingestion time rather than @timestamp.
 Events default to time, host, user, action, code, application and rule columns; --full returns complete redacted ECS objects.
-Event total is null because totalRecordsReturned counts only the returned page; a full search page offers a cursor until an incomplete or empty page is read.
+Event list total is null because totalRecordsReturned counts only the returned page.
+Event search total is totalRecordCount, which the API caps at 10000, so a total of 10000 is a lower bound; a cursor is offered while pageCount has further pages.
 Event list fetches at most the first 1000 records ingested after --since with RecordSize and applies row limits and cursor offsets locally; the endpoint has no server pagination or end-time parameter.
 Event list requires a full UTC --since timestamp within the last 31 days, defaulting to 24 hours ago; use event search for historical windows, explicit end times and server pagination.
 Event list --since is an ingestion time, so rows can have earlier event times; the returned set is sorted newest first by event time.

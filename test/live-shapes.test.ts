@@ -21,7 +21,7 @@ const bodies: Record<string, unknown> = {
   "domain list": [row], "domain show": { id }, "api-account list": [row],
   "auth-provider show": { provider: "example" }, "scim resource-types": scim([{ name: "User" }]), "scim schemas": scim([{ id: "example" }]), "scim config": { patch: { supported: true } },
   "scim role list": scim([{}]), "scim user list": scim([{}]), "scim user show": {},
-  "event list": { events: [], totalRecordsReturned: 0 }, "event search": { events: [], totalRecordsReturned: 0 },
+  "event list": { events: [], totalRecordsReturned: 0 }, "event search": { events: [], pageNumber: 1, pageSize: 50, pageCount: 0, totalRecordCount: 0 },
   "audit activity list": page([{ id: 1, errorInfo: null }]),
   "audit activity show": { id: 1 }, "audit activity details": page([{ id: 1 }]),
   "audit auth-request list": page([]), "audit auth-request show": page([{ id: 1 }]),

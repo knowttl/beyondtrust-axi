@@ -54,6 +54,12 @@ const pagedResponseOverrides: Record<string, (schema: Schema) => Schema> = {
     totalRecordCount: { type: "integer", format: "int32" }, pageCount: { type: "integer", format: "int32" },
     data: { ...schema, nullable: true },
   } }),
+  // Live search returns a paged envelope, not the documented { totalRecordsReturned, events } model.
+  "/v3/Events/search": (schema) => ({ type: "object", additionalProperties: false, properties: {
+    pageNumber: { type: "integer", format: "int32" }, pageSize: { type: "integer", format: "int32" },
+    totalRecordCount: { type: "integer", format: "int32" }, pageCount: { type: "integer", format: "int32" },
+    events: { ...resolved(schema).properties!.events!, nullable: true },
+  } }),
 };
 // The live endpoint returns one object where the export declares a paged envelope (issue #40).
 const singleObjectResponses: Record<string, Schema> = { "/v3/ActivityAudits/{id}": { $ref: "#/components/schemas/ActivityAuditDetailModel" } };
@@ -74,7 +80,7 @@ function defaultResourceSort(path: string): string | undefined {
   return path in sortKeys ? "created:desc" : "created:asc";
 }
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
-const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
+const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", "user-domain": "Users.UserDomain", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
 export function resourceReadDefinition(command: string, path: string) {
   const operation = spec.paths[path]!.get!;
   const events = command.startsWith("event ");
@@ -97,7 +103,7 @@ export function resourceReadDefinition(command: string, path: string) {
       : "UTC start time (default: 24 hours before end; maximum window: 31 days)";
     if (command === "event search") {
       flags.until = "UTC end time (default: now)";
-      for (const [flag, name] of Object.entries(eventFilters)) flags[flag] = `${name.replaceAll(".", " ")}${flag === "os" ? " (required)" : ""}; arrays use comma-separated values`;
+      for (const [flag, name] of Object.entries(eventFilters)) flags[flag] = `${name.replaceAll(".", " ")}${flag === "os" ? " (required)" : ""}; arrays use comma-separated values${flag === "action" ? "; the live API may return no rows for valid actions, so verify results" : ""}`;
     }
     flags.full = "Show complete redacted ECS event objects instead of compact columns";
   }
@@ -241,7 +247,15 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           return { data: value };
         }
         let rows: unknown[];
-        if (definition.events) {
+        if (command === "event search") {
+          const p = z.object({ pageNumber: z.number().int().nonnegative(), pageSize: z.number().int().nonnegative(), pageCount: z.number().int().nonnegative(), totalRecordCount: z.number().int().nonnegative(), events: z.array(z.unknown()).nullable() }).safeParse(value);
+          if (!p.success) diagnostics?.validationFailed(p.error.issues);
+          if (!p.success || (p.data.events?.length ?? 0) > size) badResponse();
+          rows = p.data.events ?? [];
+          total = p.data.totalRecordCount;
+          more = page < p.data.pageCount;
+          if (more && !rows.length) badResponse();
+        } else if (definition.events) {
           const p = z.object({ totalRecordsReturned: z.number().int().nonnegative(), events: z.array(z.unknown()).nullable() }).safeParse(value);
           if (!p.success) diagnostics?.validationFailed(p.error.issues);
           if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse();
@@ -297,7 +311,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
       const next = more ? Buffer.from(JSON.stringify({ version: 1, binding, page, size, offset, ...(definition.events ? { since: cursor?.since, until: cursor?.until } : {}) })).toString("base64url") : null;
       const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--fields", "--full"].includes(flag))
         .map(([flag, value]) => `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
-      return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events; the API reports returned counts, not a total", ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
+      return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events", ...(command === "event search" ? ["Results are newest first by @timestamp", ...(total !== null && total >= 10000 ? ["total is capped at 10000 by the API and is a lower bound"] : [])] : ["The API reports returned counts, not a total"]), ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
     },
   };
 }
