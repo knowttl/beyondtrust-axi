@@ -194,7 +194,8 @@ Confirmation binds the count, filter fields and destination group; the server re
 Unfiltered all-computer selections are refused; reject, archive and unarchive accept only IDs, and logs/details request require exactly one ID.
 Explicit selections accept at most 20 distinct UUIDs; write preparation allows up to 26 total requests to accommodate 20 target re-reads, an optional group re-read, authentication and bounded read recovery, within the same 60 seconds and 8 MiB.
 Group writes require the exact group operation in the file profile and use the same preview, confirmation and durable intent gates.
-Group update previews the diff and preserves fields not supplied; clear-policy names the policy that endpoints lose.
+Group update previews the diff and preserves fields not supplied.
+Clear-policy names any assigned policy that endpoints lose and also accepts groups with no assigned policy.
 Add-computers and remove-computers also accept computer-list filters with counted, unbounded selections.
 Remove-computers changes only group membership; the computers remain and this operation does not require delete permission.
 Import-computers accepts a non-empty UTF-8 CSV file without NUL bytes up to 10 MiB, binds its SHA-256 into confirmation and sends its captured bytes as multipart csvFile; see the [file protection requirements](docs/configuration.md).
