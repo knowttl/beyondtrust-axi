@@ -114,6 +114,42 @@ test("scim list rejects itemsPerPage below the returned count and reports the fi
   expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
 });
 
+test.each(["scim user list", "scim role list"])("%s reports a mismatched startIndex", async (command) => {
+  const f = fixture();
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([{ id }], 2, 2))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["startIndex"]', received: "number", code: "custom" }] });
+});
+
+test.each(["scim user list", "scim role list", "scim schemas", "scim resource-types"])("%s reports a returned range beyond totalResults", async (command) => {
+  const f = fixture();
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(scim([{ id }], 1, 0))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["totalResults"]', received: "number", code: "custom" }] });
+});
+
+test.each([
+  ["scim user list", []], ["scim role list", []],
+  ["scim user list", null], ["scim role list", null],
+])("%s reports an empty Resources page (%j) before the end", async (command, Resources) => {
+  const f = fixture();
+  const body = { totalResults: 2, startIndex: 1, itemsPerPage: 50, Resources };
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', code: "custom" }] });
+});
+
+test.each(["scim user list", "scim role list"])("%s reports itemsPerPage above the requested count", async (command) => {
+  const f = fixture();
+  const body = { ...scim([{ id }]), itemsPerPage: 51 };
+  const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["itemsPerPage"]', received: "number", code: "custom" }] });
+});
+
+test.each(["scim schemas", "scim resource-types"])("%s reports Resources shrinking below a cursor offset", async (command) => {
+  const f = fixture();
+  const first = await f.run([...command.split(" "), "--limit", "1"], {}, fakeCloud(response(token), response(scim([{ id: "first", name: "first" }, { id: "second", name: "second" }]))));
+  const result = await f.run([...command.split(" "), "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(scim([]))));
+  expect(result.data.error).toMatchObject({ code: "API_RESPONSE_INVALID", issues: [{ path: '$["Resources"]', received: "array", code: "custom" }] });
+});
+
 test("SCIM discovery lists resume client-side offsets", async () => {
   const f = fixture();
   const body = scim([{ name: "User" }, { name: "Role" }]);

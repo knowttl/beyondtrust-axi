@@ -250,15 +250,17 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         } else if (definition.scimList) {
           const p = z.object({ totalResults: z.number().int().nonnegative(), startIndex: z.number().int().min(1), itemsPerPage: z.number().int().nonnegative(), Resources: z.array(z.unknown()).nullable() }).superRefine((envelope, ctx) => {
             // Live servers echo the requested count in itemsPerPage, so it bounds the page instead of equalling its length.
-            if (envelope.itemsPerPage < (envelope.Resources?.length ?? 0) || (definition.scimPaged && envelope.itemsPerPage > size)) ctx.addIssue({ code: "custom", path: ["itemsPerPage"], message: "itemsPerPage is outside the returned page bounds" });
+            const count = envelope.Resources?.length ?? 0;
+            if (envelope.itemsPerPage < count || (definition.scimPaged && envelope.itemsPerPage > size)) ctx.addIssue({ code: "custom", path: ["itemsPerPage"], message: "itemsPerPage is outside the returned page bounds" });
+            if (count > 0 && envelope.startIndex + count - 1 > envelope.totalResults) ctx.addIssue({ code: "custom", path: ["totalResults"], message: "Returned range exceeds totalResults" });
+            if (definition.scimPaged && envelope.startIndex !== page) ctx.addIssue({ code: "custom", path: ["startIndex"], message: "startIndex does not match the requested page" });
+            if ((definition.scimPaged && count === 0 && page - 1 < envelope.totalResults) || offset > count) ctx.addIssue({ code: "custom", path: ["Resources"], message: "Resources does not contain the expected rows" });
           }).safeParse(value);
           if (!p.success) diagnostics?.validationFailed(p.error.issues);
           if (!p.success) badResponse();
           rows = p.data.Resources ?? [];
-          if ((rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse();
           total = p.data.totalResults;
           more = definition.scimPaged && page + rows.length - 1 < total;
-          if (more && !rows.length) badResponse();
         } else {
           if (!Array.isArray(value)) badResponse();
           rows = value;
@@ -266,7 +268,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           total = definition.paged ? null : rows.length;
           more = definition.paged && rows.length === size;
         }
-        if (offset > rows.length) badResponse();
+        if (!definition.scimList && offset > rows.length) badResponse();
         const taken = rows.slice(offset, offset + limit - data.length);
         data.push(...taken.map((row) => {
           if (!definition.events || flags.has("--full")) return row;
