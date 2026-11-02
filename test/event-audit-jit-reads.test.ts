@@ -411,3 +411,10 @@ test("event list --fields selects compact columns", async () => {
   const result = await fixture().run(["event", "list", "--since", since, "--fields", "time,host"], {}, fakeCloud(response(token), response(events([event]))));
   expect(result.data.data).toEqual([{ time: since, host: "example" }]);
 });
+
+test("event search keeps the capped-total warning when --fields selects row columns", async () => {
+  const result = await fixture().run(["event", "search", "--os", "Windows", "--limit", "1", "--fields", "time"], {}, fakeCloud(response(token), response(searchPage([event], { pageSize: 1, pageCount: 10000, totalRecordCount: 10000 }))));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ data: [{ time: expect.any(String) }], total: 10000 });
+  expect(result.data.help).toContain("total is capped at 10000 by the API and is a lower bound");
+});
