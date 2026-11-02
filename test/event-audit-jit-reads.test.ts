@@ -63,6 +63,19 @@ test("event search maps the live paged envelope and marks the 10000 cap as a low
   expect(result.data.help).toContain("total is capped at 10000 by the API and is a lower bound");
 });
 
+test.each([
+  { label: "continuation hint", args: ["--group", Array(20).fill(id).join(",")], row: event },
+  { label: "compact event field", args: [], row: { ...event, host: { name: "x".repeat(501) } } },
+])("event search preserves the capped-total warning when truncating a $label", async ({ args, row }) => {
+  const result = await fixture().run(["event", "search", "--os", "Windows", "--limit", "1", ...args], {}, fakeCloud(response(token), response(searchPage([row], { pageSize: 1, pageCount: 10000, totalRecordCount: 10000 }))));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ count: 1, total: 10000, cursor: expect.any(String) });
+  expect(result.data.help).toEqual(expect.arrayContaining([
+    "total is capped at 10000 by the API and is a lower bound",
+    "Repeat the command with --full to see complete strings",
+  ]));
+});
+
 test("event search follows pageCount until the last page", async () => {
   const cloud = fakeCloud(response(token), response(searchPage([event], { pageSize: 1, pageCount: 2, totalRecordCount: 2 })), response(searchPage([event], { pageNumber: 2, pageSize: 1, pageCount: 2, totalRecordCount: 2 })));
   const result = await fixture().run(["event", "search", "--os", "Windows", "--limit", "2"], {}, cloud);
