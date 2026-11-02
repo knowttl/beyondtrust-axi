@@ -137,6 +137,8 @@ Filters map to the committed API parameters; run each command with --help for th
 Array filter values are comma-separated; date filters require matching dates and selection mode.
 For commands supporting --sort property:asc or property:desc, see the [command reference](docs/commands.md) for each default.
 SCIM user and role lists accept literal --filter expressions and translate bounded reads to startIndex/count pagination.
+SCIM list responses accept itemsPerPage greater than the returned Resources count, including partial final pages; user and role lists also require it not to exceed the requested count.
+SCIM user and role list continuation advances by returned rows and uses totalResults to determine whether more remain.
 Use scim resource-types user or scim resource-types role for resource-type detail; omit the type for the list.
 Use scim role list, scim user list and scim user show for SCIM roles and users.
 For server-supplied credential handling, see [Safety](#safety).
@@ -290,6 +292,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
 API and token response validation failures include structured diagnostics beside the stable error message.
+SCIM list envelope validation failures identify the relevant itemsPerPage, startIndex, totalResults or Resources field in an issues entry.
 See the [response diagnostics contract](docs/response-diagnostics.md) for HTTP metadata, sampled response shapes, issue-level received and expected types, key redaction and truncation limits.
 Use this evidence to investigate compatibility; it does not establish the cause of a live mismatch.
 
