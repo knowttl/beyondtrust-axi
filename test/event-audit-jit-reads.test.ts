@@ -186,12 +186,13 @@ test.each([
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
   const f = fixture();
   const args = ["event", action, ...filters, "--full", "--fields", field];
-  const rows = action === "list" ? [event, event] : [event];
-  const first = await f.run([...args, "--limit", "1"], {}, fakeCloud(response(token), response(events(rows))));
+  const firstPage = action === "list" ? events([event, event]) : searchPage([event], { pageSize: 1, pageCount: 2, totalRecordCount: 2 });
+  const first = await f.run([...args, "--limit", "1"], {}, fakeCloud(response(token), response(firstPage)));
   expect(first.code).toBe(0);
   expect(first.data.data).toEqual([expected]);
   expect((first.data.help as string[])[0]).toBe(`Run beyondtrust-axi event ${action}${action === "search" ? " --os 'Windows'" : ""} --full --fields '${field}' --cursor <cursor> to continue with the same profile`);
-  const next = await f.run([...args, "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(events(rows)), response(events([]))));
+  const nextPage = action === "list" ? events([event, event]) : searchPage([event], { pageNumber: 2, pageSize: 1, pageCount: 2, totalRecordCount: 2 });
+  const next = await f.run([...args, "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(nextPage)));
   expect(next.code).toBe(0);
   expect(next.data.data).toEqual([expected]);
 });
