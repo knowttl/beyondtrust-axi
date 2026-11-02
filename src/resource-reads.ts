@@ -151,7 +151,7 @@ export function withoutCredentials(value: unknown, redactor: SecretRedactor): un
 const cursorSchema = z.strictObject({ version: z.literal(1), binding: z.string(), page: z.number().int().min(1).max(2147483647), size: z.number().int().min(1).max(200), offset: z.number().int().nonnegative().max(2147483647), since: z.string().optional(), until: z.string().optional() });
 
 // Validation runs before credential resolution; cursors carry positions, a context digest and frozen event windows.
-export function prepareResourceRead(command: string, flags: Map<string, string>, definition?: ReturnType<typeof resourceReadDefinition>, type?: "user" | "role") {
+export function prepareResourceRead(command: string, flags: Map<string, string>, definition?: ReturnType<typeof resourceReadDefinition>, type?: "user" | "role", usage: (message: string) => never = invalid) {
   if (!definition) return undefined;
   const selectedPath = type && definition.variants ? definition.variants[type] : definition.path;
   const list = definition.list && !type;
@@ -170,7 +170,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   if (requested !== undefined && requested !== "all") {
     const names = requested.split(",");
     const unknown = columns && names.find((name) => !columns.includes(name));
-    if (unknown !== undefined) invalid(`Unknown field "${unknown}"; valid fields: ${columns!.join(", ")}`);
+    if (unknown !== undefined) usage(`Unknown field "${unknown}"; valid fields: ${columns!.join(", ")}`);
     selected = new Set(names);
   }
   const project = (row: unknown) => selected && row && typeof row === "object" ? Object.fromEntries(Object.entries(row).filter(([key]) => selected.has(key))) : row;

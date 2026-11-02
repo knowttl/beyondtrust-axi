@@ -76,7 +76,7 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   }
   if (flags.has("--help")) return { command: name, ...entry };
   const download = downloadTemplate ? prepareDownload(downloadTemplate, downloadId, flags.get("--out")) : undefined;
-  const resourceRead = prepareResourceRead(name, flags, definition, type);
+  const resourceRead = prepareResourceRead(name, flags, definition, type, usage);
   const write = prepareDelete(name, writeIds, flags) ?? prepareComputerWrite(name, writeIds, flags) ?? prepareGroupWrite(name, writeIds, flags) ?? preparePolicyWrite(name, writeIds, flags) ?? prepareIdentityWrite(name, writeIds, flags, store.redactor) ?? prepareJitWrite(name, writeIds, flags, store.redactor);
   const available = name === "setup hooks" ? ["integrations", "help"] : name === "auth status" ? ["profile", "source", "host", "origin", "clientSecret", "readOnly"]
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]

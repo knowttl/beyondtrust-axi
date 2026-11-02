@@ -232,6 +232,7 @@ test("an unknown --fields column is named with the valid columns before any netw
   const result = await f.run(["computer", "list", "--fields", "hostname"], {}, cloud);
   expect(result.code).toBe(2);
   expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR", message: expect.stringMatching(/^Unknown field "hostname"; valid fields: id, .*\bhost\b.*\bgroupName\b/) } });
+  expect(result.data.help).toEqual([expect.stringMatching(/^Valid flags for computer list: --config, .*--fields.*; run beyondtrust-axi computer list --help$/)]);
   expect(cloud.calls).toHaveLength(0);
 });
 
