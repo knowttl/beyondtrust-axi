@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.7](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.6...v0.1.7) (2026-11-02)
+
+
+### Bug Fixes
+
+* accept partial SCIM list pages with echoed itemsPerPage ([#63](https://github.com/knowttl/beyondtrust-axi/issues/63)) ([ee40b9d](https://github.com/knowttl/beyondtrust-axi/commit/ee40b9d7ae018de3de0ed349be4610ff26acb840))
+* avoid empty output files when downloads fail before streaming ([#51](https://github.com/knowttl/beyondtrust-axi/issues/51)) ([4c0809a](https://github.com/knowttl/beyondtrust-axi/commit/4c0809a444cbd48c577d4b64ef0785a73b095931))
+* correct audit activity reads and error guidance ([#52](https://github.com/knowttl/beyondtrust-axi/issues/52)) ([0795b26](https://github.com/knowttl/beyondtrust-axi/commit/0795b26194ec1eb47fd235340438f9596ff643a1))
+* correct write previews and confirmation formatting ([#57](https://github.com/knowttl/beyondtrust-axi/issues/57)) ([01cd160](https://github.com/knowttl/beyondtrust-axi/commit/01cd1609c5c3a4ba0ebb8c126576e6801ed3fad1))
+* handle live event search pagination envelopes ([#60](https://github.com/knowttl/beyondtrust-axi/issues/60)) ([835f89d](https://github.com/knowttl/beyondtrust-axi/commit/835f89db42b1f74b58e2ca76dbd4c1d49f4798a6))
+* provide actionable API error messages and recovery guidance ([#62](https://github.com/knowttl/beyondtrust-axi/issues/62)) ([b86a3e7](https://github.com/knowttl/beyondtrust-axi/commit/b86a3e766cbfe24ea2cf4dd06be2d90dce8cc154))
+* select row columns with --fields and focus usage errors ([#61](https://github.com/knowttl/beyondtrust-axi/issues/61)) ([375f8a7](https://github.com/knowttl/beyondtrust-axi/commit/375f8a7d291470428c18e68f0303462bd229c182))
+* sort event list results and correct timestamp guidance ([#50](https://github.com/knowttl/beyondtrust-axi/issues/50)) ([fb22166](https://github.com/knowttl/beyondtrust-axi/commit/fb22166d5d4cc31cf030cf61ce295b162a116eb5))
+* validate group clear-policy against live response fields ([#56](https://github.com/knowttl/beyondtrust-axi/issues/56)) ([ad9cb98](https://github.com/knowttl/beyondtrust-axi/commit/ad9cb98922befd2b65fd14a665853ad62182c841))
+
 ## [0.1.6](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.5...v0.1.6) (2026-10-31)
 
 
