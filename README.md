@@ -211,12 +211,15 @@ Auto-assign requires a revision belonging to the policy and binds its revision a
 App add requires --os windows|macos, --app-group and --file containing a non-empty UTF-8 JSON array of application payloads using the committed export's lowercase field names, for example `[{"type":"exe","description":"example","fileName":{"matchType":"Exact","value":"<executable-name>"}}]` for Windows.
 Application types and matcher schemas are validated locally; unsupported Windows matchers and any unknown fields or delete payloads are refused.
 The app request wraps these additions in the documented applicationData envelope for the selected group, and binds the file digest, policy and application-group re-reads into confirmation.
+App-add previews show only the policy identity and available revision/draft metadata, the target application group's ID and name, the additions request and file size/digest, not the full policy or application-group re-reads.
 No mutation is retried or reauthenticated, including 401 or 429 responses.
 Identity writes use the same gates and positional target UUIDs; creation reads the corresponding collection before preview or send.
 User and SCIM payloads come from secure UTF-8 JSON files up to 10 MiB and must match the committed request schemas, including their lowercase property names.
 For example, user assign-roles accepts `{"globalRolesIds":["<role-uuid>"]}` and scim user patch accepts `{"operations":[{"op":"replace","path":"active","value":[{"valueBoolean":false}]}]}`.
 File digests and re-read state are bound into confirmation; SCIM passwords are redacted from previews, results and durable intent.
-User create previews the roles and admin flag; resend-invite warns that it sends email, and SCIM deactivation warns that it deactivates the user.
+User create previews the roles and admin flag; resend-invite warns that it sends email.
+User update warns when every supplied field matches the current user; this warning does not skip an explicitly confirmed send.
+SCIM create with active false warns that it creates an inactive user; replace and patch requests that set active false retain the deactivation warning.
 The operation for user preferences set is `user.preferences`; other identity operation names replace command spaces with dots.
 JIT and integration writes use exact operations `admin-request.create`, `admin-request.decide`, `auth-request.notify` and `app-switcher.connect`.
 Admin-request create requires --computer and --user, with only optional --decision approve paired with --by; creation-time denial is not supported.
@@ -256,6 +259,7 @@ The [credential schema](axi-credential.schema.json) describes host, clientId, cl
 ## Output and exit codes
 
 All data, errors and next-step hints use TOON on stdout.
+Write previews omit send-only fields such as auditId and result rather than displaying them as null.
 Strings truncate at 500 characters by default except for write previews, confirmations and results, and [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 

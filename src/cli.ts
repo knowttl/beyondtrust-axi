@@ -168,7 +168,8 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
     return value;
   };
-  const projected = Object.fromEntries(fields.map((field) => [field, download || write ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
+  // Previews omit fields that only exist after a send (auditId, result).
+  const projected = Object.fromEntries(fields.filter((field) => !(write && result.status === "preview" && result[field] === undefined)).map((field) => [field, download || write ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
   if (truncated) projected.help = ["Repeat the command with --full to see complete strings"];
   return projected;
 }

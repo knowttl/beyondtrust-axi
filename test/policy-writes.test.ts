@@ -201,3 +201,16 @@ test("auto-assign refuses a revision from another policy", async () => {
   expect((await f.run(["policy", "auto-assign", id, "--revision", revisionId], {}, cloud)).data).toMatchObject({ error: { code: "VALIDATION_ERROR" } });
   expect(existsSync(f.journal)).toBe(false);
 });
+
+test("policy app add preview omits the full policy re-read but its confirmation still binds it", async () => {
+  const f = fixture("app add");
+  writeFileSync(f.file, JSON.stringify([{ type: "exe", description: "example addition" }]));
+  const args = ["policy", "app", "add", id, "--os", "windows", "--app-group", groupId, "--file", f.file];
+  const withDrafts = (draft: string) => response({ id, name: "example", description: "example description", revision: 1, hasOpenDraft: true, drafts: [1, 2, 3].map((n) => ({ id: `draft-${n}`, note: n === 3 ? draft : "same" })) });
+  const preview = await f.run(args, {}, fakeCloud(response(token), withDrafts("first"), applications()));
+  expect(preview.output).not.toContain("draft-1");
+  expect(preview.output).toContain("example addition");
+  expect(preview.data.preview).toMatchObject({ policy: { id, name: "example", revision: 1, hasOpenDraft: true }, applicationGroup: { id: groupId, name: "example" } });
+  const changed = await f.run(args, {}, fakeCloud(response(token), withDrafts("second"), applications()));
+  expect(changed.data.confirmation).not.toBe(preview.data.confirmation);
+});

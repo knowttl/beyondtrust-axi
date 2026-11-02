@@ -125,3 +125,32 @@ test("redacts SCIM passwords from preview, result and durable intent", async () 
   expect(preview.output + sent.output).not.toContain("example-prior-password");
   expect(sent.output).not.toContain("example-returned-password");
 });
+
+test.each([
+  ["user create", { emailAddress: "example@example.com" }, { totalRecordCount: 0, data: [] }],
+  ["domain create", undefined, []],
+  ["scim user create", { userName: "example" }, { totalResults: 0, Resources: [] }],
+])("%s confirmation has single spaces", async (command, body, read) => {
+  const f = fixture(command.replaceAll(" ", "."));
+  if (body) writeFileSync(f.file, JSON.stringify(body), { mode: 0o600 });
+  const preview = await f.run([...command.split(" "), ...(body ? ["--file", f.file] : ["example.com"])], {}, fakeCloud(response(token), response(read)));
+  expect(preview.data.confirmation).toMatch(/^[a-z.]+ (sha256 [0-9a-f]{64} )?state [0-9a-f]{64}$/);
+});
+
+test("user update with the current values warns that nothing changes", async () => {
+  const f = fixture("user.update");
+  writeFileSync(f.file, '{"language":"en"}', { mode: 0o600 });
+  const preview = await f.run(["user", "update", id, "--file", f.file], {}, fakeCloud(response(token), response({ id, language: "en" })));
+  expect(preview.data.preview).toMatchObject({ warning: "no change: the request matches the current user" });
+});
+
+test.each([
+  ["scim user create", [], { userName: "example", active: false }, { totalResults: 0, Resources: [] }, "creates an inactive user"],
+  ["scim user replace", [id], { userName: "example", active: false }, { id, active: true }, "deactivates user"],
+  ["scim user patch", [id], { operations: [{ op: "replace", path: "active", value: [{ valueBoolean: false }] }] }, { id, active: true }, "deactivates user"],
+] as const)("%s with active false warns %s", async (command, ids, body, read, warning) => {
+  const f = fixture(command.replaceAll(" ", "."));
+  writeFileSync(f.file, JSON.stringify(body), { mode: 0o600 });
+  const preview = await f.run([...command.split(" "), ...ids, "--file", f.file], {}, fakeCloud(response(token), response(read)));
+  expect(preview.data.preview).toMatchObject({ warning });
+});
