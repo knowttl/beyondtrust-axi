@@ -2,12 +2,15 @@
 
 The [command reference](commands.md) lists the flags for computer log download, policy download, policy revision download, and api-definition download.
 For permission gates, content limits and output fields, see [Safety](../README.md#safety).
+The destination is created only after the first response chunk arrives, or after a successful empty response body completes.
+Authentication and HTTP failures, or a stream failure before the first chunk, create no destination file, so the same --out path can be retried.
+A successful empty body creates an empty file.
 Downloads stream through the originally created private file handle without reopening the destination by pathname.
 Success metadata bypasses the usual string preview limit, so the resolved absolute path remains complete without --full, with secret-derived strings redacted.
 
 On Windows, downloads require Windows PowerShell and its .NET Framework FileStream support for creation with a FileSecurity descriptor.
 The file is created exclusively with a protected DACL granting FullControl only to the current user, SYSTEM and Administrators, with no inherited entries.
-That DACL and ownership are verified through the same open handle before authentication or download requests; the handle denies sharing until closed.
+That DACL and ownership are verified through the same open handle before writing response bytes; the handle denies sharing until closed.
 The offline tests in [test/downloads.test.ts](../test/downloads.test.ts) exercise the Windows creation, ACL and sharing behavior only when run on Windows.
 A run on another platform does not verify this Windows mechanism; long-path metadata and injected filesystem-failure tests are skipped on Windows.
 
