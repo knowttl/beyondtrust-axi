@@ -24,15 +24,17 @@ export function prepareDownload(template: string, id: string | undefined, out: s
       // The destination is created only once the first chunk (or the end of an empty body) has arrived,
       // so API errors and streams that fail before any byte leave nothing behind to block a retry.
       const chunks = body[Symbol.asyncIterator]();
-      const first = await chunks.next();
-      await newPrivateFile(path, async (file) => {
-        for (let next = first; !next.done; next = await chunks.next()) {
-          try { await file.writeFile(next.value); }
-          catch { throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]); }
-          hash.update(next.value);
-          size += next.value.byteLength;
-        }
-      });
+      try {
+        const first = await chunks.next();
+        await newPrivateFile(path, async (file) => {
+          for (let next = first; !next.done; next = await chunks.next()) {
+            try { await file.writeFile(next.value); }
+            catch { throw new AxiError("Download file could not be completed", "DOWNLOAD_FILE_ERROR", ["Check destination permissions and free space"]); }
+            hash.update(next.value);
+            size += next.value.byteLength;
+          }
+        });
+      } finally { await chunks.return?.(); }
     });
     return { path, size, sha256: hash.digest("hex"), contentType };
   };
