@@ -188,7 +188,7 @@ Resource read 429 retries at most twice, honoring valid Retry-After delays up to
 Token exchanges are not retried.
 Non-success HTTP responses use status and headers for stable error codes.
 HTTP 400 responses and token endpoint 401 responses read JSON error bodies up to a separate 1 MiB per-response cap and two seconds; unreadable, invalid or oversized bodies retain status-based errors.
-Resource 400 responses may append a redacted API message limited to 300 characters.
+For resource error messages and recovery guidance, see [Troubleshooting](#troubleshooting).
 Other non-success responses are handled from status and headers without waiting for or parsing their bodies.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
