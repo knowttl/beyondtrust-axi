@@ -150,3 +150,26 @@ test("enforces elapsed time before another request", async () => {
 test("transport errors never expose dependency messages", async () => {
   await expect(client({ request: async () => { throw new Error(credentials.clientSecret); } }).get("/v3/About")).rejects.toMatchObject({ code: "TRANSPORT_ERROR", message: "HTTPS request failed" });
 });
+
+const id = "22222222-2222-4222-8222-222222222222";
+
+test.each([[400], [401]])("a token %i with error invalid_client reports the client credentials", async (status) => {
+  await expect(client(fakeCloud(response({ error: "invalid_client" }, status))).get("/v3/About")).rejects.toMatchObject({ code: "AUTH_FAILED", suggestions: [expect.stringContaining("clientSecret")] });
+});
+
+test("a 401 after a successful token exchange and refresh names the missing API access", async () => {
+  const cloud = fakeCloud(response(token), response({}, 401), response(token), response({}, 401));
+  await expect(client(cloud).get("/scim/v3/users")).rejects.toMatchObject({ code: "AUTH_FAILED", message: expect.stringContaining("SCIM API"), suggestions: [expect.not.stringContaining("doctor")] });
+});
+
+test("a 400 includes the API reason, redacted and capped", async () => {
+  await expect(client(fakeCloud(response(token), response({ message: "id is not correct sorting field", exceptionType: null, stackTrace: null }, 400))).get("/v3/ActivityAudits")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: expect.stringContaining("id is not correct sorting field"), suggestions: [expect.not.stringContaining("doctor")] });
+  const secret = await client(fakeCloud(response(token), response({ title: `bad ${credentials.clientSecret} ${"x".repeat(1000)}` }, 400))).get("/v3/ActivityAudits").then(() => "", (caught: Error) => caught.message);
+  expect(secret).not.toContain(credentials.clientSecret);
+  expect(secret).toContain("***redacted***");
+  expect(secret.length).toBeLessThan(400);
+});
+
+test.each([["/v3/Computers/", "Computer"], ["/v3/Groups/", "Group"]])("a 404 names the requested %s ID", async (prefix, kind) => {
+  await expect(client(fakeCloud(response(token), response({}, 404))).get(`${prefix}${id}`)).rejects.toMatchObject({ code: "NOT_FOUND", message: `${kind} ${id} was not found` });
+});

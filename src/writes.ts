@@ -14,7 +14,7 @@ export class UnknownWriteOutcome extends AxiError {
 
 export function requireWritePermission(profile: SelectedProfile, forcedReadOnly: boolean, operation: string): void {
   if (forcedReadOnly || profile.source === "env-profile" || !profile.writes.allowWrites || !profile.writes.operations.includes(operation)) {
-    throw new AxiError("Write operation is disabled for this profile", "WRITES_DISABLED", ["Use a named file profile with writes.allowWrites and the exact operation enabled; forced read-only takes precedence"]);
+    throw new AxiError("Write operation is disabled for this profile", "WRITES_DISABLED", [`Use a named file profile with writes.allowWrites and add "${operation}" to writes.operations; forced read-only takes precedence`]);
   }
 }
 
