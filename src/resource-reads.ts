@@ -248,11 +248,14 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           more = page < p.data.pageCount;
           if (more && !rows.length) badResponse();
         } else if (definition.scimList) {
-          const p = z.object({ totalResults: z.number().int().nonnegative(), startIndex: z.number().int().min(1), itemsPerPage: z.number().int().nonnegative(), Resources: z.array(z.unknown()).nullable() }).safeParse(value);
+          const p = z.object({ totalResults: z.number().int().nonnegative(), startIndex: z.number().int().min(1), itemsPerPage: z.number().int().nonnegative(), Resources: z.array(z.unknown()).nullable() }).superRefine((envelope, ctx) => {
+            // Live servers echo the requested count in itemsPerPage, so it bounds the page instead of equalling its length.
+            if (envelope.itemsPerPage < (envelope.Resources?.length ?? 0) || (definition.scimPaged && envelope.itemsPerPage > size)) ctx.addIssue({ code: "custom", path: ["itemsPerPage"], message: "itemsPerPage is outside the returned page bounds" });
+          }).safeParse(value);
           if (!p.success) diagnostics?.validationFailed(p.error.issues);
           if (!p.success) badResponse();
           rows = p.data.Resources ?? [];
-          if (p.data.itemsPerPage !== rows.length || (rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse();
+          if ((rows.length > 0 && p.data.startIndex + rows.length - 1 > p.data.totalResults) || (definition.scimPaged && (p.data.startIndex !== page || rows.length > size))) badResponse();
           total = p.data.totalResults;
           more = definition.scimPaged && page + rows.length - 1 < total;
           if (more && !rows.length) badResponse();
