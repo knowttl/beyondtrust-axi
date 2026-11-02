@@ -1818,7 +1818,7 @@ npx -y @knowttl/beyondtrust-axi scim user show --help
 
 ## event list
 
-Read event list (GET /v3/Events/FromStartDate).
+Read event list ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times (GET /v3/Events/FromStartDate).
 
 | Flag | Meaning |
 |---|---|
@@ -1830,7 +1830,7 @@ Read event list (GET /v3/Events/FromStartDate).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --since | UTC start time (default: 24 hours before end; maximum window: 31 days) |
+| --since | UTC ingestion-time start, e.g. 2026-10-30T00:00:00Z (default: 24 hours ago; at most 31 days ago); only the first 1000 events ingested after it are returned |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi event list

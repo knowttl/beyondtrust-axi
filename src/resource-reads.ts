@@ -82,7 +82,9 @@ export function resourceReadDefinition(command: string, path: string) {
   if (list) Object.assign(flags, { limit: "Maximum rows, 1-1000 (default: 50)", all: "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB", cursor: "Resume an opaque cursor with the same profile, command and filters" });
   if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. name:asc (default: ${defaultResourceSort(path) ?? "API order"})`;
   if (events) {
-    flags.since = "UTC start time (default: 24 hours before end; maximum window: 31 days)";
+    flags.since = command === "event list"
+      ? "UTC ingestion-time start, e.g. 2026-10-30T00:00:00Z (default: 24 hours ago; at most 31 days ago); only the first 1000 events ingested after it are returned"
+      : "UTC start time (default: 24 hours before end; maximum window: 31 days)";
     if (command === "event search") {
       flags.until = "UTC end time (default: now)";
       for (const [flag, name] of Object.entries(eventFilters)) flags[flag] = `${name.replaceAll(".", " ")}${flag === "os" ? " (required)" : ""}; arrays use comma-separated values`;
@@ -92,7 +94,7 @@ export function resourceReadDefinition(command: string, path: string) {
   if (scimPaged) flags.filter = "SCIM filter expression (sent literally)";
   const variants = command === "scim resource-types" ? { user: `${path}/User`, role: `${path}/Role` } : undefined;
   for (const p of filters) flags[filterFlag(p.name)] = `Filter ${p.name.slice(7).replaceAll(".", " ")} (${resolved(p.schema).enum?.join("|") ?? resolved(p.schema).type}${resolved(p.schema).type === "array" ? "; comma-separated" : ""})`;
-  return { path, variants, paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
+  return { path, variants, paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${command === "event list" ? " ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times" : ""}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
 }
 
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
@@ -171,8 +173,10 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
     const until = flags.get("--until") ?? cursor?.until ?? new Date().toISOString();
     if (!timestamp(until)) invalid("Event windows require UTC timestamps");
     const since = flags.get("--since") ?? cursor?.since ?? new Date(Date.parse(until) - 86400000).toISOString();
-    if (!timestamp(since) || !timestamp(until) || Date.parse(since) >= Date.parse(until) || Date.parse(until) - Date.parse(since) > 31 * 86400000) invalid("Event windows require UTC --since before --until and at most 31 days");
-    if (command === "event list" && (Date.parse(since) >= Date.now() || Date.now() - Date.parse(since) > 31 * 86400000)) invalid("event list requires --since within the last 31 days; use event search for historical windows");
+    if (command === "event list") {
+      if (!timestamp(since)) invalid("event list requires --since as a full UTC timestamp such as 2026-10-30T00:00:00Z");
+      if (Date.parse(since) >= Date.now() || Date.now() - Date.parse(since) > 31 * 86400000) invalid("event list requires --since within the last 31 days; use event search for historical windows");
+    } else if (!timestamp(since) || !timestamp(until) || Date.parse(since) >= Date.parse(until) || Date.parse(until) - Date.parse(since) > 31 * 86400000) invalid("Event windows require full UTC timestamps such as 2026-10-30T00:00:00Z, --since before --until and at most 31 days");
     query.set(command === "event list" ? "StartDate" : "TimePeriod.StartDate", since);
     if (command === "event search") {
       query.set("TimePeriod.EndDate", until);
@@ -222,6 +226,11 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
           if (!p.success) diagnostics?.validationFailed(p.error.issues);
           if (!p.success || p.data.totalRecordsReturned !== (p.data.events?.length ?? 0)) badResponse();
           rows = p.data.events ?? [];
+          if (command === "event list") {
+            // Sorted before slicing so cursor offsets address the sorted set; unparseable times sort last.
+            const time = (row: unknown) => { const t = Date.parse((row as { "@timestamp"?: string } | null)?.["@timestamp"] ?? ""); return Number.isNaN(t) ? Number.MIN_SAFE_INTEGER : t; };
+            rows = rows.map((row) => ({ row, time: time(row) })).sort((a, b) => b.time - a.time).map(({ row }) => row);
+          }
           if (rows.length > (definition.paged ? size : 1000)) badResponse();
           total = null;
           more = definition.paged && rows.length === size;

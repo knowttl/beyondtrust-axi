@@ -92,6 +92,27 @@ test.each([
   expect(cloud.calls[1]!.url.pathname).toBe(`/management-api/v3/AuthorizationRequest/${segment}`);
 });
 
+test("event list sorts the returned events newest first before applying limits", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const at = (time: string) => ({ ...event, "@timestamp": time });
+  const [t1, t2, t3] = ["2026-01-01T01:00:00.000Z", "2026-01-01T02:00:00.000Z", "2026-01-01T03:00:00.000Z"];
+  const cloud = fakeCloud(response(token), response(events([at(t2), at(t1), at(t3)])));
+  const result = await fixture().run(["event", "list", "--since", since], {}, cloud);
+  expect((result.data.data as { time: string }[]).map((row) => row.time)).toEqual([t3, t2, t1]);
+});
+
+test.each([
+  ["a date-only --since", ["--since", "2026-01-01"], "2026-10-30T00:00:00Z"],
+  ["a --since in the future", ["--since", "2026-01-03T00:00:00Z"], "event search"],
+])("event list rejects %s without mentioning --until", async (_name, args, hint) => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const result = await fixture().run(["event", "list", ...args], {}, fakeCloud(response(token)));
+  const { message } = (result.data as { error: { message: string } }).error;
+  expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR" });
+  expect(message).toContain(hint);
+  expect(message).not.toContain("--until");
+});
+
 test("event list resumes within the endpoint's bounded 1000 row response", async () => {
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
   const f = fixture(), cloud = fakeCloud(response(token), response(events([event, event])));

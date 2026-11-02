@@ -15,7 +15,8 @@ On token 404, doctor reports AUTH_ENDPOINT_NOT_FOUND and hints the documented -s
 For the implemented read budgets, token renewal and retry behavior, see [Safety](../README.md#safety).
 For implemented write gates and retry protections, see [Safety](../README.md#safety).
 Default lists return 50 rows; --all caps at 1000 rows, 10 requests, 60 seconds and 8 MiB with bound opaque cursors.
-Paged requests cap page size at 200; event windows default to 24 hours and cap at 31 days.
+Paged requests cap page size at 200.
+For event ingestion-time and search-window semantics, see [What it covers](../README.md#what-it-covers).
 Writes require forced-read-only precedence, allowWrites, exact operation permission, validation and re-read, preview, --execute with exact --confirm, then durable redacted intent before one send.
 Deletes also require file-profile writes.allowDeletes and exact --confirm-delete.
 Explicit IDs cap at 20; bulk filters have no maximum, count matches with GET /v3/Computers, preview count and first 20 hosts, and bind count into confirmation.
