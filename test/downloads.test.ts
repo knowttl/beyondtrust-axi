@@ -138,12 +138,16 @@ test.each(["file", "symlink"])("never overwrites an existing %s", async (kind) =
   writeFileSync(target, "original");
   if (kind === "symlink") symlinkSync(target, f.out);
   else writeFileSync(f.out, "original");
-  const cloud = fakeCloud();
-  const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
+  let closed = false;
+  const stream: HttpResponse = { ...raw(), body: (async function* () {
+    try { yield Buffer.from("new"); }
+    finally { closed = true; }
+  })() };
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), stream));
   expect(result.data).toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
+  expect(closed).toBe(true);
   expect(readFileSync(target, "utf8")).toBe("original");
   expect(readFileSync(f.out, "utf8")).toBe("original");
-  expect(cloud.calls).toHaveLength(0);
 });
 
 test.each([50, 51])("enforces the 50 MiB streaming boundary at %i MiB", async (mib) => {
@@ -161,15 +165,42 @@ test.each([50, 51])("enforces the 50 MiB streaming boundary at %i MiB", async (m
   }
 });
 
-test.each([302, 403, 404, 409, 500])("leaves empty output on HTTP %i without leaking response text", async (status) => {
+test.each([
+  [302, "REDIRECT_REFUSED"],
+  [403, "API_FORBIDDEN"],
+  [404, "NOT_FOUND"],
+  [409, "API_CONFLICT"],
+  [500, "API_UNAVAILABLE"],
+] as const)("creates no output on HTTP %i and allows the same retry without leaking response text", async (status, code) => {
   const f = fixture();
-  const cloud = fakeCloud(response(token), response({ title: f.env.SYNTHETIC_SECRET }, status, { location: "https://example.pm.beyondtrustcloud.com/redirect" }));
-  const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
-  expect(result.code).toBe(1);
+  const failed = () => response({ title: f.env.SYNTHETIC_SECRET }, status, { location: "https://example.pm.beyondtrustcloud.com/redirect" });
+  const cloud = fakeCloud(response(token), failed(), response(token), failed());
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const result = await f.run(["api-definition", "download", "--out", f.out], {}, cloud);
+    expect(result.code).toBe(1);
+    expect(result.data).toMatchObject({ error: { code } });
+    expect(existsSync(f.out)).toBe(false);
+    expect(result.output).not.toContain("Partial download");
+    expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
+  }
+  expect(cloud.calls).toHaveLength(4);
+});
+
+test("creates no output when the stream fails before any byte arrives", async () => {
+  const f = fixture();
+  const stream: HttpResponse = { status: 200, headers: new Headers(), body: (async function* () { throw new Error(f.env.SYNTHETIC_SECRET); })() };
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), stream));
+  expect(result.data).toMatchObject({ error: { code: "TRANSPORT_ERROR" } });
+  expect(existsSync(f.out)).toBe(false);
+  expect(result.output).not.toContain("Partial download");
+});
+
+test("creates an empty output for an empty successful body", async () => {
+  const f = fixture();
+  const result = await f.run(["api-definition", "download", "--out", f.out], {}, fakeCloud(response(token), raw()));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ path: f.out, size: 0 });
   expect(statSync(f.out).size).toBe(0);
-  expect(result.output).toContain(f.out);
-  expect(cloud.calls).toHaveLength(2);
-  expect(result.output).not.toContain(f.env.SYNTHETIC_SECRET);
 });
 
 test("truncates partially streamed output after transport failure", async () => {
@@ -215,9 +246,15 @@ test.skipIf(process.platform === "win32").each([
     });
     return file;
   });
-  const cloud = fakeCloud(response(token), raw(Buffer.from("complete")));
+  let closed = false;
+  const stream: HttpResponse = { ...raw(), body: (async function* () {
+    try { yield Buffer.from("complete"); }
+    finally { closed = true; }
+  })() };
+  const cloud = fakeCloud(response(token), stream);
   const result = await f.run([...args, "--out", f.out], {}, cloud);
   expect(result.code).toBe(1);
+  expect(closed).toBe(true);
   expect(result.data).toMatchObject({ error: { code: "DOWNLOAD_FILE_ERROR" } });
   expect(statSync(f.out).size).toBe(0);
   expect(result.output).toContain(f.out);

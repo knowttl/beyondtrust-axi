@@ -62,6 +62,11 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
   function budget() {
     if (deadline.aborted || now() - started >= milliseconds) throw new AxiError("Read time limit reached", "LIMIT_EXCEEDED", ["Run the command again"]);
   }
+  function transportFailure(error: unknown): never {
+    if (error instanceof AxiError) throw error;
+    budget();
+    throw new AxiError("HTTPS request failed", "TRANSPORT_ERROR", ["Check connectivity and the configured host; run beyondtrust-axi doctor"]);
+  }
   async function exchange(path: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE", headers: Record<string, string>, body?: string | Buffer, consume?: (body: AsyncIterable<Uint8Array>) => Promise<void>) {
     budget();
     if (requests >= (options.startup ? 5 : writePreparation ? 26 : 10)) throw new AxiError("Read request limit reached", "LIMIT_EXCEEDED", ["Use a smaller selection"]);
@@ -77,12 +82,14 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       if (consume && response.status >= 200 && response.status < 300) {
         async function* bounded() {
           let size = 0;
-          for await (const chunk of response.body) {
-            budget();
-            size += chunk.byteLength;
-            if (size > 50 * 1024 * 1024) throw new AxiError("Download exceeds 50 MiB", "LIMIT_EXCEEDED", ["Download a smaller resource"]);
-            yield chunk;
-          }
+          try {
+            for await (const chunk of response.body) {
+              budget();
+              size += chunk.byteLength;
+              if (size > 50 * 1024 * 1024) throw new AxiError("Download exceeds 50 MiB", "LIMIT_EXCEEDED", ["Download a smaller resource"]);
+              yield chunk;
+            }
+          } catch (error) { transportFailure(error); }
           budget();
         }
         await consume(bounded());
@@ -99,11 +106,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       let data: unknown;
       try { data = JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { data = undefined; }
       return { ...response, data };
-    } catch (error) {
-      if (error instanceof AxiError) throw error;
-      budget();
-      throw new AxiError("HTTPS request failed", "TRANSPORT_ERROR", ["Check connectivity and the configured host; run beyondtrust-axi doctor"]);
-    }
+    } catch (error) { transportFailure(error); }
   }
   function failure(status: number, auth = false): never {
     if (auth && status === 404) throw new AxiError("Token endpoint was not found", "AUTH_ENDPOINT_NOT_FOUND", ["Check the configured host against the documented <organization>-services.pm.beyondtrustcloud.com form; the host was not changed"]);
