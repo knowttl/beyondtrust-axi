@@ -267,6 +267,7 @@ The [credential schema](axi-credential.schema.json) describes host, clientId, cl
 All data, errors and next-step hints use TOON on stdout.
 Write previews omit send-only fields such as auditId and result rather than displaying them as null.
 Strings truncate at 500 characters by default except for write previews, confirmations and results, and [download success metadata](docs/downloads.md); --full restores complete strings and --fields selects top-level fields.
+On list and view reads, --fields selects row columns (for example --fields id,host) and keeps count, total, cursor and help; --fields all is the default, and each command's --help lists its fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 
 | Exit | Meaning |

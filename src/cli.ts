@@ -40,7 +40,8 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
   const name = implicitHome ? "home" : Object.keys(catalogue).sort((a, b) => b.length - a.length).find((command) => command.split(" ").every((word, index) => argv[index] === word)) ?? "";
   const entry = Object.hasOwn(catalogue, name) ? catalogue[name as keyof typeof catalogue] : undefined;
   const usage = (message = "Unknown command, argument, duplicate or invalid flag"): never => { throw new AxiError(message, "VALIDATION_ERROR", [
-    `Valid commands: ${Object.keys(catalogue).join(", ")}; valid flags: ${Object.keys(entry?.flags ?? catalogue.home.flags).map((flag) => `--${flag}`).join(", ")}`,
+    entry ? `Valid flags for ${name}: ${Object.keys(entry.flags).map((flag) => `--${flag}`).join(", ")}; run beyondtrust-axi ${name} --help`
+      : `Valid commands: ${Object.keys(catalogue).join(", ")}`,
   ]); };
   if (!entry) return usage();
   let index = implicitHome ? 0 : name.split(" ").length;
@@ -81,8 +82,11 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     : name === "profile list" ? ["profiles", "count", "config"] : name === "config path" ? ["config", "state"]
       : name === "about" ? ["versions"] : name === "task status" ? ["task"] : name === "doctor" ? ["profile", "host", "authentication", "api", "unverified"]
       : download ? ["path", "size", "sha256", "contentType"] : write ? ["status", "operation", "preview", "confirmation", ...(deletes[name] ? ["deleteConfirmation"] : []), "auditId", "result", "help"] : resourceRead?.fields ?? ["bin", "description", "status", "profiles", "count", "summary", "help"];
-  const fields = flags.get("--fields")?.split(",") ?? available;
-  if (fields.some((field) => !available.includes(field)) || new Set(fields).size !== fields.length) usage();
+  // Resource reads validate --fields as row columns in prepareResourceRead.
+  const fields = (resourceRead ? undefined : flags.get("--fields")?.split(",")) ?? available;
+  const unknownField = fields.find((field) => !available.includes(field));
+  if (unknownField !== undefined) usage(`Unknown field "${unknownField}"; valid fields: ${available.join(", ")}`);
+  if (new Set(fields).size !== fields.length) usage();
   if (name === "task status" && !z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i).safeParse(flags.get("--id")).success) usage("task status requires --id <uuid>");
   const config = flags.get("--config");
   let result: Record<string, unknown>;

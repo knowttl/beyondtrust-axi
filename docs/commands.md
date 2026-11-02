@@ -28,7 +28,7 @@ Preview computer delete; DELETE /v3/Computers; requires file-profile writes.allo
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send once after re-read and both exact confirmations |
@@ -72,7 +72,7 @@ Preview computer deactivate; POST /v3/Computers/Deactivate; requires file-profil
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send once after re-read and both exact confirmations |
@@ -784,7 +784,7 @@ Preview computer authorise; provide 1-20 explicit computer UUIDs or a non-empty 
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |
@@ -1097,7 +1097,7 @@ Preview group add-computers; POST /v3/Groups/{id}/AssignComputers; requires file
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |
@@ -1160,7 +1160,7 @@ Preview group remove-computers; POST /v3/Groups/UnassignComputers; requires file
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --execute | Send after re-read, exact confirmation and durable private intent |
@@ -1203,7 +1203,7 @@ Read computer list (GET /v3/Computers).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1247,7 +1247,7 @@ Read computer view (GET /v3/Computers/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1265,7 +1265,7 @@ Read computer command log (GET /v3/Computers/{id}/CommandLog).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1286,7 +1286,7 @@ Read computer logs (GET /v3/Computers/{id}/Logs).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1307,7 +1307,7 @@ Read group list (GET /v3/Groups).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1339,7 +1339,7 @@ Read group view (GET /v3/Groups/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1357,7 +1357,7 @@ Read policy list (GET /v3/Policies).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1385,7 +1385,7 @@ Read policy view (GET /v3/Policies/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1403,7 +1403,7 @@ Read policy revisions (GET /v3/Policies/{id}/Revisions).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1424,7 +1424,7 @@ Read policy assigned groups (GET /v3/Policies/{id}/AssignedGroups).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1445,7 +1445,7 @@ Read policy windows application groups (GET /PolicyEditor/v3/Policy/{policyId}/W
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1470,7 +1470,7 @@ Read policy macos application groups (GET /PolicyEditor/v3/Policy/{policyId}/Mac
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1495,7 +1495,7 @@ Read user list (GET /v3/Users).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1523,7 +1523,7 @@ Read user show (GET /v3/Users/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1541,7 +1541,7 @@ Read role list (GET /v3/Roles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1561,7 +1561,7 @@ Read role show (GET /v3/Roles/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1579,7 +1579,7 @@ Read global role list (GET /v3/GlobalRoles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1604,7 +1604,7 @@ Read global role show (GET /v3/GlobalRoles/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1622,7 +1622,7 @@ Read domain list (GET /v3/AcceptedDomains).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1642,7 +1642,7 @@ Read domain show (GET /v3/AcceptedDomains/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1660,7 +1660,7 @@ Read api account list (GET /v3/ApiAccounts).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1680,7 +1680,7 @@ Read auth provider show (GET /v3/AuthenticationProvider).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 
@@ -1697,7 +1697,7 @@ Read scim resource types; optional positional type: user|role (default: list all
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1719,7 +1719,7 @@ Read scim schemas (GET /scim/v3/Schemas).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1739,7 +1739,7 @@ Read scim config (GET /scim/v3/ServiceProviderConfig).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 
@@ -1756,7 +1756,7 @@ Read scim role list (GET /scim/v3/Roles).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1777,7 +1777,7 @@ Read scim user list (GET /scim/v3/users).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1798,7 +1798,7 @@ Read scim user show (GET /scim/v3/users/{userID}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1816,7 +1816,7 @@ Read event list ingested after --since: at most the first 1000 events, sorted ne
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1837,7 +1837,7 @@ Read event search (GET /v3/Events/search).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1872,7 +1872,7 @@ Read audit activity list (GET /v3/ActivityAudits).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1900,7 +1900,7 @@ Read audit activity show (GET /v3/ActivityAudits/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource int64 |
@@ -1918,7 +1918,7 @@ Read audit activity details (GET /v3/ActivityAudits/Details).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1946,7 +1946,7 @@ Read audit auth request list (GET /v3/AuthorizationRequestAudits).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1981,7 +1981,7 @@ Read audit auth request show (GET /v3/AuthorizationRequestAudits/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource int64 |
@@ -2002,7 +2002,7 @@ Read admin request list (GET /v3/AdminAccessRequest).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -2030,7 +2030,7 @@ Read admin request show (GET /v3/AdminAccessRequest/{requestId}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -2051,7 +2051,7 @@ Read auth request list (GET /v3/AuthorizationRequest).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -2076,7 +2076,7 @@ Read auth request show (GET /v3/AuthorizationRequest/{systemId}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated output fields (default: all) |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource string |

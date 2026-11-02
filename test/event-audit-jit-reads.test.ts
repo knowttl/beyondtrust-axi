@@ -364,3 +364,9 @@ test.each([
   expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining(message) });
   expect(cloud.calls).toHaveLength(0);
 });
+
+test("event list --fields selects compact columns", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const result = await fixture().run(["event", "list", "--since", since, "--fields", "time,host"], {}, fakeCloud(response(token), response(events([event]))));
+  expect(result.data.data).toEqual([{ time: since, host: "example" }]);
+});
