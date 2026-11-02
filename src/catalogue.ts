@@ -111,6 +111,6 @@ export const catalogue = {
     },
     examples: [`beyondtrust-axi ${name} --help`, `beyondtrust-axi ${name}${name === "group create" ? " --name example" : name === "group add-computers" ? " <group-uuid> <computer-uuid>" : name === "group remove-computers" ? " <computer-uuid>" : ` <group-uuid>${name === "group assign-policy" ? " --revision <uuid>" : name === "group import-computers" ? " --file <csv>" : name === "group update" ? " --name example" : ""}`}`],
   }])),
-  ...Object.fromEntries(Object.entries(resourceReads).map(([name, entry]) => [name, { description: entry.description, flags: { ...flags, ...entry.flags }, examples: entry.examples }])),
+  ...Object.fromEntries(Object.entries(resourceReads).map(([name, entry]) => [name, { description: entry.description, flags: { ...flags, ...entry.flags }, ...(entry.fields ? { fields: entry.fields } : {}), examples: entry.examples }])),
 };
 export function help() { return { description: DESCRIPTION, commands: Object.entries(catalogue).map(([command, entry]) => ({ command, description: entry.description })), help: ["Run beyondtrust-axi <command> --help for flags and examples"] }; }

@@ -79,6 +79,16 @@ function defaultResourceSort(path: string): string | undefined {
   // Activity audits are read to find recent changes, so newest first.
   return path in sortKeys ? "created:desc" : "created:asc";
 }
+const eventColumns = ["time", "host", "user", "action", "code", "application", "rule"];
+// Row columns mirror what the runtime keeps from the documented response; undefined means the export documents none.
+function rowColumns(path: string, list: boolean, events: boolean, full: boolean): string[] | undefined {
+  if (events && !full) return eventColumns;
+  const schema = responseSchemaOf(path);
+  const response = schema && resolved(schema);
+  const row = !list ? response : response?.type === "array" ? response.items : response?.properties?.[events ? "events" : response?.properties?.Resources ? "Resources" : "data"]?.items;
+  const properties = row && resolved(row).properties;
+  return properties ? Object.keys(properties) : undefined;
+}
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
 const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", "user-domain": "Users.UserDomain", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
 export function resourceReadDefinition(command: string, path: string) {
@@ -93,7 +103,7 @@ export function resourceReadDefinition(command: string, path: string) {
   const envelope = !!response?.properties?.pageNumber;
   const list = events || paged || envelope || scimList || response?.type === "array" || (!response && !command.endsWith(" view") && !command.endsWith(" show"));
   const filters = (operation.parameters ?? []).filter((p) => p.name.startsWith("Filter."));
-  const flags: Record<string, string> = {};
+  const flags: Record<string, string> = { fields: "Comma-separated row columns to keep, or all (default: all); see fields in --help" };
   if (pathParameter) flags.id = `Required resource ${pathParameter.schema.format === "uuid" ? "UUID" : pathParameter.schema.format ?? pathParameter.schema.type}`;
   if (list) Object.assign(flags, { limit: "Maximum rows, 1-1000 (default: 50)", all: "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB", cursor: "Resume an opaque cursor with the same profile, command and filters" });
   if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. ${sortKeys[path] ? `created:desc; keys: ${sortKeys[path].join(", ")}` : "name:asc"} (default: ${defaultResourceSort(path) ?? "API order"})`;
@@ -110,7 +120,7 @@ export function resourceReadDefinition(command: string, path: string) {
   if (scimPaged) flags.filter = "SCIM filter expression (sent literally)";
   const variants = command === "scim resource-types" ? { user: `${path}/User`, role: `${path}/Role` } : undefined;
   for (const p of filters) flags[filterFlag(p.name)] = `Filter ${p.name.slice(7).replaceAll(".", " ")} (${resolved(p.schema).enum?.join("|") ?? resolved(p.schema).type}${resolved(p.schema).type === "array" ? "; comma-separated" : ""})`;
-  return { path, variants, paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${command === "event list" ? " ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times" : ""}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
+  return { path, variants, fields: rowColumns(path, list, events, false), paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${command === "event list" ? " ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times" : ""}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
 }
 
 function invalidFilter(flag: string, schema: Schema): never {
@@ -154,6 +164,16 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   const rawLimit = flags.get("--limit") ?? "50";
   if (!/^\d+$/.test(rawLimit) || Number(rawLimit) < 1 || Number(rawLimit) > 1000) invalid("--limit must be an integer from 1 to 1000");
   const limit = flags.has("--all") ? 1000 : Number(rawLimit);
+  const columns = rowColumns(selectedPath, list, definition.events, flags.has("--full"));
+  const requested = flags.get("--fields");
+  let selected: Set<string> | undefined;
+  if (requested !== undefined && requested !== "all") {
+    const names = requested.split(",");
+    const unknown = columns && names.find((name) => !columns.includes(name));
+    if (unknown !== undefined) invalid(`Unknown field "${unknown}"; valid fields: ${columns!.join(", ")}`);
+    selected = new Set(names);
+  }
+  const project = (row: unknown) => selected && row && typeof row === "object" ? Object.fromEntries(Object.entries(row).filter(([key]) => selected.has(key))) : row;
   const query = new URLSearchParams();
   if (flags.has("--filter")) query.set("filter", flags.get("--filter")!);
   for (const p of definition.filters) {
@@ -244,7 +264,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         const value = withoutCredentials(parsed?.success ? parsed.data : raw, redactor);
         if (!list) {
           if (!value || typeof value !== "object" || Array.isArray(value)) badResponse();
-          return { data: value };
+          return { data: project(value) };
         }
         let rows: unknown[];
         if (command === "event search") {
@@ -305,17 +325,17 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (!definition.scimList && offset > rows.length) badResponse();
         const taken = rows.slice(offset, offset + limit - data.length);
         data.push(...taken.map((row) => {
-          if (!definition.events || flags.has("--full")) return row;
+          if (!definition.events || flags.has("--full")) return project(row);
           const e = row as { "@timestamp"?: string; host?: { name?: string }; user?: { name?: string }; event?: { action?: string; code?: string }; process?: { name?: string }; file?: { name?: string }; rule?: { name?: string } };
-          return { time: e["@timestamp"] ?? null, host: e.host?.name ?? null, user: e.user?.name ?? null, action: e.event?.action ?? null, code: e.event?.code ?? null, application: e.process?.name ?? e.file?.name ?? null, rule: e.rule?.name ?? null };
+          return project({ time: e["@timestamp"] ?? null, host: e.host?.name ?? null, user: e.user?.name ?? null, action: e.event?.action ?? null, code: e.event?.code ?? null, application: e.process?.name ?? e.file?.name ?? null, rule: e.rule?.name ?? null });
         })); offset += taken.length;
         if (offset < rows.length) { more = true; break; }
         offset = 0; page += definition.scimPaged ? rows.length : 1;
         if (!more || data.length >= limit) break;
       }
       const next = more ? Buffer.from(JSON.stringify({ version: 1, binding, page, size, offset, ...(definition.events ? { since: cursor?.since, until: cursor?.until } : {}) })).toString("base64url") : null;
-      const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit", "--fields", "--full"].includes(flag))
-        .map(([flag, value]) => `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
+      const continuation = [...flags].filter(([flag]) => !["--cursor", "--all", "--limit"].includes(flag))
+        .map(([flag, value]) => flag === "--full" ? flag : `${flag} '${redactor.text(value).replaceAll("'", "'\\''")}'`).join(" ");
       return { data, count: data.length, total, cursor: next, help: [next ? `Run beyondtrust-axi ${command}${continuation ? ` ${continuation}` : ""} --cursor <cursor> to continue with the same profile` : `Run beyondtrust-axi ${command} --help for related read options`, ...(definition.events ? ["Repeat with --full for complete redacted ECS events", ...(command === "event search" ? ["Results are newest first by @timestamp", ...(total !== null && total >= 10000 ? ["total is capped at 10000 by the API and is a lower bound"] : [])] : ["The API reports returned counts, not a total"]), ...(command === "event list" ? ["This endpoint returns at most 1000 events from the start date without server pagination; use event search for bounded windows and paging"] : [])] : [])] };
     },
   };

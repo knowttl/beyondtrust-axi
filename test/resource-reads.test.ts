@@ -18,7 +18,7 @@ test.each([
   const cloud = fakeCloud();
   const result = await f.run([...command.split(" "), "--help"], {}, cloud);
   expect(result.code).toBe(0);
-  expect(result.data).toEqual({
+  expect(result.data).toMatchObject({
     command, description: expect.any(String),
     flags: expect.objectContaining({ help: "Show command help", profile: expect.any(String) }),
     examples: expect.arrayContaining([`beyondtrust-axi ${command} --help`]),
@@ -201,4 +201,65 @@ test("a request budget interruption returns the next unread page", async () => {
   const resumed = await f.run(["computer", "list", "--limit", "1", "--cursor", String(result.data.cursor)], {}, next);
   expect(resumed.data.count).toBe(1);
   expect(next.calls[1]!.url.searchParams.get("Pagination.PageNumber")).toBe("10");
+});
+
+const computerRow = { id, host: "example", groupName: "example-group", os: "Windows" };
+
+test("computer list --fields keeps only the selected row columns and the envelope", async () => {
+  const f = fixture();
+  const result = await f.run(["computer", "list", "--fields", "id,host"], {}, fakeCloud(response(token), response(page([computerRow]))));
+  expect(result.code).toBe(0);
+  expect(result.data).toMatchObject({ data: [{ id, host: "example" }], count: 1, total: 1 });
+});
+
+test("computer list --fields all returns the same columns as no --fields", async () => {
+  const f = fixture();
+  const all = await f.run(["computer", "list", "--fields", "all"], {}, fakeCloud(response(token), response(page([computerRow]))));
+  const none = await f.run(["computer", "list"], {}, fakeCloud(response(token), response(page([computerRow]))));
+  expect(all.data.data).toEqual(none.data.data);
+  expect(none.data.data).toEqual([computerRow]);
+});
+
+test("computer view --fields selects columns of the viewed row", async () => {
+  const f = fixture();
+  const result = await f.run(["computer", "view", "--id", id, "--fields", "groupName"], {}, fakeCloud(response(token), response({ id, groupName: "example-group", connected: true })));
+  expect(result.data.data).toEqual({ groupName: "example-group" });
+});
+
+test("an unknown --fields column is named with the valid columns before any network call", async () => {
+  const f = fixture(); f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";
+  const cloud = fakeCloud();
+  const result = await f.run(["computer", "list", "--fields", "hostname"], {}, cloud);
+  expect(result.code).toBe(2);
+  expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR", message: expect.stringMatching(/^Unknown field "hostname"; valid fields: id, .*\bhost\b.*\bgroupName\b/) } });
+  expect(cloud.calls).toHaveLength(0);
+});
+
+test("a cursor continuation command keeps --fields", async () => {
+  const f = fixture();
+  const result = await f.run(["computer", "list", "--limit", "1", "--fields", "id"], {}, fakeCloud(response(token), response(page([computerRow], 1, 1, 2, 2))));
+  expect((result.data.help as string[])[0]).toContain("--fields 'id' --cursor");
+});
+
+test("command help lists the selectable fields", async () => {
+  const f = fixture();
+  const result = await f.run(["computer", "list", "--help"], {}, fakeCloud());
+  expect(result.data.fields).toEqual(expect.arrayContaining(["id", "host", "groupName"]));
+});
+
+test("an unknown flag for a known command lists only that command's flags", async () => {
+  const f = fixture();
+  const result = await f.run(["event", "list", "--until", "2026-10-30T00:00:00Z"]);
+  expect(result.code).toBe(2);
+  expect(result.data).toMatchObject({ error: { message: "Unknown or duplicate flag --until" } });
+  expect(result.output).not.toContain("Valid commands");
+  expect(result.output).toContain("event list --help");
+});
+
+test("an unknown command lists the valid commands", async () => {
+  const f = fixture();
+  const result = await f.run(["computre", "list"]);
+  expect(result.code).toBe(2);
+  expect(result.output).toContain("Valid commands: ");
+  expect(result.output).toContain("event search");
 });

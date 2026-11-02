@@ -12,7 +12,7 @@ export const computerWrites: Record<string, string[]> = {
 };
 const uuid = z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
 const definition = resourceReadDefinition("computer list", "/v3/Computers");
-export const computerWriteFilters = Object.fromEntries(Object.entries(definition.flags).filter(([flag]) => !["limit", "all", "cursor", "sort"].includes(flag)));
+export const computerWriteFilters = Object.fromEntries(Object.entries(definition.flags).filter(([flag]) => !["fields", "limit", "all", "cursor", "sort"].includes(flag)));
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Run the command with --help"]); }
 
 export function prepareComputerWrite(command: string, inputIds: string[], flags: Map<string, string>) {

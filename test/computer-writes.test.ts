@@ -81,6 +81,15 @@ test.each([
 });
 
 test.each([
+  { selection: [id], read: detail, expected: { count: 1, hosts: ["example"], ids: [id] } },
+  { selection: ["--host", "example"], read: () => page(1), expected: { count: 1, hosts: ["example"], filter: { host: "example" } } },
+])("authorise output fields do not affect selection: $selection", async ({ selection, read, expected }) => {
+  const result = await fixture().run(["computer", "authorise", ...selection, "--fields", "preview"], {}, fakeCloud(response(token), read()));
+  expect(result.code).toBe(0);
+  expect(result.data).toEqual({ preview: expect.objectContaining(expected) });
+});
+
+test.each([
   [], ["--all"], ["--host", " "],
   ["--execute", "--confirm", "computer.authorise"],
   ["--all", "--execute", "--confirm", "computer.authorise"],

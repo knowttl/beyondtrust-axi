@@ -177,6 +177,26 @@ test("event list resumes within the endpoint's bounded 1000 row response", async
   expect(next.calls[1]!.url.searchParams.get("StartDate")).toBe(since);
 });
 
+test.each([
+  ["list", [], "@timestamp", { "@timestamp": since }],
+  ["list", [], "host", { host: { name: "example" } }],
+  ["search", ["--os", "Windows"], "@timestamp", { "@timestamp": since }],
+  ["search", ["--os", "Windows"], "host", { host: { name: "example" } }],
+] as const)("event %s continuation preserves full %s columns", async (action, filters, field, expected) => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const f = fixture();
+  const args = ["event", action, ...filters, "--full", "--fields", field];
+  const firstPage = action === "list" ? events([event, event]) : searchPage([event], { pageSize: 1, pageCount: 2, totalRecordCount: 2 });
+  const first = await f.run([...args, "--limit", "1"], {}, fakeCloud(response(token), response(firstPage)));
+  expect(first.code).toBe(0);
+  expect(first.data.data).toEqual([expected]);
+  expect((first.data.help as string[])[0]).toBe(`Run beyondtrust-axi event ${action}${action === "search" ? " --os 'Windows'" : ""} --full --fields '${field}' --cursor <cursor> to continue with the same profile`);
+  const nextPage = action === "list" ? events([event, event]) : searchPage([event], { pageNumber: 2, pageSize: 1, pageCount: 2, totalRecordCount: 2 });
+  const next = await f.run([...args, "--cursor", String(first.data.cursor)], {}, fakeCloud(response(token), response(nextPage)));
+  expect(next.code).toBe(0);
+  expect(next.data.data).toEqual([expected]);
+});
+
 test("event search sends literal filters and accepts an exact 31 day window", async () => {
   const cloud = fakeCloud(response(token), response(searchPage([])));
   const result = await fixture().run(["event", "search", "--since", since, "--until", "2026-02-01T00:00:00.000Z", "--os", "Windows", "--group", id, "--action", "allowed,blocked", "--host", "example & *", "--on-demand", "false"], {}, cloud);
@@ -331,6 +351,27 @@ test("audit activity show reads the live single-object shape", async () => {
   expect(result.data.data).toMatchObject({ id: 8, userDataAuditing: { newEmailAddress: "user@example.com" } });
 });
 
+test("audit activity show --fields selects live single-object columns", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8", "--fields", "id,details"], {}, fakeCloud(response(token), response(liveAudit)));
+  expect(result.code).toBe(0);
+  expect(result.data.data).toEqual({ id: 8, details: "User user@example.com was created." });
+});
+
+test.each(["pageNumber", "pageSize", "totalRecordCount", "pageCount", "data"])("audit activity show --fields rejects envelope column %s", async (field) => {
+  const cloud = fakeCloud();
+  const result = await fixture().run(["audit", "activity", "show", "--id", "8", "--fields", field], {}, cloud);
+  expect(result.code).toBe(2);
+  expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining(`Unknown field "${field}"; valid fields: id, details,`) });
+  expect(cloud.calls).toHaveLength(0);
+});
+
+test("audit activity show help advertises live row columns instead of envelope columns", async () => {
+  const result = await fixture().run(["audit", "activity", "show", "--help"]);
+  expect(result.code).toBe(0);
+  expect(result.data.fields).toEqual(expect.arrayContaining(["id", "details", "user", "userDataAuditing"]));
+  expect(result.data.fields).not.toEqual(expect.arrayContaining(["data"]));
+});
+
 test("audit activity show rejects the documented paged shape", async () => {
   const result = await fixture().run(["audit", "activity", "show", "--id", "8"], {}, fakeCloud(response(token), response(page([liveAudit]))));
   expect(result.code).toBe(1);
@@ -363,4 +404,10 @@ test.each([
   expect(result.code).toBe(2);
   expect(result.data.error).toMatchObject({ code: "VALIDATION_ERROR", message: expect.stringContaining(message) });
   expect(cloud.calls).toHaveLength(0);
+});
+
+test("event list --fields selects compact columns", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date(until));
+  const result = await fixture().run(["event", "list", "--since", since, "--fields", "time,host"], {}, fakeCloud(response(token), response(events([event]))));
+  expect(result.data.data).toEqual([{ time: since, host: "example" }]);
 });
