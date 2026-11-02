@@ -172,8 +172,8 @@ async function localCommand(argv: string[], store: ReturnType<typeof credentialS
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, preview(child)]));
     return value;
   };
-  // Previews omit fields that only exist after a send (auditId, result).
-  const projected = Object.fromEntries(fields.filter((field) => !(write && result.status === "preview" && result[field] === undefined)).map((field) => [field, download || write ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
+  // Previews omit send-only fields (auditId, result); sent results omit preview-only fields (preview, confirmation, deleteConfirmation).
+  const projected = Object.fromEntries(fields.filter((field) => !(write && result[field] === undefined)).map((field) => [field, download || write ? store.redactor.value(result[field]) : preview(store.redactor.value(result[field]))]));
   if (truncated) projected.help = [...((projected.help as string[] | undefined) ?? []), "Repeat the command with --full to see complete strings"];
   return projected;
 }

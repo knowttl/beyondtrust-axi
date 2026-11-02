@@ -179,12 +179,12 @@ test.each([401, 409, 423, 429, 500, "network", "body"])("never retries write fai
   }
 });
 
-test("preview omits auditId and result while an executed send keeps both", async () => {
+test("preview omits auditId and result while a sent result omits preview and confirmation", async () => {
   const f = fixture("computer.archive");
   const args = ["computer", "archive", id];
   const preview = await f.run(args, {}, fakeCloud(response(token), response({ id })));
   expect(Object.keys(preview.data)).not.toContain("auditId");
   expect(Object.keys(preview.data)).not.toContain("result");
   const result = await f.run([...args, "--execute", "--confirm", preview.data.confirmation as string], {}, fakeCloud(response(token), response({ id }), response(other, 201)));
-  expect(Object.keys(result.data)).toEqual(expect.arrayContaining(["auditId", "result"]));
+  expect(Object.keys(result.data)).toEqual(["status", "operation", "auditId", "result", "help"]);
 });
