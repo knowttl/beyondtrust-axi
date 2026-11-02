@@ -147,8 +147,9 @@ Event total is null because totalRecordsReturned counts only the returned page; 
 Event list fetches at most 1000 records with RecordSize and applies row limits and cursor offsets locally; the endpoint has no server pagination or end-time parameter.
 Event list requires --since within the last 31 days; use event search for historical windows, explicit end times and server pagination.
 Audit show IDs are decimal int64 identifiers; admin-request show takes a UUID and auth-request show takes an opaque system identifier via --id.
-Audit show endpoints return documented paged envelopes without request paging parameters, so their returned rows are bounded locally.
-Every list returns data, count, total and cursor, including audit show and auth-request show; object detail reads return data.
+Audit activity show returns a single detail object, unlike the export's paged envelope.
+Audit auth-request show returns a documented paged envelope without request paging parameters, so its returned rows are bounded locally.
+Every list returns data, count, total and cursor, including audit auth-request show and auth-request show; object detail reads return data.
 When cursor is non-null, repeat the command with --cursor <cursor>, retaining the same configuration, profile, account, resource ID, filters and sort.
 Cursors encode positions, a context digest and, for events, frozen window timestamps; they contain no credentials and are not authorization tokens or a server snapshot.
 Unpaged lists, including roles, domains, API accounts and SCIM discovery, apply row limits client-side and fetch the response again when resumed, so changes to the source may move rows.
@@ -180,7 +181,9 @@ The three resource downloads take a positional UUID; api-definition download nee
 One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
 Resource read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
-Non-success HTTP responses are handled from status and headers without waiting for or parsing their bodies.
+Non-success HTTP responses use status and headers for stable error codes.
+GET 400 responses may append a redacted API message limited to 200 characters, after a best-effort JSON body read capped at 4 KiB and two seconds.
+Other non-success responses are handled without waiting for or parsing their bodies.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.

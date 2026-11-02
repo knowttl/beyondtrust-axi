@@ -69,9 +69,9 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
     try {
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
       if (response.status < 200 || response.status >= 300) {
-        // Status and headers own error handling; a stalled error body must not delay it.
+        // Status and headers own error handling; only read 400s allow a bounded body-read delay.
         if (response.status === 400 && method === "GET") {
-          // A read 400 names the rejected parameter, so read a small body without waiting on it.
+          // A read 400 can identify the rejected parameter; limit exposure to an untrusted body.
           let timer: NodeJS.Timeout | undefined;
           const read = (async () => {
             const chunks: Buffer[] = [];
