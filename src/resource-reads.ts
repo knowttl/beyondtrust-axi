@@ -55,13 +55,23 @@ const pagedResponseOverrides: Record<string, (schema: Schema) => Schema> = {
     data: { ...schema, nullable: true },
   } }),
 };
+// The live endpoint returns one object where the export declares a paged envelope (issue #40).
+const singleObjectResponses: Record<string, Schema> = { "/v3/ActivityAudits/{id}": { $ref: "#/components/schemas/ActivityAuditDetailModel" } };
+function responseSchemaOf(path: string): Schema | undefined {
+  return singleObjectResponses[path] ?? Object.values(spec.paths[path]!.get!.responses["200"]?.content ?? {})[0]?.schema;
+}
+// Sort keys the live API accepts; it rejects the other model properties (issue #40).
+const activityAuditSortKeys = ["created", "user", "entity", "auditType", "changedBy", "details"];
+const sortKeys: Record<string, string[]> = { "/v3/ActivityAudits": activityAuditSortKeys, "/v3/ActivityAudits/Details": activityAuditSortKeys };
 function defaultResourceSort(path: string): string | undefined {
   // Users exposes created in its model but the live endpoint rejects it as a sort key.
   if (path === "/v3/Users") return undefined;
-  const schema = Object.values(spec.paths[path]!.get!.responses["200"]?.content ?? {})[0]?.schema;
+  const schema = responseSchemaOf(path);
   const response = schema && resolved(schema);
   const items = response?.items ?? response?.properties?.data?.items;
-  return items && resolved(items).properties?.created ? "created:asc" : undefined;
+  if (!items || !resolved(items).properties?.created) return undefined;
+  // Activity audits are read to find recent changes, so newest first.
+  return path in sortKeys ? "created:desc" : "created:asc";
 }
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
 const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
@@ -71,7 +81,7 @@ export function resourceReadDefinition(command: string, path: string) {
   const pathParameter = (operation.parameters ?? []).find((p) => p.in === "path");
   const paged = (operation.parameters ?? []).some((p) => p.name === "Pagination.PageNumber");
   const scimPaged = (operation.parameters ?? []).some((p) => p.name === "startIndex");
-  const responseSchema = Object.values(operation.responses["200"]?.content ?? {})[0]?.schema;
+  const responseSchema = responseSchemaOf(path);
   const response = responseSchema ? resolved(responseSchema) : undefined;
   const scimList = !!response?.properties?.Resources;
   const envelope = !!response?.properties?.pageNumber;
@@ -80,7 +90,7 @@ export function resourceReadDefinition(command: string, path: string) {
   const flags: Record<string, string> = {};
   if (pathParameter) flags.id = `Required resource ${pathParameter.schema.format === "uuid" ? "UUID" : pathParameter.schema.format ?? pathParameter.schema.type}`;
   if (list) Object.assign(flags, { limit: "Maximum rows, 1-1000 (default: 50)", all: "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB", cursor: "Resume an opaque cursor with the same profile, command and filters" });
-  if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. name:asc (default: ${defaultResourceSort(path) ?? "API order"})`;
+  if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. ${sortKeys[path] ? `created:desc; keys: ${sortKeys[path].join(", ")}` : "name:asc"} (default: ${defaultResourceSort(path) ?? "API order"})`;
   if (events) {
     flags.since = "UTC start time (default: 24 hours before end; maximum window: 31 days)";
     if (command === "event search") {
@@ -95,6 +105,11 @@ export function resourceReadDefinition(command: string, path: string) {
   return { path, variants, paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
 }
 
+function invalidFilter(flag: string, schema: Schema): never {
+  const s = resolved(schema);
+  const allowed = s.enum ?? (s.items && resolved(s.items).enum);
+  invalid(`Invalid --${flag}${allowed ? `; allowed values: ${allowed.join(", ")}` : ""}`);
+}
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Repeat the command with --help; resume cursors with the original profile, command and filters"]); }
 function badResponse(): never { throw new AxiError("API response does not match the documented schema", "API_RESPONSE_INVALID", ["Check API compatibility"]); }
 const credentialFields = new Set(["password", "oldAzureAdClientSecret", "azureAdClientSecret", "oldAuthRequestClientSecret", "oldAuthRequestPassword", "oldAuthRequestApiClientSecret", "authRequestClientSecret", "authRequestPassword", "authRequestApiClientSecret", "oldReputationIntegrationApiKey", "reputationIntegrationApiKey"]);
@@ -141,14 +156,19 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
     if (s.type === "integer") value = /^-?\d+$/.test(raw) ? Number(raw) : NaN;
     if (s.type === "boolean") value = raw === "true" ? true : raw === "false" ? false : raw;
     if (s.type === "array") value = raw.split(",");
-    if (!validator(p.schema).safeParse(value).success) invalid(`Invalid --${filterFlag(p.name)}`);
-    if (p.name.endsWith(".Dates") && (value as string[]).some((date) => !Number.isFinite(Date.parse(date)))) invalid(`Invalid --${filterFlag(p.name)}`);
+    if (!validator(p.schema).safeParse(value).success) invalidFilter(filterFlag(p.name), p.schema);
+    if (p.name.endsWith(".Dates") && (value as string[]).some((date) => !Number.isFinite(Date.parse(date)))) invalid(`Invalid --${filterFlag(p.name)}; use timestamps such as 2026-10-01T00:00:00Z`);
     for (const item of Array.isArray(value) ? value : [value]) query.append(p.name, String(item));
   }
   for (const prefix of ["Created", "LastConnected", "LastSignedIn", "TimeOfRequest", "DecisionTime", "StartTime"]) {
     const dates = query.getAll(`Filter.${prefix}.Dates`);
     const mode = query.get(`Filter.${prefix}.SelectionMode`);
-    if ((dates.length > 0) !== (mode !== null) || (mode === "Single" && dates.length !== 1) || (mode === "Range" && (dates.length !== 2 || Date.parse(dates[0]!) > Date.parse(dates[1]!)))) invalid("Date filters require dates and a matching selection mode");
+    const datesFlag = filterFlag(`Filter.${prefix}.Dates`), modeFlag = filterFlag(`Filter.${prefix}.SelectionMode`);
+    if (dates.length > 0 && mode === null) invalid(`--${datesFlag} requires --${modeFlag} Single|Multiple|Range`);
+    if (dates.length === 0 && mode !== null) invalid(`--${modeFlag} requires --${datesFlag}`);
+    if (mode === "Single" && dates.length !== 1) invalid(`--${modeFlag} Single requires exactly one date in --${datesFlag}`);
+    if (mode === "Range" && dates.length !== 2) invalid(`--${modeFlag} Range requires exactly two comma-separated dates in --${datesFlag}`);
+    if (mode === "Range" && Date.parse(dates[0]!) > Date.parse(dates[1]!)) invalid(`--${datesFlag} range is reversed; give the earlier date first`);
   }
   const min = query.get("Filter.DuplicateCount.Min"), max = query.get("Filter.DuplicateCount.Max");
   if (min !== null && max !== null && Number(min) > Number(max)) invalid("Duplicate count minimum exceeds maximum");
@@ -181,7 +201,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         if (raw === undefined) { if (flag === "os") invalid("event search requires --os <name>"); continue; }
         const p = spec.paths[selectedPath]!.get!.parameters!.find((p) => p.name === name)!;
         const value = p.schema.type === "array" ? raw.split(",") : p.schema.type === "boolean" ? raw === "true" ? true : raw === "false" ? false : raw : raw;
-        if (!validator(p.schema).safeParse(value).success) invalid(`Invalid --${flag}`);
+        if (!validator(p.schema).safeParse(value).success) invalidFilter(flag, p.schema);
         for (const item of Array.isArray(value) ? value : [value]) query.append(name, String(item));
       }
     }
@@ -207,7 +227,7 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
         let raw: unknown;
         try { raw = await client.get(`${path}${params.size ? `?${params}` : ""}`); }
         catch (error) { if (data.length && error instanceof AxiError && error.code === "LIMIT_EXCEEDED") { more = true; break; } throw error; }
-        const schema = Object.values(spec.paths[selectedPath]!.get!.responses["200"]?.content ?? {})[0]?.schema;
+        const schema = responseSchemaOf(selectedPath);
         const override = schema && !Array.isArray(raw) ? pagedResponseOverrides[selectedPath]?.(schema) : undefined;
         const parsed = schema ? validator(override ?? schema, true).safeParse(raw) : undefined;
         if (parsed && !parsed.success) { diagnostics?.validationFailed(parsed.error.issues); badResponse(); }

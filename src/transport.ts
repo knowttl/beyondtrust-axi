@@ -70,6 +70,20 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       const response = await send(new URL(path, origin), { method, headers, body, signal: deadline });
       if (response.status < 200 || response.status >= 300) {
         // Status and headers own error handling; a stalled error body must not delay it.
+        if (response.status === 400 && method === "GET") {
+          // A read 400 names the rejected parameter, so read a small body without waiting on it.
+          let timer: NodeJS.Timeout | undefined;
+          const read = (async () => {
+            const chunks: Buffer[] = [];
+            let size = 0;
+            for await (const chunk of response.body) { size += chunk.byteLength; if (size > 4096) break; chunks.push(Buffer.from(chunk)); }
+            return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+          })().catch(() => undefined);
+          const data = await Promise.race([read, new Promise<undefined>((done) => { timer = setTimeout(() => done(undefined), 2000); })]);
+          clearTimeout(timer);
+          response.body.destroy?.();
+          return { ...response, data };
+        }
         response.body.destroy?.();
         if (response.status >= 300 && response.status < 400) throw new AxiError("HTTPS redirects are refused", "REDIRECT_REFUSED", ["Check the configured host; hosts are never changed automatically"]);
         return { ...response, data: undefined };
@@ -105,11 +119,13 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       throw new AxiError("HTTPS request failed", "TRANSPORT_ERROR", ["Check connectivity and the configured host; run beyondtrust-axi doctor"]);
     }
   }
-  function failure(status: number, auth = false): never {
+  function failure(status: number, auth = false, detail?: unknown): never {
     if (auth && status === 404) throw new AxiError("Token endpoint was not found", "AUTH_ENDPOINT_NOT_FOUND", ["Check the configured host against the documented <organization>-services.pm.beyondtrustcloud.com form; the host was not changed"]);
     const [code, message] = failures[status] ?? [status >= 500 ? "API_UNAVAILABLE" : "API_ERROR", "The API request failed"];
     // ProblemDetails text is untrusted and can echo credentials or tenant data; status owns the stable mapping.
-    throw new AxiError(message, code, [status === 403 ? "Check the API account permissions" : "Check the profile and request; run beyondtrust-axi doctor"]);
+    // Only a read 400 message is appended, redacted and bounded, because it names the rejected parameter.
+    const reason = status === 400 && detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string" ? redactor.text(detail.message).replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 200) : "";
+    throw new AxiError(reason ? `${message}: ${reason}` : message, code, [status === 403 ? "Check the API account permissions" : "Check the profile and request; run beyondtrust-axi doctor"]);
   }
   async function authenticate() {
     const requested = now();
@@ -142,7 +158,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
           try { await wait(delay, deadline); } catch { budget(); throw new AxiError("Retry wait failed", "TRANSPORT_ERROR", ["Run the command again"]); }
           continue;
         }
-        if (response.status < 200 || response.status >= 300) failure(response.status);
+        if (response.status < 200 || response.status >= 300) failure(response.status, false, response.data);
         if (consume) return redactor.text(response.headers.get("content-type") ?? "application/octet-stream");
         diagnostics?.record(response.status, response.headers, response.data);
         if (response.data === undefined) throw new AxiError("Invalid JSON response", "API_RESPONSE_INVALID", ["Check API compatibility"]);

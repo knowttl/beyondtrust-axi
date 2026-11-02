@@ -1885,7 +1885,7 @@ Read audit activity list (GET /v3/ActivityAudits).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc) |
 | --user | Filter User (string) |
 | --details | Filter Details (string) |
 | --created-dates | Filter Created Dates (array; comma-separated) |
@@ -1911,9 +1911,6 @@ Read audit activity show (GET /v3/ActivityAudits/{id}).
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource int64 |
-| --limit | Maximum rows, 1-1000 (default: 50) |
-| --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
-| --cursor | Resume an opaque cursor with the same profile, command and filters |
 
 ```sh
 npx -y @knowttl/beyondtrust-axi audit activity show --id <int64>
@@ -1934,7 +1931,7 @@ Read audit activity details (GET /v3/ActivityAudits/Details).
 | --limit | Maximum rows, 1-1000 (default: 50) |
 | --all | Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB |
 | --cursor | Resume an opaque cursor with the same profile, command and filters |
-| --sort | Sort property and order, e.g. name:asc (default: created:asc) |
+| --sort | Sort property and order, e.g. created:desc; keys: created, user, entity, auditType, changedBy, details (default: created:desc) |
 | --user | Filter User (string) |
 | --details | Filter Details (string) |
 | --created-dates | Filter Created Dates (array; comma-separated) |

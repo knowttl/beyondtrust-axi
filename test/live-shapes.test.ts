@@ -23,7 +23,7 @@ const bodies: Record<string, unknown> = {
   "scim role list": scim([{}]), "scim user list": scim([{}]), "scim user show": {},
   "event list": { events: [], totalRecordsReturned: 0 }, "event search": { events: [], totalRecordsReturned: 0 },
   "audit activity list": page([{ id: 1, errorInfo: null }]),
-  "audit activity show": page([{ id: 1 }]), "audit activity details": page([{ id: 1 }]),
+  "audit activity show": { id: 1 }, "audit activity details": page([{ id: 1 }]),
   "audit auth-request list": page([]), "audit auth-request show": page([{ id: 1 }]),
   "admin-request list": page([{ notes: null }]), "admin-request show": [{ notes: null }],
   "auth-request list": page([{ requestInfo: null, accessDecision: null, serviceTicket: null }]), "auth-request show": [{ notes: null }],
