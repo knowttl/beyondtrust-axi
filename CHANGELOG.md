@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.7...v0.1.8) (2026-11-02)
+
+
+### Bug Fixes
+
+* align --fields discovery with selectable read columns ([#69](https://github.com/knowttl/beyondtrust-axi/issues/69)) ([8766b4c](https://github.com/knowttl/beyondtrust-axi/commit/8766b4c0b60e948ce7c1abc22ef8d8e25eea9a51))
+* build before typechecking in lint script ([#67](https://github.com/knowttl/beyondtrust-axi/issues/67)) ([d40bc81](https://github.com/knowttl/beyondtrust-axi/commit/d40bc81e3f110571f7f7665a5d5c3dcc9c952958))
+* omit preview-only fields from sent write results ([#68](https://github.com/knowttl/beyondtrust-axi/issues/68)) ([371123d](https://github.com/knowttl/beyondtrust-axi/commit/371123d203b2318c1078c24a551f499ed8e0f82e))
+* use command-scoped help for unknown row fields ([#64](https://github.com/knowttl/beyondtrust-axi/issues/64)) ([ac12388](https://github.com/knowttl/beyondtrust-axi/commit/ac12388dcc38b5b04407bdf49d389a18e087c2af))
+
 ## [0.1.7](https://github.com/knowttl/beyondtrust-axi/compare/v0.1.6...v0.1.7) (2026-11-02)
 
 
