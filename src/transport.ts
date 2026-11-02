@@ -25,6 +25,24 @@ const httpsRequest: HttpRequest = (url, options) => new Promise((resolve, reject
 const tokenSchema = z.object({ access_token: z.string().min(1).regex(/^[\x21-\x7e]+$/), token_type: z.string().regex(/^Bearer$/i), expires_in: z.number().positive().finite() });
 const tokenPath = "/oauth/connect/token";
 const uuid = z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
+const resourceErrors: Record<string, [string, string | undefined, RegExp?]> = {
+  "/v3/Computers/Logs": ["Computer log", "computer logs --id <computer-id>"],
+  "/v3/Policies/PolicyRevision": ["Policy revision", "policy revisions --id <policy-id>"],
+  "/v3/Computers": ["Computer", "computer list"],
+  "/v3/Groups": ["Group", "group list"],
+  "/v3/Policies": ["Policy", "policy list"],
+  "/PolicyEditor/v3/Policy": ["Policy", "policy list"],
+  "/v3/Users": ["User", "user list"],
+  "/scim/v3/users": ["SCIM user", "scim user list"],
+  "/v3/Roles": ["Role", "role list"],
+  "/v3/GlobalRoles": ["Global role", "global-role list"],
+  "/v3/AcceptedDomains": ["Domain", "domain list"],
+  "/v3/Tasks": ["Task", undefined],
+  "/v3/ActivityAudits": ["Activity audit", "audit activity list", /^[0-9]+$/],
+  "/v3/AuthorizationRequestAudits": ["Authorization request audit", "audit auth-request list", /^[0-9]+$/],
+  "/v3/AdminAccessRequest": ["Admin request", "admin-request list"],
+  "/v3/AuthorizationRequest": ["Authorization request", "auth-request list", /^.+$/],
+};
 const failures: Record<number, [string, string]> = {
   400: ["API_BAD_REQUEST", "The API rejected the request"],
   401: ["AUTH_FAILED", "The API rejected authentication"],
@@ -83,7 +101,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
           const read = (async () => {
             const chunks: Buffer[] = [];
             let size = 0;
-            for await (const chunk of response.body) { size += chunk.byteLength; if (size > 4096) break; chunks.push(Buffer.from(chunk)); }
+            for await (const chunk of response.body) { size += chunk.byteLength; if (size > 1024 * 1024) return undefined; chunks.push(Buffer.from(chunk)); }
             return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
           })().catch(() => undefined);
           const data = await Promise.race([read, new Promise<undefined>((done) => { timer = setTimeout(() => done(undefined), 2000); })]);
@@ -123,7 +141,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       return { ...response, data };
     } catch (error) { transportFailure(error); }
   }
-  function failure(status: number, path?: string, data?: unknown): never {
+  function failure(status: number, path?: string, data?: unknown, method = "GET"): never {
     if (path === tokenPath && status === 404) throw new AxiError("Token endpoint was not found", "AUTH_ENDPOINT_NOT_FOUND", ["Check the configured host against the documented <organization>-services.pm.beyondtrustcloud.com form; the host was not changed"]);
     if (path === tokenPath && (status === 400 || status === 401) && typeof data === "object" && data !== null && "error" in data && data.error === "invalid_client") throw new AxiError("The token endpoint rejected the client credentials", "AUTH_FAILED", ["Check the profile clientId and clientSecret; the API account secret may have been regenerated"]);
     const [code, message] = failures[status] ?? [status >= 500 ? "API_UNAVAILABLE" : "API_ERROR", "The API request failed"];
@@ -133,17 +151,20 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       throw new AxiError(`The API rejected authentication; the API account may lack access to the ${api}`, code, [`Enable ${api} access for the API account in the tenant`]);
     }
     if (resourcePath !== undefined && status === 404) {
-      const match = /\/([A-Za-z]+)\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})(?=\/|$)/i.exec(resourcePath.split("?")[0]!);
-      if (match) {
-        const kind = match[1]!.replace(/s$/i, "");
-        throw new AxiError(redactor.text(`${kind[0]!.toUpperCase()}${kind.slice(1)} ${match[2]} was not found`), code, ["Check the ID; list the resource to find valid IDs"]);
+      const pathname = resourcePath.split("?")[0]!;
+      for (const [prefix, [kind, list, identifier]] of Object.entries(resourceErrors)) {
+        if (!pathname.startsWith(`${prefix}/`) || (prefix === "/v3/AuthorizationRequest" && method !== "GET")) continue;
+        const encodedId = pathname.slice(prefix.length + 1).split("/")[0]!;
+        if (identifier ? !identifier.test(encodedId) : !uuid.safeParse(encodedId).success) continue;
+        const id = new URLSearchParams(`id=${encodedId.replaceAll("+", "%2B")}`).get("id")!;
+        throw new AxiError(redactor.text(`${kind} ${id} was not found`), code, [list ? `Run beyondtrust-axi ${list} to find valid IDs` : "Check the task ID returned by the API"]);
       }
     }
     if (resourcePath !== undefined && status === 400) {
       // ProblemDetails text is untrusted: redact it, then cap it, so only the API's stated reason is surfaced.
       const problem = typeof data === "object" && data !== null ? data as Record<string, unknown> : {};
       const reason = [problem.message, problem.detail, problem.title].find((value): value is string => typeof value === "string" && value.trim() !== "");
-      if (reason !== undefined) throw new AxiError(`${message}: ${redactor.text(reason).replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300)}`, code, ["Check the command options and values"]);
+      throw new AxiError(reason === undefined ? message : `${message}: ${redactor.text(reason).replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300)}`, code, ["Check the command options and values"]);
     }
     // Other ProblemDetails text can echo credentials or tenant data; status owns the stable mapping.
     throw new AxiError(message, code, [status === 403 ? "Check the API account permissions" : "Check the profile and request; run beyondtrust-axi doctor"]);
@@ -215,7 +236,7 @@ export function readClient(profile: SelectedProfile, credentials: { clientId: st
       ])
         : options.csv ? `--${boundary}\r\nContent-Disposition: form-data; name="csvFile"; filename="computers.csv"\r\nContent-Type: text/csv\r\n\r\n${options.csv.toString("utf8")}\r\n--${boundary}--\r\n` : body === undefined ? undefined : JSON.stringify(body);
       const response = await exchange(`/management-api${path}`, method, { authorization: `Bearer ${token.value}`, accept: "application/json", "content-type": contentType }, payload);
-      if (response.status < 200 || response.status >= 300) failure(response.status, path, response.data);
+      if (response.status < 200 || response.status >= 300) failure(response.status, path, response.data, method);
       diagnostics?.record(response.status, response.headers, response.data);
       const assignment = method === "POST" && /^\/v3\/Groups\/(?:AssignPolicyToMultipleGroups|[0-9a-f-]{36}\/AssignPolicyRevision)$/.test(path);
       const unassignment = method === "POST" && path === "/v3/Groups/UnassignComputers" && response.status === 202;
