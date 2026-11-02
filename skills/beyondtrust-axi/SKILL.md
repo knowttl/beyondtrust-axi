@@ -1273,7 +1273,7 @@ Read computer command log (GET /v3/Computers/{id}/CommandLog).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1347,7 +1347,7 @@ Read group view (GET /v3/Groups/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1393,7 +1393,7 @@ Read policy view (GET /v3/Policies/{id}).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Only all is accepted: the export documents no row columns for this command |
 | --full | Show complete strings |
 | --help | Show command help |
 | --id | Required resource UUID |
@@ -1824,7 +1824,7 @@ Read event list ingested after --since: at most the first 1000 events, sorted ne
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |
@@ -1845,7 +1845,7 @@ Read event search (GET /v3/Events/search).
 |---|---|
 | --config | Configuration file path (default: platform config directory) |
 | --profile | Named file profile (default: selection precedence) |
-| --fields | Comma-separated row columns to keep, or all (default: all); see fields in --help |
+| --fields | Comma-separated row columns to keep, or all (default: all); see fields (compact) and fullFields (--full) in --help |
 | --full | Show complete redacted ECS event objects instead of compact columns |
 | --help | Show command help |
 | --limit | Maximum rows, 1-1000 (default: 50) |

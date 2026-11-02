@@ -264,3 +264,23 @@ test("an unknown command lists the valid commands", async () => {
   expect(result.output).toContain("Valid commands: ");
   expect(result.output).toContain("event search");
 });
+
+test.each([
+  ["group", "view"], ["policy", "view"], ["computer", "command-log"],
+])("%s %s rejects --fields because the export documents no row columns", async (group, action) => {
+  const f = fixture(); f.env.BEYONDTRUST_AXI_CONFIG = "/missing/config.json";
+  const cloud = fakeCloud();
+  const result = await f.run([group, action, "--id", id, "--fields", "hostname"], {}, cloud);
+  expect(result.code).toBe(2);
+  expect(result.data).toMatchObject({ error: { code: "VALIDATION_ERROR", message: expect.stringMatching(/^--fields is not supported for .*no row columns/) } });
+  expect(cloud.calls).toHaveLength(0);
+  const help = await f.run([group, action, "--help"], {}, cloud);
+  expect(help.data.fields).toBeUndefined();
+  expect(help.data.flags).toMatchObject({ fields: expect.stringMatching(/^Only all is accepted/) });
+});
+
+test("group view --fields all is accepted", async () => {
+  const f = fixture();
+  const result = await f.run(["group", "view", "--id", id, "--fields", "all"], {}, fakeCloud(response(token), response({ id, name: "example" })));
+  expect(result.data.data).toEqual({ id, name: "example" });
+});

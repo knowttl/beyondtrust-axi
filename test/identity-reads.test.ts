@@ -211,3 +211,12 @@ test.each([
   const result = await f.run(command.split(" "), {}, fakeCloud(response(token), response(body)));
   expect(result.data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
 });
+
+test.each([["list"], ["show", "--id", "00000000-0000-0000-0000-000000000001"]])("scim user %s does not offer the removed password column", async (action, ...rest) => {
+  const f = fixture();
+  const help = await f.run(["scim", "user", action, "--help"], {}, fakeCloud());
+  expect(help.data.fields).not.toContain("password");
+  const result = await f.run(["scim", "user", action, ...rest, "--fields", "password"], {}, fakeCloud());
+  expect(result.code).toBe(2);
+  expect(result.data).toMatchObject({ error: { message: expect.stringMatching(/^Unknown field "password"/) } });
+});
