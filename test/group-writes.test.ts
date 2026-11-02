@@ -19,7 +19,7 @@ function fixture(command: string) {
 afterEach(() => { for (const f of fixtures.splice(0)) f.cleanup(); });
 // Synthetic fixtures cite inventory/swagger.json: GET /v3/Groups/{id}, GET /v3/Groups,
 // GET /v3/Computers/{id}, GET /v3/Computers, and the ten write method/path pairs below.
-const group = (value = id, name = "example") => response({ id: value, name, description: "example description", policyRevisionId: revision, policyName: "example policy" });
+const group = (value = id, name = "example") => response({ id: value, name, description: "example description", policyId: other, policyName: "example policy", revision: 12 });
 const computer = (value = other) => response({ id: value, endpointInformation: { systemDnsHostName: "example" } });
 const count = (total: number) => response({ pageNumber: 1, pageSize: 20, totalRecordCount: total, pageCount: Math.ceil(total / 20), data: Array.from({ length: Math.min(20, total) }, () => ({ id: other, host: "example" })) });
 
@@ -121,7 +121,14 @@ test.each([
 test("clear-policy names the policy lost by endpoints", async () => {
   const f = fixture("clear-policy");
   const result = await f.run(["group", "clear-policy", id], {}, fakeCloud(response(token), group()));
-  expect(result.data.preview).toMatchObject({ groups: [{ policyName: "example policy", policyRevisionId: revision }], warning: expect.stringContaining("lose") });
+  expect(result.data.preview).toMatchObject({ groups: [{ policyName: "example policy", policyId: other, revision: 12 }], warning: expect.stringContaining("lose") });
+});
+
+test("clear-policy accepts an unassigned group alongside an assigned one", async () => {
+  const f = fixture("clear-policy");
+  const unassigned = response({ id: other, name: "example", policyId: null, policyName: null, revision: 1 });
+  const preview = await f.run(["group", "clear-policy", id, other], {}, fakeCloud(response(token), group(), unassigned));
+  expect(preview.data.preview).toMatchObject({ groups: [{ policyName: "example policy" }, { policyId: null, policyName: null }], request: { groupIds: [id, other] } });
 });
 
 test.each(["update", "set-default", "assign-policy", "clear-policy"])("refuses %s when group state changes after preview", async (command) => {
@@ -221,10 +228,20 @@ test.each(["forced", "operation", "disabled", "env"])("denies %s group writes be
   expect(cloud.calls).toHaveLength(0);
 });
 
-test.each(["group", "missing-policy-name", "update-fields"])("rejects invalid re-read: %s", async (kind) => {
+test.each([
+  ["missing-policy-name", { id, policyId: other }, "policyName"],
+  ["missing-policy-id", { id, policyName: "example policy" }, "policyId"],
+])("rejects clear-policy re-read: %s", async (_kind, detail, field) => {
+  const f = fixture("clear-policy");
+  const cloud = fakeCloud(response(token), response(detail));
+  expect((await f.run(["group", "clear-policy", id], {}, cloud)).data).toMatchObject({ error: { code: "API_RESPONSE_INVALID", message: expect.stringContaining(field) } });
+  expect(cloud.calls).toHaveLength(2);
+});
+
+test.each(["group", "update-fields"])("rejects invalid re-read: %s", async (kind) => {
   const command = kind === "update-fields" ? "update" : "clear-policy";
   const f = fixture(command);
-  const detail = kind === "group" ? { id: other } : { id, policyRevisionId: revision };
+  const detail = kind === "group" ? { id: other } : { id, policyId: null };
   const cloud = fakeCloud(response(token), response(detail));
   expect((await f.run(["group", command, id, ...(command === "update" ? ["--name", "changed"] : [])], {}, cloud)).data).toMatchObject({ error: { code: "API_RESPONSE_INVALID" } });
   expect(cloud.calls).toHaveLength(2);

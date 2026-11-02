@@ -16,9 +16,9 @@ export const groupWrites: Record<string, { method: "POST" | "PUT" | "PATCH"; pat
 };
 const uuid = z.string().regex(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
 const text = z.string().nullable();
-const groupSchema = z.object({ id: uuid, name: text.optional(), description: text.optional(), policyId: uuid.nullable().optional(), policyRevisionId: uuid.nullable().optional(), policyName: text.optional() });
+const groupSchema = z.object({ id: uuid, name: text.optional(), description: text.optional(), policyId: uuid.nullable().optional(), policyName: text.optional(), revision: z.number().int().nullable().optional() });
 function invalid(message: string): never { throw new AxiError(message, "VALIDATION_ERROR", ["Run the command with --help"]); }
-function badRead(): never { throw new AxiError("Invalid group re-read", "API_RESPONSE_INVALID"); }
+function badRead(field?: string): never { throw new AxiError(field ? `Invalid group re-read: missing ${field}` : "Invalid group re-read", "API_RESPONSE_INVALID", ["Re-run the command; if it persists the tenant returned an unexpected group shape"]); }
 
 export function prepareGroupWrite(command: string, inputIds: string[], flags: Map<string, string>) {
   const routes = groupWrites[command];
@@ -82,7 +82,10 @@ export function prepareGroupWrite(command: string, inputIds: string[], flags: Ma
       }
       if (command === "group assign-policy") body = { policyRevisionId: revision, ...(groupIds.length > 1 ? { groupIds } : {}) };
       if (command === "group clear-policy") {
-        if (groups.some((group) => group.policyRevisionId === undefined || (group.policyRevisionId !== null && !group.policyName))) badRead();
+        for (const group of groups) {
+          if (group.policyId === undefined) badRead("policyId");
+          if (group.policyId !== null && !group.policyName) badRead("policyName");
+        }
         if (groupIds.length > 1) body = { groupIds };
       }
       if (selection) body = selection.query ? { allComputers: true, filter: selection.filter } : { allComputers: false, [remove ? "selectionComputerIds" : "computerIds"]: selection.ids };
