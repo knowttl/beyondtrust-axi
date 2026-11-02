@@ -418,3 +418,10 @@ test("event search keeps the capped-total warning when --fields selects row colu
   expect(result.data).toMatchObject({ data: [{ time: expect.any(String) }], total: 10000 });
   expect(result.data.help).toContain("total is capped at 10000 by the API and is a lower bound");
 });
+
+test.each(["list", "search"])("event %s help lists compact and --full columns", async (action) => {
+  const result = await fixture().run(["event", action, "--help"], {}, fakeCloud());
+  expect(result.data.fields).toEqual(["time", "host", "user", "action", "code", "application", "rule"]);
+  expect(result.data.fullFields).toEqual(expect.arrayContaining(["@timestamp", "host", "event"]));
+  expect(result.data.fullFields).not.toContain("time");
+});

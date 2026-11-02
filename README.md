@@ -270,7 +270,9 @@ All data, errors and next-step hints use TOON on stdout.
 Write previews omit send-only fields such as auditId and result rather than displaying them as null.
 Sent write results omit preview-only fields preview, confirmation and deleteConfirmation rather than displaying them as null.
 Strings truncate at 500 characters by default except for write previews, confirmations and results, and [download success metadata](docs/downloads.md); --full restores complete strings.
-On resource reads, --fields selects row columns (for example --fields id,host) and keeps count, total, cursor and help; --fields all is the default, and each command's --help lists its fields.
+On resource reads, --fields selects row columns (for example --fields id,host) and keeps count, total, cursor and help; --fields all is the default.
+Column names are validated against the command's --help fields; commands without documented row columns accept only --fields all.
+For events, --help lists compact columns in fields and ECS columns for --full in fullFields.
 Other commands use --fields to select top-level output fields.
 Bare --version, -v and -V print the package version without loading the command graph.
 

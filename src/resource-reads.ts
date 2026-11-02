@@ -87,7 +87,8 @@ function rowColumns(path: string, list: boolean, events: boolean, full: boolean)
   const response = schema && resolved(schema);
   const row = !list ? response : response?.type === "array" ? response.items : response?.properties?.[events ? "events" : response?.properties?.Resources ? "Resources" : "data"]?.items;
   const properties = row && resolved(row).properties;
-  return properties ? Object.keys(properties) : undefined;
+  // Credential properties are removed from responses before projection, so they are never selectable.
+  return properties ? Object.keys(properties).filter((key) => !credentialFields.has(key)) : undefined;
 }
 function filterFlag(name: string): string { return name.slice(7).replace(/([a-z0-9])([A-Z])/g, "$1-$2").replaceAll(".", "-").toLowerCase(); }
 const eventFilters: Record<string, string> = { group: "ComputerGroups", os: "OperatingSystem", action: "Events.EventAction", code: "Events.EventCode", type: "Events.EventType", "app-type": "Application.ApplicationType", host: "Computers.HostName", domain: "Computers.HostDomain", user: "Users.UserName", "user-domain": "Users.UserDomain", workstyle: "Policies.WorkstyleName", "app-group": "Policies.ApplicationGroupName", "on-demand": "Policies.OnDemandRule" };
@@ -103,7 +104,8 @@ export function resourceReadDefinition(command: string, path: string) {
   const envelope = !!response?.properties?.pageNumber;
   const list = events || paged || envelope || scimList || response?.type === "array" || (!response && !command.endsWith(" view") && !command.endsWith(" show"));
   const filters = (operation.parameters ?? []).filter((p) => p.name.startsWith("Filter."));
-  const flags: Record<string, string> = { fields: "Comma-separated row columns to keep, or all (default: all); see fields in --help" };
+  const fields = rowColumns(path, list, events, false);
+  const flags: Record<string, string> = { fields: fields ? `Comma-separated row columns to keep, or all (default: all); see fields${events ? " (compact) and fullFields (--full)" : ""} in --help` : "Only all is accepted: the export documents no row columns for this command" };
   if (pathParameter) flags.id = `Required resource ${pathParameter.schema.format === "uuid" ? "UUID" : pathParameter.schema.format ?? pathParameter.schema.type}`;
   if (list) Object.assign(flags, { limit: "Maximum rows, 1-1000 (default: 50)", all: "Read up to 1000 rows within 10 requests, 60 seconds and 8 MiB", cursor: "Resume an opaque cursor with the same profile, command and filters" });
   if (paged && !events && command !== "computer list") flags.sort = `Sort property and order, e.g. ${sortKeys[path] ? `created:desc; keys: ${sortKeys[path].join(", ")}` : "name:asc"} (default: ${defaultResourceSort(path) ?? "API order"})`;
@@ -120,7 +122,7 @@ export function resourceReadDefinition(command: string, path: string) {
   if (scimPaged) flags.filter = "SCIM filter expression (sent literally)";
   const variants = command === "scim resource-types" ? { user: `${path}/User`, role: `${path}/Role` } : undefined;
   for (const p of filters) flags[filterFlag(p.name)] = `Filter ${p.name.slice(7).replaceAll(".", " ")} (${resolved(p.schema).enum?.join("|") ?? resolved(p.schema).type}${resolved(p.schema).type === "array" ? "; comma-separated" : ""})`;
-  return { path, variants, fields: rowColumns(path, list, events, false), paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${command === "event list" ? " ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times" : ""}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
+  return { path, variants, fields, ...(events ? { fullFields: rowColumns(path, list, events, true) } : {}), paged, envelope, events, pathParameter, scimPaged, scimList, list, filters, flags, description: `Read ${command.replaceAll("-", " ")}${command === "event list" ? " ingested after --since: at most the first 1000 events, sorted newest first by event time, not a time-bounded history; use event search for events on a host between two times" : ""}${variants ? "; optional positional type: user|role (default: list all resource types)" : ""} (GET ${path}${variants ? "[/User|/Role]" : ""})`, examples: [`beyondtrust-axi ${command}${pathParameter ? ` --id <${pathParameter.schema.format ?? pathParameter.schema.type}>` : ""}${command === "event search" ? " --os Windows" : ""}`, ...(variants ? [`beyondtrust-axi ${command} user`, `beyondtrust-axi ${command} role`] : []), `beyondtrust-axi ${command} --help`] };
 }
 
 function invalidFilter(flag: string, schema: Schema): never {
@@ -169,8 +171,9 @@ export function prepareResourceRead(command: string, flags: Map<string, string>,
   let selected: Set<string> | undefined;
   if (requested !== undefined && requested !== "all") {
     const names = requested.split(",");
-    const unknown = columns && names.find((name) => !columns.includes(name));
-    if (unknown !== undefined) usage(`Unknown field "${unknown}"; valid fields: ${columns!.join(", ")}`);
+    if (!columns) usage(`--fields is not supported for ${command}: the export documents no row columns; omit --fields or use all`);
+    const unknown = names.find((name) => !columns.includes(name));
+    if (unknown !== undefined) usage(`Unknown field "${unknown}"; valid fields: ${columns.join(", ")}`);
     selected = new Set(names);
   }
   const project = (row: unknown) => selected && row && typeof row === "object" ? Object.fromEntries(Object.entries(row).filter(([key]) => selected.has(key))) : row;
