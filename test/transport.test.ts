@@ -150,3 +150,98 @@ test("enforces elapsed time before another request", async () => {
 test("transport errors never expose dependency messages", async () => {
   await expect(client({ request: async () => { throw new Error(credentials.clientSecret); } }).get("/v3/About")).rejects.toMatchObject({ code: "TRANSPORT_ERROR", message: "HTTPS request failed" });
 });
+
+const id = "22222222-2222-4222-8222-222222222222";
+
+test.each([[400], [401]])("a token %i with error invalid_client reports the client credentials", async (status) => {
+  await expect(client(fakeCloud(response({ error: "invalid_client" }, status))).get("/v3/About")).rejects.toMatchObject({ code: "AUTH_FAILED", suggestions: [expect.stringContaining("clientSecret")] });
+});
+
+test("a 401 after a successful token exchange and refresh names the missing API access", async () => {
+  const cloud = fakeCloud(response(token), response({}, 401), response(token), response({}, 401));
+  await expect(client(cloud).get("/scim/v3/users")).rejects.toMatchObject({ code: "AUTH_FAILED", message: expect.stringContaining("SCIM API"), suggestions: [expect.not.stringContaining("doctor")] });
+});
+
+test("a 400 includes the API reason, redacted and capped", async () => {
+  await expect(client(fakeCloud(response(token), response({ message: "id is not correct sorting field", exceptionType: null, stackTrace: null }, 400))).get("/v3/ActivityAudits")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: expect.stringContaining("id is not correct sorting field"), suggestions: [expect.not.stringContaining("doctor")] });
+  const secret = await client(fakeCloud(response(token), response({ title: `bad ${credentials.clientSecret} ${"x".repeat(1000)}` }, 400))).get("/v3/ActivityAudits").then(() => "", (caught: Error) => caught.message);
+  expect(secret).not.toContain(credentials.clientSecret);
+  expect(secret).toContain("***redacted***");
+  expect(secret.length).toBeLessThan(400);
+});
+
+test.each([
+  [`/v3/Computers/${id}`, `Computer ${id}`, "computer list"],
+  [`/v3/Computers/${id}/CommandLog`, `Computer ${id}`, "computer list"],
+  [`/v3/Computers/Logs/${id}/Content`, `Computer log ${id}`, "computer logs --id <computer-id>"],
+  [`/v3/Groups/${id}`, `Group ${id}`, "group list"],
+  [`/v3/Policies/${id}`, `Policy ${id}`, "policy list"],
+  [`/v3/Policies/${id}/Revisions`, `Policy ${id}`, "policy list"],
+  [`/PolicyEditor/v3/Policy/${id}/Windows/ApplicationGroups`, `Policy ${id}`, "policy list"],
+  [`/PolicyEditor/v3/Policy/${id}/MacOS/ApplicationGroups`, `Policy ${id}`, "policy list"],
+  [`/v3/Users/${id}`, `User ${id}`, "user list"],
+  [`/scim/v3/users/${id}`, `SCIM user ${id}`, "scim user list"],
+  [`/v3/Roles/${id}`, `Role ${id}`, "role list"],
+  [`/v3/GlobalRoles/${id}`, `Global role ${id}`, "global-role list"],
+  [`/v3/AcceptedDomains/${id}`, `Domain ${id}`, "domain list"],
+  ["/v3/ActivityAudits/42", "Activity audit 42", "audit activity list"],
+  ["/v3/AuthorizationRequestAudits/42", "Authorization request audit 42", "audit auth-request list"],
+  [`/v3/AdminAccessRequest/${id}`, `Admin request ${id}`, "admin-request list"],
+  ["/v3/AuthorizationRequest/endpoint-name", "Authorization request endpoint-name", "auth-request list"],
+  ["/v3/AuthorizationRequest/endpoint%2Fname%2B1?ignored=42", "Authorization request endpoint/name+1", "auth-request list"],
+])("a 404 identifies the requested resource at %s and its list command", async (path, resource, list) => {
+  await expect(client(fakeCloud(response(token), response({}, 404))).get(path!)).rejects.toMatchObject({ code: "NOT_FOUND", message: `${resource} was not found`, suggestions: [`Run beyondtrust-axi ${list} to find valid IDs`] });
+});
+
+test.each(["", "{", "{}", '{"message":" ","detail":"\\t","title":""}'])("a resource 400 without a usable reason gives parameter guidance: %j", async (body) => {
+  const cloud = fakeCloud(response(token), { status: 400, headers: new Headers(), body: (async function* () { yield Buffer.from(body); })() });
+  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: "The API rejected the request", suggestions: ["Check the command options and values"] });
+});
+
+test("an unreadable resource 400 body retains parameter guidance", async () => {
+  const cloud = fakeCloud(response(token), { status: 400, headers: new Headers(), body: (async function* () { yield Buffer.from('{"message":"partial"}'); throw new Error("connection closed"); })() });
+  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: "The API rejected the request", suggestions: ["Check the command options and values"] });
+});
+
+test.each([
+  [400, { code: "API_BAD_REQUEST", suggestions: ["Check the command options and values"] }],
+  [404, { code: "NOT_FOUND", message: `Policy revision ${id} was not found`, suggestions: ["Run beyondtrust-axi policy revisions --id <policy-id> to find valid IDs"] }],
+] as const)("download failures identify the policy revision or rejected parameters: %i", async (status, expected) => {
+  const cloud = fakeCloud(response(token), response({}, status));
+  await expect(client(cloud).download(`/v3/Policies/PolicyRevision/${id}/Content`, async () => {})).rejects.toMatchObject(expected);
+});
+
+test.each([
+  [400, { code: "API_BAD_REQUEST", suggestions: ["Check the command options and values"] }],
+  [404, { code: "NOT_FOUND", message: `Policy ${id} was not found`, suggestions: ["Run beyondtrust-axi policy list to find valid IDs"] }],
+] as const)("write failures identify the policy or rejected parameters: %i", async (status, expected) => {
+  const api = client(fakeCloud(response(token), response([]), response({}, status)));
+  await api.get(`/v3/Policies/${id}`);
+  await expect(api.write(`/v3/Policies/${id}`, {}, { method: "PUT" })).rejects.toMatchObject(expected);
+});
+
+test("a task 404 identifies the task without suggesting a nonexistent list command", async () => {
+  await expect(client(fakeCloud(response(token), response({}, 404))).get(`/v3/Tasks/${id}`)).rejects.toMatchObject({ code: "NOT_FOUND", message: `Task ${id} was not found`, suggestions: ["Check the task ID returned by the API"] });
+});
+
+test("a notification endpoint 404 is not mistaken for an authorization request ID", async () => {
+  const api = client(fakeCloud(response(token), response([]), response({}, 404)));
+  await api.get("/v3/About");
+  await expect(api.write("/v3/AuthorizationRequest/notification", {})).rejects.toMatchObject({ code: "NOT_FOUND", message: "The requested resource was not found" });
+});
+
+test.each([1024, 4096, 65536, 131072])("a chunked 400 retains its redacted API reason with %i-byte chunks", async (chunkSize) => {
+  const body = Buffer.from(JSON.stringify({ message: `Invalid field ${credentials.clientSecret}`, stackTrace: "x".repeat(64 * 1024) }));
+  const cloud = fakeCloud(response(token), { status: 400, headers: new Headers(), body: (async function* () { for (let offset = 0; offset < body.length; offset += chunkSize) yield body.subarray(offset, offset + chunkSize); })() });
+  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: "The API rejected the request: Invalid field ***redacted***" });
+});
+
+test.each([400, 401])("a chunked token %i retains invalid_client classification", async (status) => {
+  const cloud = fakeCloud({ status, headers: new Headers(), body: (async function* () { yield Buffer.from('{"error":"invalid_client","padding":"'); yield Buffer.from("x".repeat(64 * 1024)); yield Buffer.from('"}'); })() });
+  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "AUTH_FAILED", suggestions: ["Check the profile clientId and clientSecret; the API account secret may have been regenerated"] });
+});
+
+test("an oversized error body keeps the resource status and parameter guidance", async () => {
+  const cloud = fakeCloud(response(token), response({ message: "x".repeat(1024 * 1024) }, 400));
+  await expect(client(cloud).get("/v3/About")).rejects.toMatchObject({ code: "API_BAD_REQUEST", message: "The API rejected the request", suggestions: ["Check the command options and values"] });
+});

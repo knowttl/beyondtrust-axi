@@ -67,7 +67,7 @@ test.each(["forced", "operation", "disabled", "env"])("denies %s identity writes
   if (gate === "env") Object.assign(f.env, { BEYONDTRUST_AXI_HOST: "example.pm.beyondtrustcloud.com", BEYONDTRUST_AXI_CLIENT_ID: "example", BEYONDTRUST_AXI_CLIENT_SECRET: "example-secret" });
   f.save();
   const cloud = fakeCloud();
-  expect((await f.run(["user", "enable", id], {}, cloud)).data).toMatchObject({ error: { code: "WRITES_DISABLED" } });
+  expect((await f.run(["user", "enable", id], {}, cloud)).data).toMatchObject({ error: { code: "WRITES_DISABLED" }, help: [expect.stringContaining("\"user.enable\"")] });
   expect(cloud.calls).toHaveLength(0);
 });
 

@@ -178,7 +178,7 @@ Tokens stay in memory for one command, using OAuth2 client credentials with form
 Resource reads share a budget of 10 requests including authentication and 60 seconds; JSON responses share an 8 MiB cap.
 For home's smaller startup budget, see [Quickstart](#quickstart).
 Downloads require a named file profile with downloads.allow enabled and a new --out path.
-They stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
+Successful downloads stream raw bytes without parsing or printing the body, with a separate 50 MiB content cap and the same request and time budgets.
 The destination is created exclusively with mode 0600 on POSIX; existing files and symlinks are refused.
 For failure cleanup, Windows file protections and platform verification limits, see [Downloads](docs/downloads.md).
 Success reports path, size in bytes, sha256 and contentType.
@@ -187,8 +187,9 @@ One token re-exchange is permitted on read 401 or within 30 seconds of expiry.
 Resource read 429 retries at most twice, honoring valid Retry-After delays up to 10 seconds and refusing longer or malformed values; a missing header uses one second.
 Token exchanges are not retried.
 Non-success HTTP responses use status and headers for stable error codes.
-GET 400 responses may append a redacted API message limited to 200 characters, after a best-effort JSON body read capped at 4 KiB and two seconds.
-Other non-success responses are handled without waiting for or parsing their bodies.
+HTTP 400 responses and token endpoint 401 responses read JSON error bodies up to a separate 1 MiB per-response cap and two seconds; unreadable, invalid or oversized bodies retain status-based errors.
+For resource error messages and recovery guidance, see [Troubleshooting](#troubleshooting).
+Other non-success responses are handled from status and headers without waiting for or parsing their bodies.
 Environment profiles cannot enable writes, deletes or downloads.
 File profile permissions default to deny: downloads.allow, writes.allowWrites and writes.allowDeletes are false, with an empty operation list.
 BEYONDTRUST_AXI_READ_ONLY=1 or true overrides write permissions; invalid values fail closed.
@@ -284,7 +285,9 @@ Bare --version, -v and -V print the package version without loading the command 
 | CONFIG_INSECURE | Apply the private file protections in the configuration guide. |
 | AUTH_REQUIRED | Supply the selected secret source; never put it in argv. |
 | AUTH_ENDPOINT_NOT_FOUND | Check the configured host against the documented -services form; the tool never changes hosts. |
-| AUTH_FAILED | Check API account credentials and secret rotation. |
+| AUTH_FAILED | Token endpoint 400/401 with invalid_client: check the profile clientId and clientSecret; the secret may have been regenerated. Resource 401: check the API account's access to the named Management, SCIM or Policy Editor API. |
+| API_BAD_REQUEST | For resource requests, check command options and values against the returned API reason, when available. |
+| NOT_FOUND | For a recognized resource-ID route, follow the returned resource-list command to find valid IDs; for tasks, check the ID returned by the API. |
 | API_FORBIDDEN | Check API account permissions. |
 | REDIRECT_REFUSED | Verify the configured host; redirects are never followed. |
 | RATE_LIMITED | Retry later; automatic read retries are bounded. |
@@ -293,7 +296,7 @@ Bare --version, -v and -V print the package version without loading the command 
 | API_RESPONSE_INVALID, AUTH_RESPONSE_INVALID | Check API compatibility with the committed export using the bounded response diagnostics. |
 | DOWNLOADS_DISABLED | Enable downloads.allow in a named file profile. |
 | DOWNLOAD_FILE_ERROR | Check destination permissions and free space; follow [partial-file cleanup guidance](docs/downloads.md) before retrying with a new --out path. |
-| WRITES_DISABLED | Check forced read-only, named file profile permission and the exact operation allow-list. |
+| WRITES_DISABLED | Check forced read-only and writes.allowWrites in a named file profile; the help names the exact operation to add to writes.operations. |
 | CONFIRMATION_REQUIRED | Preview again and copy the exact confirmation after checking the targets and count. |
 | DELETES_DISABLED | Enable writes.allowDeletes in a named file profile with the exact delete operation allowed. |
 | DELETE_CONFIRM_REQUIRED | Preview again and copy deleteConfirmation exactly into --confirm-delete. |
@@ -301,6 +304,8 @@ Bare --version, -v and -V print the package version without loading the command 
 | OUTCOME_UNKNOWN | Use auditId to reconcile remote state; do not replay the request. |
 | VALIDATION_ERROR | Follow the returned valid command/flag list. |
 
+Resource 400 errors use the first nonblank message, detail or title from the API, redacted before whitespace normalization and a 300-character cap; without a usable reason, they retain the generic rejection message and command-option guidance.
+Recognized resource-ID 404 errors name the requested resource kind and redacted ID.
 API and token response validation failures include structured diagnostics beside the stable error message.
 See the [response diagnostics contract](docs/response-diagnostics.md) for HTTP metadata, sampled response shapes, issue-level received and expected types, key redaction and truncation limits.
 Use this evidence to investigate compatibility; it does not establish the cause of a live mismatch.
