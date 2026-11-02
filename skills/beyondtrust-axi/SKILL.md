@@ -482,7 +482,7 @@ npx -y @knowttl/beyondtrust-axi domain update --help
 
 ## scim user create
 
-Preview scim user create; POST /scim/v3/users; requires file-profile permission for scim.user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Deactivation is identified in the preview..
+Preview scim user create; POST /scim/v3/users; requires file-profile permission for scim.user.create; validates input and re-reads before exact confirmation, durable redacted intent and one send without retries. Inactive creation is identified in the preview when active is false..
 
 | Flag | Meaning |
 |---|---|
